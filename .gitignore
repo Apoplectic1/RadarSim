@@ -1,0 +1,169 @@
+###############################################################################
+# Visual Studio
+###############################################################################
+.vs/
+.vscode/
+*.opensdf
+*.suo
+*.user
+*.sdf
+*.tlog
+*.ipch
+*.idb
+*.opendb
+*.VC.db
+*.VC.opendb
+*.log
+*.dir
+*.ilk
+*.pdb
+*.exp
+*.lib
+*.obj
+*.exe
+
+###############################################################################
+# Qt-specific
+###############################################################################
+*.pro.user
+*.qmake.stash
+*.qmake.cache
+
+# Generated MOC/UIC/RCC files
+moc_*.cpp
+moc_*.h
+ui_*.h
+qrc_*.cpp
+
+# Qt Resources 
+*.qrc
+
+###############################################################################
+# Build output directories
+###############################################################################
+build/
+Build/
+Debug/
+Release/
+x64/
+x86/
+x64/Debug/
+x64/Release/
+x86/Debug/
+x86/Release/
+
+###############################################################################
+# CMake artifacts (if using CMake)
+###############################################################################
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Testing/
+cmake_install.cmake
+CTestTestfile.cmake
+CMakeLists.txt.user
+CMakeLists.txt.user.*
+
+###############################################################################
+# OS / Editor / Backup Clutter
+###############################################################################
+*~         # Backup files, e.g. filename~
+#*#        # Auto-save files, e.g. #filename#
+.#*        # Lock files, e.g. .#filename
+
+*.swp
+*.bak
+*.tmp
+.DS_Store
+Thumbs.db
+
+
+# Visual Studio specific files
+.vscode/
+.vs/
+*.opensdf
+*.suo
+*.user
+*.log
+*.sdf
+*.tlog
+*.ipch
+*.idb
+*.opendb
+*.VC.db
+*.VC.opendb
+*.db
+*.dir
+*.ilk
+*.pdb
+*.exp
+*.lib
+*.obj
+*.exe
+*.idb
+
+# Qt Creator specific files (if used alongside Visual Studio)
+*.pro.user
+*.qmake.stash
+*.qmake.cache
+
+# Build directories
+build/
+Build/
+Debug/
+Release/
+x64/Debug/
+x64/Release/
+x86/Debug/
+x86/Release/
+
+# Generated Files (uic, moc, rcc)
+*.moc
+*.o
+*.obj
+moc_*.cpp
+moc_*.h
+ui_*.h
+qrc_*.cpp
+
+# Qt-specific directories
+*.qrc
+*.qmlc
+*.qml
+*.qbs
+*.qbs.user
+
+# CMake specific files (if applicable)
+CMakeLists.txt.user
+CMakeLists.txt.user.*
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Testing/
+cmake_install.cmake
+CTestTestfile.cmake
+
+# VS CMake specific output locations
+out/
+out/build/
+out/install/
+.vs/
+CMakeSettings.json
+
+# CMake generated files in the source directory 
+CMakeFiles/
+cmake-build-*/
+*_autogen/
+*_artefacts/
+compile_commands.json
+.cmake/
+_deps/
+
+# Backup and temporary files
+*~
+*.swp
+*.bak
+*.tmp
+*.log
+*.DS_Store
+Thumbs.db
