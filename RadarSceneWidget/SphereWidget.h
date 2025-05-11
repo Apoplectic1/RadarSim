@@ -2,7 +2,7 @@
 
 #pragma once
 #include "RadarBeam.h"
-#include <QOpenGLWidget>
+#include <QtOpenGLWidgets/QOpenGLWidget>
 #include <QOpenGLFunctions_3_3_Core>
 #include <QOpenGLShaderProgram>
 #include <QOpenGLBuffer>
@@ -25,6 +25,7 @@ public:
     ~SphereWidget() override;
 
     void setRadius(float r);
+    float getRadius() const { return radius_; }
     void setAngles(float theta, float phi);
     float getTheta() const { return theta_; }
     float getPhi() const { return phi_; }

@@ -22,7 +22,7 @@
 // Constructor
 RadarSim::RadarSim(QWidget* parent)
     : QMainWindow(parent),
-    sphereView_(nullptr),
+    radarSceneView_(nullptr),
     radiusSlider_(nullptr),
     thetaSlider_(nullptr),
     phiSlider_(nullptr),
@@ -68,14 +68,22 @@ void RadarSim::setupUI() {
 }
 
 void RadarSim::setupTabs() {
-    // ************************************************************************************************
-    // Create the tab widgets
-    // ************************************************************************************************
+/*
+    1. We create frames without parents first, then add them to the splitter later
+    2. We use setStretchFactor() instead of setSizes() for safer sizing
+    3. We set appropriate size policies on the frames to help with proper sizing
+    4. We add frames to the splitter only after all their contents are fully set up
+    5. We maintain a clean hierarchy of ownership by being careful about parent-child relationships
+*/
+
+    qDebug() << "Starting setupTabs() - Full Implementation";
+
+    // Create tab widgets with proper parent
     configTabWidget_ = new QWidget(tabWidget_);
     radarSceneTabWidget_ = new QWidget(tabWidget_);
     physicsTabWidget_ = new QWidget(tabWidget_);
 
-    // Add tabs to the tab widget
+    // Add tabs
     tabWidget_->addTab(configTabWidget_, "Configuration");
     tabWidget_->addTab(radarSceneTabWidget_, "Radar Scene");
     tabWidget_->addTab(physicsTabWidget_, "Physics Analysis");
@@ -83,6 +91,7 @@ void RadarSim::setupTabs() {
     // ************************************************************************************************
     // Setup Configuration Tab
     // ************************************************************************************************
+
     QVBoxLayout* configLayout = new QVBoxLayout(configTabWidget_);
 
     // Create a group box for simulation settings
@@ -138,40 +147,43 @@ void RadarSim::setupTabs() {
     configButtonsLayout->addWidget(saveConfigButton);
     configLayout->addLayout(configButtonsLayout);
 
-	// ************************************************************************************************
+    // ************************************************************************************************
     // Setup Radar Scene Tab
-	// ************************************************************************************************
+    // ************************************************************************************************
+
     QVBoxLayout* radarSceneLayout = new QVBoxLayout(radarSceneTabWidget_);
     radarSceneLayout->setContentsMargins(4, 4, 4, 4);
     radarSceneLayout->setSpacing(0);
 
-    // Create a splitter for the radar scene
-    QSplitter* radarSplitter = new QSplitter(Qt::Vertical, radarSceneTabWidget_);
-    radarSceneLayout->addWidget(radarSplitter);
+    // Create splitter
+    radarSplitter_ = new QSplitter(Qt::Vertical, radarSceneTabWidget_);
+    radarSceneLayout->addWidget(radarSplitter_);
 
-    // Create a frame for the 3D view
-    QFrame* sphereFrame = new QFrame(radarSplitter);
+    // Create frames first without parent
+    QFrame* sphereFrame = new QFrame();
     sphereFrame->setFrameStyle(QFrame::StyledPanel | QFrame::Sunken);
+    sphereFrame->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+    QFrame* controlsFrame = new QFrame();
+    controlsFrame->setFrameStyle(QFrame::StyledPanel);
+    controlsFrame->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+
+    // Setup layouts for frames
     QVBoxLayout* sphereFrameLayout = new QVBoxLayout(sphereFrame);
     sphereFrameLayout->setContentsMargins(1, 1, 1, 1);
 
-    // Add the SphereWidget to the frame
-    sphereView_ = new SphereWidget(sphereFrame);
-    sphereView_->setMinimumSize(800, 500);
-    sphereFrameLayout->addWidget(sphereView_);
-
-    // Add the frame to the splitter
-    radarSplitter->addWidget(sphereFrame);
-
-    // Create a frame for controls
-    QFrame* controlsFrame = new QFrame(radarSplitter);
-    controlsFrame->setFrameStyle(QFrame::StyledPanel);
     QVBoxLayout* controlsFrameLayout = new QVBoxLayout(controlsFrame);
     controlsFrameLayout->setContentsMargins(4, 4, 4, 4);
 
-    // Create the controls group
+    // Create RadarSceneWidget
+    radarSceneView_ = new RadarSceneWidget(sphereFrame);
+    radarSceneView_->setMinimumSize(800, 500);
+    sphereFrameLayout->addWidget(radarSceneView_);
+
+    // Create controls group
     QGroupBox* controlsGroup = new QGroupBox("Radar Controls", controlsFrame);
     QVBoxLayout* controlsLayout = new QVBoxLayout(controlsGroup);
+    controlsFrameLayout->addWidget(controlsGroup);
 
     // Radius controls
     QLabel* radiusLabel = new QLabel("Sphere Radius", controlsGroup);
@@ -197,14 +209,12 @@ void RadarSim::setupTabs() {
     QHBoxLayout* thetaLayout = new QHBoxLayout();
     thetaSlider_ = new QSlider(Qt::Horizontal, controlsGroup);
     thetaSlider_->setRange(0, 359);
-
-    // Initialize to a value that works well with the reversed sense
     int initialAzimuth = 45;
-    thetaSlider_->setValue(359 - initialAzimuth); // Use reversed value for slider
+    thetaSlider_->setValue(359 - initialAzimuth);
 
     thetaSpinBox_ = new QSpinBox(controlsGroup);
     thetaSpinBox_->setRange(0, 359);
-    thetaSpinBox_->setValue(initialAzimuth); // Use direct value for spin box
+    thetaSpinBox_->setValue(initialAzimuth);
 
     thetaLayout->addWidget(thetaSlider_);
     thetaLayout->addWidget(thetaSpinBox_);
@@ -227,18 +237,18 @@ void RadarSim::setupTabs() {
     phiLayout->addWidget(phiSpinBox_);
     controlsLayout->addLayout(phiLayout);
 
-    // Add the controls group to the controls frame
-    controlsFrameLayout->addWidget(controlsGroup);
+    // Add frames to splitter AFTER all setup is done
+    radarSplitter_->addWidget(sphereFrame);
+    radarSplitter_->addWidget(controlsFrame);
 
-    // Add the controls frame to the splitter
-    radarSplitter->addWidget(controlsFrame);
-
-    // Set the initial sizes for the splitter
-    radarSplitter->setSizes(QList<int>() << 700 << 150);
+    // Use stretch factors instead of explicit sizes
+    radarSplitter_->setStretchFactor(0, 5);  // RadarScene gets 5 parts
+    radarSplitter_->setStretchFactor(1, 1);  // Controls get 1 part
 
     // ************************************************************************************************
     // Setup Physics Analysis Tab
-	// ************************************************************************************************
+    // ************************************************************************************************
+
     QVBoxLayout* physicsLayout = new QVBoxLayout(physicsTabWidget_);
 
     // Add a placeholder for the physics visualization
@@ -271,6 +281,8 @@ void RadarSim::setupTabs() {
 
     QVBoxLayout* signatureLayout = new QVBoxLayout(signatureTab);
     signatureLayout->addWidget(new QLabel("Radar signature analysis tools will go here"));
+
+    qDebug() << "Exiting setupTabs()";
 }
 
 void RadarSim::connectSignals() {
@@ -294,8 +306,8 @@ void RadarSim::onRadiusSliderValueChanged(int value) {
     radiusSpinBox_->setValue(value);
     radiusSpinBox_->blockSignals(false);
 
-    // Update the sphere widget
-    sphereView_->setRadius(value);
+    // Update the radar scene widget
+    radarSceneView_->setRadius(value);
 }
 
 void RadarSim::onThetaSliderValueChanged(int value) {
@@ -309,8 +321,8 @@ void RadarSim::onThetaSliderValueChanged(int value) {
     thetaSpinBox_->setValue(reversedValue);
     thetaSpinBox_->blockSignals(false);
 
-    // Update the sphere widget with the reversed value
-    sphereView_->setAngles(reversedValue, sphereView_->getPhi());
+    // Update the radar scene widget with the reversed value
+    radarSceneView_->setAngles(reversedValue, radarSceneView_->getPhi());
 }
 
 void RadarSim::onPhiSliderValueChanged(int value) {
@@ -319,8 +331,8 @@ void RadarSim::onPhiSliderValueChanged(int value) {
     phiSpinBox_->setValue(value);
     phiSpinBox_->blockSignals(false);
 
-    // Update the sphere widget
-    sphereView_->setAngles(sphereView_->getTheta(), value);
+    // Update the radar scene widget
+    radarSceneView_->setAngles(radarSceneView_->getTheta(), value);
 }
 
 void RadarSim::onRadiusSpinBoxValueChanged(int value) {
@@ -329,8 +341,8 @@ void RadarSim::onRadiusSpinBoxValueChanged(int value) {
     radiusSlider_->setValue(value);
     radiusSlider_->blockSignals(false);
 
-    // Update the sphere widget
-    sphereView_->setRadius(value);
+    // Update the radar scene widget
+    radarSceneView_->setRadius(value);
 }
 
 void RadarSim::onThetaSpinBoxValueChanged(int value) {
@@ -341,8 +353,8 @@ void RadarSim::onThetaSpinBoxValueChanged(int value) {
     thetaSlider_->setValue(359 - value);
     thetaSlider_->blockSignals(false);
 
-    // Update the sphere widget with the direct spin box value
-    sphereView_->setAngles(value, sphereView_->getPhi());
+    // Update the radar scene widget with the direct spin box value
+    radarSceneView_->setAngles(value, radarSceneView_->getPhi());
 }
 
 void RadarSim::onPhiSpinBoxValueChanged(int value) {
@@ -351,6 +363,6 @@ void RadarSim::onPhiSpinBoxValueChanged(int value) {
     phiSlider_->setValue(value);
     phiSlider_->blockSignals(false);
 
-    // Update the sphere widget
-    sphereView_->setAngles(sphereView_->getTheta(), value);
+    // Update the radar scene widget
+    radarSceneView_->setAngles(radarSceneView_->getTheta(), value);
 }

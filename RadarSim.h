@@ -3,7 +3,9 @@
 #pragma once
 #include <QMainWindow>
 #include <QTabWidget>
-#include "SphereWidget.h" // Your existing widget
+#include <QSplitter> 
+#include "SphereWidget.h"
+#include "RadarSceneWidget.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class RadarSim; }
@@ -11,7 +13,7 @@ QT_END_NAMESPACE
 
 class QSlider;
 class QSpinBox;
-class SphereWidget;
+class RadarSceneWidget;
 
 class RadarSim : public QMainWindow {
     Q_OBJECT
@@ -40,9 +42,10 @@ private:
     QWidget* configTabWidget_;
     QWidget* radarSceneTabWidget_;
     QWidget* physicsTabWidget_;
+        
+    RadarSceneWidget* radarSceneView_;
+    QSplitter* radarSplitter_ = nullptr;
 
-    // Your existing members
-    SphereWidget* sphereView_;
     QSlider* radiusSlider_;
     QSlider* thetaSlider_;
     QSlider* phiSlider_;
