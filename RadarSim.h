@@ -2,7 +2,8 @@
 
 #pragma once
 #include <QMainWindow>
-#include "SphereWidget.h"
+#include <QTabWidget>
+#include "SphereWidget.h" // Your existing widget
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class RadarSim; }
@@ -16,8 +17,10 @@ class RadarSim : public QMainWindow {
     Q_OBJECT
 public:
     explicit RadarSim(QWidget* parent = nullptr);
+    ~RadarSim();
 
 private slots:
+    // Your existing slots remain
     void onRadiusSliderValueChanged(int value);
     void onThetaSliderValueChanged(int value);
     void onPhiSliderValueChanged(int value);
@@ -27,8 +30,18 @@ private slots:
 
 private:
     void setupUI();
+    void setupTabs();
     void connectSignals();
 
+    // New tab management
+    QTabWidget* tabWidget_;
+
+    // Container widgets for each tab
+    QWidget* configTabWidget_;
+    QWidget* radarSceneTabWidget_;
+    QWidget* physicsTabWidget_;
+
+    // Your existing members
     SphereWidget* sphereView_;
     QSlider* radiusSlider_;
     QSlider* thetaSlider_;

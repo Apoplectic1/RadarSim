@@ -9,74 +9,268 @@
 #include <QLabel>
 #include <QSlider>
 #include <QSpinBox>
+#include <QFormLayout>
+#include <QGroupBox>
+#include <QDoubleSpinBox>
+#include <QComboBox>
+#include <QCheckBox>
+#include <QPushButton>
+#include <QTabWidget>
+#include <QFrame>
+#include <QSplitter>
 
+// Constructor
 RadarSim::RadarSim(QWidget* parent)
     : QMainWindow(parent),
-    sphereView_(new SphereWidget(this)),
+    sphereView_(nullptr),
     radiusSlider_(nullptr),
     thetaSlider_(nullptr),
     phiSlider_(nullptr),
     radiusSpinBox_(nullptr),
     thetaSpinBox_(nullptr),
-    phiSpinBox_(nullptr)
+    phiSpinBox_(nullptr),
+    tabWidget_(nullptr),
+    configTabWidget_(nullptr),
+    radarSceneTabWidget_(nullptr),
+    physicsTabWidget_(nullptr)
 {
     setupUI();
+    setupTabs();
     connectSignals();
+
+    // Start with the radar scene tab selected
+    tabWidget_->setCurrentIndex(1);
+
+}
+
+// Destructor
+RadarSim::~RadarSim() {
+    // Any cleanup needed for tab widgets
 }
 
 void RadarSim::setupUI() {
-    auto* central = new QWidget(this);
-    auto* layout = new QVBoxLayout(central);
-    setCentralWidget(central);
+    // Create central widget for the main window
+    auto* centralWidget = new QWidget(this);
+    setCentralWidget(centralWidget);
 
-    // 3D view
-    sphereView_->setMinimumSize(800, 800);
-    layout->addWidget(sphereView_);
+    // Create main layout
+    auto* mainLayout = new QVBoxLayout(centralWidget);
 
-    // Radius
-    layout->addWidget(new QLabel("Sphere Radius", central));
-    auto* radiusLayout = new QHBoxLayout();
-    radiusSlider_ = new QSlider(Qt::Horizontal, central);
+    // Create tab widget
+    tabWidget_ = new QTabWidget(centralWidget);
+    mainLayout->addWidget(tabWidget_);
+
+    // Set the main window title
+    setWindowTitle("Radar Simulation System");
+
+    // Set minimum window size
+    setMinimumSize(1024, 800);
+}
+
+void RadarSim::setupTabs() {
+    // ************************************************************************************************
+    // Create the tab widgets
+    // ************************************************************************************************
+    configTabWidget_ = new QWidget(tabWidget_);
+    radarSceneTabWidget_ = new QWidget(tabWidget_);
+    physicsTabWidget_ = new QWidget(tabWidget_);
+
+    // Add tabs to the tab widget
+    tabWidget_->addTab(configTabWidget_, "Configuration");
+    tabWidget_->addTab(radarSceneTabWidget_, "Radar Scene");
+    tabWidget_->addTab(physicsTabWidget_, "Physics Analysis");
+
+    // ************************************************************************************************
+    // Setup Configuration Tab
+    // ************************************************************************************************
+    QVBoxLayout* configLayout = new QVBoxLayout(configTabWidget_);
+
+    // Create a group box for simulation settings
+    QGroupBox* simSettingsGroup = new QGroupBox("Simulation Settings", configTabWidget_);
+    QFormLayout* simSettingsLayout = new QFormLayout(simSettingsGroup);
+
+    // Add some placeholder settings
+    QSpinBox* maxTargetsSpinBox = new QSpinBox(simSettingsGroup);
+    maxTargetsSpinBox->setRange(1, 50);
+    maxTargetsSpinBox->setValue(5);
+    simSettingsLayout->addRow("Maximum Targets:", maxTargetsSpinBox);
+
+    QDoubleSpinBox* physicsStepSpinBox = new QDoubleSpinBox(simSettingsGroup);
+    physicsStepSpinBox->setRange(0.001, 0.1);
+    physicsStepSpinBox->setValue(0.01);
+    physicsStepSpinBox->setSingleStep(0.001);
+    simSettingsLayout->addRow("Physics Time Step (s):", physicsStepSpinBox);
+
+    QCheckBox* enableAdvancedPhysicsCheckBox = new QCheckBox(simSettingsGroup);
+    enableAdvancedPhysicsCheckBox->setChecked(false);
+    simSettingsLayout->addRow("Enable Advanced Physics:", enableAdvancedPhysicsCheckBox);
+
+    // Add group to layout
+    configLayout->addWidget(simSettingsGroup);
+
+    // Create a group box for beam settings
+    QGroupBox* beamSettingsGroup = new QGroupBox("Beam Settings", configTabWidget_);
+    QFormLayout* beamSettingsLayout = new QFormLayout(beamSettingsGroup);
+
+    // Add some placeholder settings
+    QComboBox* beamTypeComboBox = new QComboBox(beamSettingsGroup);
+    beamTypeComboBox->addItem("Conical");
+    beamTypeComboBox->addItem("Elliptical");
+    beamTypeComboBox->addItem("Phased Array");
+    beamSettingsLayout->addRow("Default Beam Type:", beamTypeComboBox);
+
+    QDoubleSpinBox* beamWidthSpinBox = new QDoubleSpinBox(beamSettingsGroup);
+    beamWidthSpinBox->setRange(1.0, 45.0);
+    beamWidthSpinBox->setValue(15.0);
+    beamSettingsLayout->addRow("Default Beam Width (°):", beamWidthSpinBox);
+
+    // Add group to layout
+    configLayout->addWidget(beamSettingsGroup);
+
+    // Add spacer at the bottom
+    configLayout->addStretch();
+
+    // Add buttons for loading/saving configuration
+    QHBoxLayout* configButtonsLayout = new QHBoxLayout();
+    QPushButton* loadConfigButton = new QPushButton("Load Configuration", configTabWidget_);
+    QPushButton* saveConfigButton = new QPushButton("Save Configuration", configTabWidget_);
+    configButtonsLayout->addWidget(loadConfigButton);
+    configButtonsLayout->addWidget(saveConfigButton);
+    configLayout->addLayout(configButtonsLayout);
+
+	// ************************************************************************************************
+    // Setup Radar Scene Tab
+	// ************************************************************************************************
+    QVBoxLayout* radarSceneLayout = new QVBoxLayout(radarSceneTabWidget_);
+    radarSceneLayout->setContentsMargins(4, 4, 4, 4);
+    radarSceneLayout->setSpacing(0);
+
+    // Create a splitter for the radar scene
+    QSplitter* radarSplitter = new QSplitter(Qt::Vertical, radarSceneTabWidget_);
+    radarSceneLayout->addWidget(radarSplitter);
+
+    // Create a frame for the 3D view
+    QFrame* sphereFrame = new QFrame(radarSplitter);
+    sphereFrame->setFrameStyle(QFrame::StyledPanel | QFrame::Sunken);
+    QVBoxLayout* sphereFrameLayout = new QVBoxLayout(sphereFrame);
+    sphereFrameLayout->setContentsMargins(1, 1, 1, 1);
+
+    // Add the SphereWidget to the frame
+    sphereView_ = new SphereWidget(sphereFrame);
+    sphereView_->setMinimumSize(800, 500);
+    sphereFrameLayout->addWidget(sphereView_);
+
+    // Add the frame to the splitter
+    radarSplitter->addWidget(sphereFrame);
+
+    // Create a frame for controls
+    QFrame* controlsFrame = new QFrame(radarSplitter);
+    controlsFrame->setFrameStyle(QFrame::StyledPanel);
+    QVBoxLayout* controlsFrameLayout = new QVBoxLayout(controlsFrame);
+    controlsFrameLayout->setContentsMargins(4, 4, 4, 4);
+
+    // Create the controls group
+    QGroupBox* controlsGroup = new QGroupBox("Radar Controls", controlsFrame);
+    QVBoxLayout* controlsLayout = new QVBoxLayout(controlsGroup);
+
+    // Radius controls
+    QLabel* radiusLabel = new QLabel("Sphere Radius", controlsGroup);
+    controlsLayout->addWidget(radiusLabel);
+
+    QHBoxLayout* radiusLayout = new QHBoxLayout();
+    radiusSlider_ = new QSlider(Qt::Horizontal, controlsGroup);
     radiusSlider_->setRange(50, 300);
     radiusSlider_->setValue(100);
-    radiusSpinBox_ = new QSpinBox(central);
+
+    radiusSpinBox_ = new QSpinBox(controlsGroup);
     radiusSpinBox_->setRange(50, 300);
     radiusSpinBox_->setValue(100);
+
     radiusLayout->addWidget(radiusSlider_);
     radiusLayout->addWidget(radiusSpinBox_);
-    layout->addLayout(radiusLayout);
+    controlsLayout->addLayout(radiusLayout);
 
-    // Azimuth
-    // Azimuth
-    layout->addWidget(new QLabel("Radar Azimuth (θ)", central));
-    auto* thetaLayout = new QHBoxLayout();
-    thetaSlider_ = new QSlider(Qt::Horizontal, central);
+    // Azimuth controls
+    QLabel* thetaLabel = new QLabel("Radar Azimuth (θ)", controlsGroup);
+    controlsLayout->addWidget(thetaLabel);
+
+    QHBoxLayout* thetaLayout = new QHBoxLayout();
+    thetaSlider_ = new QSlider(Qt::Horizontal, controlsGroup);
     thetaSlider_->setRange(0, 359);
 
     // Initialize to a value that works well with the reversed sense
     int initialAzimuth = 45;
     thetaSlider_->setValue(359 - initialAzimuth); // Use reversed value for slider
 
-    thetaSpinBox_ = new QSpinBox(central);
+    thetaSpinBox_ = new QSpinBox(controlsGroup);
     thetaSpinBox_->setRange(0, 359);
     thetaSpinBox_->setValue(initialAzimuth); // Use direct value for spin box
 
     thetaLayout->addWidget(thetaSlider_);
     thetaLayout->addWidget(thetaSpinBox_);
-    layout->addLayout(thetaLayout);
+    controlsLayout->addLayout(thetaLayout);
 
-    // Elevation
-    layout->addWidget(new QLabel("Radar Elevation (φ)", central));
-    auto* phiLayout = new QHBoxLayout();
-    phiSlider_ = new QSlider(Qt::Horizontal, central);
+    // Elevation controls
+    QLabel* phiLabel = new QLabel("Radar Elevation (φ)", controlsGroup);
+    controlsLayout->addWidget(phiLabel);
+
+    QHBoxLayout* phiLayout = new QHBoxLayout();
+    phiSlider_ = new QSlider(Qt::Horizontal, controlsGroup);
     phiSlider_->setRange(-90, 90);
     phiSlider_->setValue(45);
-    phiSpinBox_ = new QSpinBox(central);
+
+    phiSpinBox_ = new QSpinBox(controlsGroup);
     phiSpinBox_->setRange(-90, 90);
     phiSpinBox_->setValue(45);
+
     phiLayout->addWidget(phiSlider_);
     phiLayout->addWidget(phiSpinBox_);
-    layout->addLayout(phiLayout);
+    controlsLayout->addLayout(phiLayout);
+
+    // Add the controls group to the controls frame
+    controlsFrameLayout->addWidget(controlsGroup);
+
+    // Add the controls frame to the splitter
+    radarSplitter->addWidget(controlsFrame);
+
+    // Set the initial sizes for the splitter
+    radarSplitter->setSizes(QList<int>() << 700 << 150);
+
+    // ************************************************************************************************
+    // Setup Physics Analysis Tab
+	// ************************************************************************************************
+    QVBoxLayout* physicsLayout = new QVBoxLayout(physicsTabWidget_);
+
+    // Add a placeholder for the physics visualization
+    QLabel* physicsVisPlaceholder = new QLabel("Physics Visualization", physicsTabWidget_);
+    physicsVisPlaceholder->setMinimumSize(700, 300);
+    physicsVisPlaceholder->setFrameStyle(QFrame::StyledPanel | QFrame::Sunken);
+    physicsVisPlaceholder->setAlignment(Qt::AlignCenter);
+    physicsVisPlaceholder->setStyleSheet("background-color: #f0f0f0;");
+    physicsLayout->addWidget(physicsVisPlaceholder);
+
+    // Add a tab widget for different analysis tools
+    QTabWidget* analysisTabWidget = new QTabWidget(physicsTabWidget_);
+    physicsLayout->addWidget(analysisTabWidget);
+
+    // Create tabs for different analysis modes
+    QWidget* emFieldTab = new QWidget(analysisTabWidget);
+    QWidget* materialAnalysisTab = new QWidget(analysisTabWidget);
+    QWidget* signatureTab = new QWidget(analysisTabWidget);
+
+    analysisTabWidget->addTab(emFieldTab, "EM Field Analysis");
+    analysisTabWidget->addTab(materialAnalysisTab, "Material Analysis");
+    analysisTabWidget->addTab(signatureTab, "Radar Signature");
+
+    // For each tab, add a simple placeholder layout
+    QVBoxLayout* emFieldLayout = new QVBoxLayout(emFieldTab);
+    emFieldLayout->addWidget(new QLabel("Electromagnetic field analysis tools will go here"));
+
+    QVBoxLayout* materialLayout = new QVBoxLayout(materialAnalysisTab);
+    materialLayout->addWidget(new QLabel("Material analysis tools will go here"));
+
+    QVBoxLayout* signatureLayout = new QVBoxLayout(signatureTab);
+    signatureLayout->addWidget(new QLabel("Radar signature analysis tools will go here"));
 }
 
 void RadarSim::connectSignals() {
