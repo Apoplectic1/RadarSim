@@ -7,9 +7,6 @@ EllipticalBeam::EllipticalBeam(float sphereRadius, float horizontalWidthDegrees,
     horizontalWidthDegrees_(horizontalWidthDegrees),
     verticalWidthDegrees_(verticalWidthDegrees)
 {
-    // Make sure initialize is called to set up OpenGL resources
-    // Note: This will be called again by SphereWidget but that's ok
-    initialize();
 }
 
 EllipticalBeam::~EllipticalBeam() {

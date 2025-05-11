@@ -358,6 +358,22 @@ void RadarBeam::calculateBeamVertices(const QVector3D& apex, const QVector3D& di
 }
 
 RadarBeam* RadarBeam::createBeam(BeamType type, float sphereRadius, float beamWidthDegrees) {
+	switch (type) {
+	case BeamType::Conical:
+		return new ConicalBeam(sphereRadius, beamWidthDegrees);
+	case BeamType::Elliptical:
+		return new EllipticalBeam(sphereRadius, beamWidthDegrees, beamWidthDegrees / 2.0f);
+	case BeamType::Phased:
+		return new PhasedArrayBeam(sphereRadius, beamWidthDegrees);
+	case BeamType::Shaped:
+		// For now, return conical but could implement shaped beam later
+		return new ConicalBeam(sphereRadius, beamWidthDegrees);
+	default:
+		return new ConicalBeam(sphereRadius, beamWidthDegrees);
+	}
+}
+/*
+RadarBeam* RadarBeam::createBeam(BeamType type, float sphereRadius, float beamWidthDegrees) {
 	RadarBeam* beam = nullptr;
 
 	switch (type) {
@@ -386,3 +402,4 @@ RadarBeam* RadarBeam::createBeam(BeamType type, float sphereRadius, float beamWi
 
 	return beam;
 }
+*/
