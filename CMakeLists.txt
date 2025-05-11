@@ -18,12 +18,20 @@ set(SOURCES
     main.cpp
     RadarSim.cpp
     SphereWidget.cpp
+    RadarBeam.cpp
+    ConicalBeam.cpp
+    EllipticalBeam.cpp
+    PhasedArrayBeam.cpp
 )
 
 # List header files
 set(HEADERS
     RadarSim.h
     SphereWidget.h
+    RadarBeam.h
+    ConicalBeam.h
+    EllipticalBeam.h
+    PhasedArrayBeam.h
 )
 
 # List UI files
@@ -36,7 +44,7 @@ add_executable(RadarSim
     ${SOURCES}
     ${HEADERS}
     ${UI_FILES}
-)
+ "RadarBeam.cpp" "RadarBeam.h" "ConicalBeam.h" "EllipticalBeam.h" "PhasedArrayBeam.h" "ConicalBeam.cpp" "EllipticalBeam.cpp" "PhasedArrayBeam.cpp")
 
 # Link Qt libraries
 target_link_libraries(RadarSim PRIVATE

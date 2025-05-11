@@ -1,7 +1,14 @@
 ﻿// ---- SphereWidget.cpp ----
 
 #include "SphereWidget.h"
+#include "RadarBeam.h"
+#include "ConicalBeam.h"
+#include "EllipticalBeam.h"
+#include "PhasedArrayBeam.h"
 #include <QOpenGLContext>
+#include <QActionGroup>  // For QActionGroup
+#include <QMenu>         // For QMenu
+#include <QAction>       // For QAction
 #include <cmath>
 
 // Constructor
@@ -18,7 +25,9 @@ SphereWidget::SphereWidget(QWidget* parent)
 	showAxes_(true),  // Initialize axes as visible
 	showSphere_(true),  // Initialize sphere as visible
 	showGridLines_(true),  // Initialize grid lines as visible
-	inertiaEnabled_(false)  // Initialize inertia as enabled
+	inertiaEnabled_(false),  // Initialize inertia as enabled
+	showBeam_(true)
+
 {
 	// Set focus policy and mouse tracking (as before)
 	setFocusPolicy(Qt::StrongFocus);
@@ -91,7 +100,57 @@ SphereWidget::SphereWidget(QWidget* parent)
 	toggleInertiaAction->setCheckable(true);
 	toggleInertiaAction->setChecked(false);
 	connect(toggleInertiaAction, &QAction::toggled, this, &SphereWidget::setInertiaEnabled);
-	// Add more menu options as needed
+	
+	// Add separator for better organization
+	contextMenu_->addSeparator();
+
+	// Add Toggle Beam action
+	QAction* toggleBeamAction = contextMenu_->addAction("Toggle Beam");
+	toggleBeamAction->setCheckable(true);
+	toggleBeamAction->setChecked(true);
+	connect(toggleBeamAction, &QAction::toggled, this, [this](bool checked) {
+		showBeam_ = checked;
+		if (radarBeam_) {
+			radarBeam_->setVisible(checked);
+		}
+		update();
+		});
+
+	// Add beam type submenu
+	QMenu* beamTypeMenu = contextMenu_->addMenu("Beam Type");
+
+	QAction* conicalBeamAction = beamTypeMenu->addAction("Conical");
+	conicalBeamAction->setCheckable(true);
+	conicalBeamAction->setChecked(true);
+
+	QAction* ellipticalBeamAction = beamTypeMenu->addAction("Elliptical");
+	ellipticalBeamAction->setCheckable(true);
+
+	QAction* phasedBeamAction = beamTypeMenu->addAction("Phased Array");
+	phasedBeamAction->setCheckable(true);
+
+	// Make them exclusive
+	QActionGroup* beamTypeGroup = new QActionGroup(this);
+	beamTypeGroup->addAction(conicalBeamAction);
+	beamTypeGroup->addAction(ellipticalBeamAction);
+	beamTypeGroup->addAction(phasedBeamAction);
+	beamTypeGroup->setExclusive(true);
+
+	// Connect beam type actions
+	connect(conicalBeamAction, &QAction::triggered, this, [this]() {
+		qDebug() << "Switching to Conical beam";
+		setBeamType(BeamType::Conical);
+		});
+
+	connect(ellipticalBeamAction, &QAction::triggered, this, [this]() {
+		qDebug() << "Switching to Elliptical beam";
+		setBeamType(BeamType::Elliptical);
+		});
+
+	connect(phasedBeamAction, &QAction::triggered, this, [this]() {
+		qDebug() << "Switching to Phased Array beam";
+		setBeamType(BeamType::Phased);
+		});
 }
 
 // Destructor to clean up resources
@@ -113,8 +172,8 @@ SphereWidget::~SphereWidget() {
 	delete shaderProgram;
 	delete dotShaderProgram;
 	delete axesShaderProgram;
-	doneCurrent();
-
+	delete radarBeam_;
+	
 	// Clean up inertia timer
 	if (inertiaTimer_) {
 		inertiaTimer_->stop();
@@ -123,6 +182,8 @@ SphereWidget::~SphereWidget() {
 
 	// Clean up context menu
 	delete contextMenu_;
+	
+	doneCurrent();
 }
 
 
@@ -301,15 +362,55 @@ void SphereWidget::initializeGL() {
 	// Set up view matrix
 	viewMatrix.setToIdentity();
 	viewMatrix.translate(0, 0, -300.0f); // Same as the fixed-distance camera
+
+	// Initialize the radar beam (after OpenGL context is set up)
+	radarBeam_ = RadarBeam::createBeam(BeamType::Conical, radius_, 15.0f);
+	radarBeam_->initialize();
+	radarBeam_->setColor(QVector3D(1.0f, 0.5f, 0.0f)); // Orange-red beam
+	radarBeam_->setOpacity(0.3f); // Semi-transparent
+
+	// Update the beam with initial radar position
+	QVector3D radarPos = sphericalToCartesian(radius_, theta_, phi_);
+	radarBeam_->update(radarPos);
 }
 
 void SphereWidget::setRadius(float r) {
 	radius_ = r;
+
 	// Regenerate geometry
 	makeCurrent();
 	createSphere();
 	createLatitudeLongitudeLines();
 	createCoordinateAxes();
+
+	// Update beam size if it exists
+	if (radarBeam_) {
+		BeamType currentType = BeamType::Conical; // Default
+		if (dynamic_cast<EllipticalBeam*>(radarBeam_)) {
+			currentType = BeamType::Elliptical;
+		}
+		else if (dynamic_cast<PhasedArrayBeam*>(radarBeam_)) {
+			currentType = BeamType::Phased;
+		}
+
+		float width = radarBeam_->getBeamWidth();
+		QVector3D color = radarBeam_->getColor();
+		float opacity = radarBeam_->getOpacity();
+		bool visible = radarBeam_->isVisible();
+
+		// Delete and recreate with new radius
+		delete radarBeam_;
+		radarBeam_ = RadarBeam::createBeam(currentType, radius_, width);
+		radarBeam_->initialize();
+		radarBeam_->setColor(color);
+		radarBeam_->setOpacity(opacity);
+		radarBeam_->setVisible(visible);
+
+		// Update with current position
+		QVector3D radarPos = sphericalToCartesian(radius_, theta_, phi_);
+		radarBeam_->update(radarPos);
+	}
+
 	doneCurrent();
 	update();
 }
@@ -317,6 +418,13 @@ void SphereWidget::setRadius(float r) {
 void SphereWidget::setAngles(float t, float p) {
 	theta_ = t;
 	phi_ = p;
+
+	// Update beam when radar position changes
+	if (radarBeam_) {
+		QVector3D radarPos = sphericalToCartesian(radius_, theta_, phi_);
+		radarBeam_->update(radarPos);
+	}
+
 	update();
 }
 
@@ -557,9 +665,32 @@ void SphereWidget::paintGL() {
 		dotShaderProgram->release();
 	}
 
-	// 5. Draw radar beam
-	//if (showBeam_ && radarBeam_ && radarBeam_->isVisible()) {
-	//	radarBeam_->render(shaderProgram, projectionMatrix, viewMatrix, modelMatrix);
+	// 5. Draw radar beam if visible
+	if (showBeam_ && radarBeam_ && radarBeam_->isVisible()) {
+		// Debug check
+		if (dynamic_cast<ConicalBeam*>(radarBeam_)) {
+			qDebug() << "Rendering ConicalBeam";
+		}
+		else if (dynamic_cast<EllipticalBeam*>(radarBeam_)) {
+			qDebug() << "Rendering EllipticalBeam";
+		}
+		else if (dynamic_cast<PhasedArrayBeam*>(radarBeam_)) {
+			qDebug() << "Rendering PhasedArrayBeam";
+		}
+		else {
+			qDebug() << "Rendering unknown beam type";
+		}
+
+		radarBeam_->render(shaderProgram, projectionMatrix, viewMatrix, modelMatrix);
+	}
+	else if (showBeam_) {
+		if (!radarBeam_) {
+			qDebug() << "Beam object is null";
+		}
+		else if (!radarBeam_->isVisible()) {
+			qDebug() << "Beam is not visible";
+		}
+	}
 }
 
 void SphereWidget::createSphere(int latDivisions, int longDivisions) {
@@ -1009,6 +1140,80 @@ void SphereWidget::createCoordinateAxes() {
 
 	axesVAO.release();
 }
+
+// ******************************************************************************************************************
+// Beam Control Methods
+// ******************************************************************************************************************
+
+void SphereWidget::setBeamWidth(float degrees) {
+	if (radarBeam_) {
+		radarBeam_->setBeamWidth(degrees);
+		update();
+	}
+}
+
+void SphereWidget::setBeamType(BeamType type) {
+	// Store current properties if beam exists
+	float width = 15.0f;  // Default width if no beam exists
+	QVector3D color(1.0f, 0.5f, 0.0f);  // Default color
+	float opacity = 0.3f;  // Default opacity
+	bool visible = showBeam_;  // Use class member to determine visibility
+
+	if (radarBeam_) {
+		// Save existing beam properties
+		width = radarBeam_->getBeamWidth();
+		color = radarBeam_->getColor();
+		opacity = radarBeam_->getOpacity();
+		visible = radarBeam_->isVisible();
+
+		// Delete old beam properly
+		makeCurrent();  // Ensure OpenGL context is current
+		delete radarBeam_;
+		radarBeam_ = nullptr;
+	}
+
+	// Create and initialize the new beam
+	makeCurrent();  // Ensure OpenGL context is current
+
+	// Use the factory method to create the beam of the specified type
+	radarBeam_ = RadarBeam::createBeam(type, radius_, width);
+
+	// Properly initialize the beam
+	if (radarBeam_) {
+		radarBeam_->initialize();
+		radarBeam_->setColor(color);
+		radarBeam_->setOpacity(opacity);
+		radarBeam_->setVisible(visible);
+
+		// Update with current radar position
+		QVector3D radarPos = sphericalToCartesian(radius_, theta_, phi_);
+		radarBeam_->update(radarPos);
+
+		// Print debug info
+		qDebug() << "Created new beam of type:" << static_cast<int>(type);
+	}
+	else {
+		qDebug() << "Failed to create beam of type:" << static_cast<int>(type);
+	}
+
+	doneCurrent();  // Release context
+	update();  // Request redraw
+}
+
+void SphereWidget::setBeamColor(const QVector3D& color) {
+	if (radarBeam_) {
+		radarBeam_->setColor(color);
+		update();
+	}
+}
+
+void SphereWidget::setBeamOpacity(float opacity) {
+	if (radarBeam_) {
+		radarBeam_->setOpacity(opacity);
+		update();
+	}
+}
+
 
 // ******************************************************************************************************************
 // // Eevent handlers

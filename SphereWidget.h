@@ -1,6 +1,7 @@
 ﻿// ---- SphereWidget.h ----
 
 #pragma once
+#include "RadarBeam.h"
 #include <QOpenGLWidget>
 #include <QOpenGLFunctions_3_3_Core>
 #include <QOpenGLShaderProgram>
@@ -27,6 +28,14 @@ public:
     void setAngles(float theta, float phi);
     float getTheta() const { return theta_; }
     float getPhi() const { return phi_; }
+
+    // Beam control methods
+    void setBeamWidth(float degrees);
+    void setBeamType(BeamType type);
+    void setBeamColor(const QVector3D& color);
+    void setBeamOpacity(float opacity);
+    RadarBeam* getBeam() const { return radarBeam_; }
+
 
     void setInertiaParameters(float decay, float velocityScale) {
         rotationDecay_ = qBound(0.8f, decay, 0.99f);
@@ -175,6 +184,11 @@ private:
     void createCoordinateAxes();
     bool isDotVisible();
     QVector3D sphericalToCartesian(float r, float thetaDeg, float phiDeg);
+
+    private:
+        // Radar beam
+        RadarBeam* radarBeam_ = nullptr;
+        bool showBeam_ = true;
 
     // Add variables to store counts for debugging
     int latitudeLineCount = 0;
