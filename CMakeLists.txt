@@ -57,6 +57,13 @@ set(RADAR_SCENE_WIDGET_SOURCES
     RadarSceneWidget/SphereWidget.cpp
     RadarSceneWidget/SphereWidget.h
 )
+# Component sources
+set(COMPONENT_SOURCES
+    Entity.cpp
+    Entity.h
+    Component.cpp
+    Component.h
+)
 
 # ModelManager sources
 set(MODEL_MANAGER_SOURCES
@@ -72,6 +79,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         ${RADAR_BEAM_SOURCES}
         ${RADAR_SCENE_WIDGET_SOURCES}
         ${MODEL_MANAGER_SOURCES}
+        ${COMPONENT_SOURCES}
     )
 else()
     add_executable(RadarSim
@@ -79,6 +87,7 @@ else()
         ${RADAR_BEAM_SOURCES}
         ${RADAR_SCENE_WIDGET_SOURCES}
         ${MODEL_MANAGER_SOURCES}
+        ${COMPONENT_SOURCES}
     )
 endif()
 
