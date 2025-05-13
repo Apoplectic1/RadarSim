@@ -1,5 +1,6 @@
 // RadarSceneWidget.cpp
 #include "RadarSceneWidget.h"
+#include <QActionGroup>
 #include <QDebug>
 
 RadarSceneWidget::RadarSceneWidget(QWidget* parent)

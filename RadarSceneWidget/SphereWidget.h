@@ -1,7 +1,7 @@
 ﻿// ---- SphereWidget.h ----
 
 #pragma once
-#include "RadarBeam.h"
+#include "RadarBeam/RadarBeam.h"
 #include <QtOpenGLWidgets/QOpenGLWidget>
 #include <QOpenGLFunctions_3_3_Core>
 #include <QOpenGLShaderProgram>

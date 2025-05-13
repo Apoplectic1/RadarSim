@@ -56,6 +56,8 @@ set(RADAR_BEAM_SOURCES
 set(RADAR_SCENE_WIDGET_SOURCES
     RadarSceneWidget/CameraController.cpp
     RadarSceneWidget/CameraController.h
+    RadarSceneWidget/RadarGLWidget.cpp
+    RadarSceneWidget/RadarGLWidget.h
     RadarSceneWidget/RadarSceneWidget.cpp
     RadarSceneWidget/RadarSceneWidget.h
     RadarSceneWidget/SphereRenderer.cpp
