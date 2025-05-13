@@ -52,14 +52,6 @@ else()
 endif()
 include_directories(${Qt${QT_VERSION_MAJOR}_INCLUDE_DIRS})
 
-# Component sources
-set(COMPONENT_SOURCES
-    Component/Component.cpp
-    Component/Component.h
-    Component/Entity.cpp
-    Component/Entity.h
-)
-
 # ModelManager sources
 set(MODEL_MANAGER_SOURCES
     ModelManager/ModelManager.cpp
@@ -111,7 +103,6 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         ${RADAR_BEAM_SOURCES}
         ${RADAR_SCENE_WIDGET_SOURCES}
         ${MODEL_MANAGER_SOURCES}
-        ${COMPONENT_SOURCES}
     )
 else()
     add_executable(RadarSim
@@ -119,7 +110,6 @@ else()
         ${RADAR_BEAM_SOURCES}
         ${RADAR_SCENE_WIDGET_SOURCES}
         ${MODEL_MANAGER_SOURCES}
-        ${COMPONENT_SOURCES}
     )
 endif()
 
