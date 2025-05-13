@@ -24,6 +24,46 @@ else()
 endif()
 include_directories(${Qt${QT_VERSION_MAJOR}_INCLUDE_DIRS})
 
+# Component sources
+set(COMPONENT_SOURCES
+    Component/Component.cpp
+    Component/Component.h
+    Component/Entity.cpp
+    Component/Entity.h
+)
+
+# ModelManager sources
+set(MODEL_MANAGER_SOURCES
+    ModelManager/ModelManager.cpp
+    ModelManager/ModelManager.h
+)
+
+# RadarBeam classes
+set(RADAR_BEAM_SOURCES
+    RadarBeam/BeamController.cpp
+    RadarBeam/BeamController.h
+    RadarBeam/ConicalBeam.cpp
+    RadarBeam/ConicalBeam.h
+    RadarBeam/EllipticalBeam.cpp
+    RadarBeam/EllipticalBeam.h
+    RadarBeam/PhasedArrayBeam.cpp
+    RadarBeam/PhasedArrayBeam.h
+    RadarBeam/RadarBeam.cpp
+    RadarBeam/RadarBeam.h
+)
+
+# RadarSceneWidget and related component classes
+set(RADAR_SCENE_WIDGET_SOURCES
+    RadarSceneWidget/CameraController.cpp
+    RadarSceneWidget/CameraController.h
+    RadarSceneWidget/RadarSceneWidget.cpp
+    RadarSceneWidget/RadarSceneWidget.h
+    RadarSceneWidget/SphereRenderer.cpp
+    RadarSceneWidget/SphereRenderer.h
+    RadarSceneWidget/SphereWidget.cpp
+    RadarSceneWidget/SphereWidget.h
+)
+
 # Main application sources
 set(PROJECT_SOURCES
     main.cpp
@@ -32,48 +72,6 @@ set(PROJECT_SOURCES
     RadarSim.ui
 )
 
-# RadarBeam classes
-set(RADAR_BEAM_SOURCES
-    RadarBeam/RadarBeam.cpp
-    RadarBeam/RadarBeam.h
-    RadarBeam/ConicalBeam.cpp
-    RadarBeam/ConicalBeam.h
-    RadarBeam/EllipticalBeam.cpp
-    RadarBeam/EllipticalBeam.h
-    RadarBeam/PhasedArrayBeam.cpp
-    RadarBeam/PhasedArrayBeam.h
-    RadarBeam/BeamController.cpp
-    RadarBeam/BeamController.h
-)
-
-# RadarSceneWidget and related component classes
-set(RADAR_SCENE_WIDGET_SOURCES
-    RadarSceneWidget/RadarSceneWidget.cpp
-    RadarSceneWidget/RadarSceneWidget.h
-    RadarSceneWidget/SphereRenderer.cpp
-    RadarSceneWidget/SphereRenderer.h
-    RadarSceneWidget/BeamController.cpp
-    RadarSceneWidget/BeamController.h
-    RadarSceneWidget/CameraController.cpp
-    RadarSceneWidget/CameraController.h
-    RadarSceneWidget/SphereWidget.cpp
-    RadarSceneWidget/SphereWidget.h
-    RadarSceneWidget/CameraController.cpp
-    RadarSceneWidget/CameraController.h
-)
-# Component sources
-set(COMPONENT_SOURCES
-    Entity.cpp
-    Entity.h
-    Component.cpp
-    Component.h
-)
-
-# ModelManager sources
-set(MODEL_MANAGER_SOURCES
-    ModelManager.cpp
-    ModelManager.h
-)
 
 # Create executable
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)

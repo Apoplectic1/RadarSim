@@ -43,6 +43,7 @@ signals:
 private:
     // OpenGL objects
     QOpenGLShaderProgram* shaderProgram = nullptr;
+    QOpenGLShaderProgram* axesShaderProgram = nullptr;
 
     // Sphere geometry
     QOpenGLVertexArrayObject sphereVAO;
@@ -74,6 +75,8 @@ private:
     // Shader sources
     const char* vertexShaderSource;
     const char* fragmentShaderSource;
+    const char* axesVertexShaderSource;
+    const char* axesFragmentShaderSource;
 
     // Helper methods
     void createSphere(int latDivisions = 64, int longDivisions = 64);

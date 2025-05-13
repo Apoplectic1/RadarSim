@@ -8,7 +8,7 @@
 #include "SphereRenderer.h"
 #include "BeamController.h"
 #include "CameraController.h"
-#include "ModelManager.h"
+#include "ModelManager/ModelManager.h"
 
 class RadarSceneWidget : public QWidget {
     Q_OBJECT
