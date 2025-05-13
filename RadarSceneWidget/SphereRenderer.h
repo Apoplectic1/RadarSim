@@ -1,45 +1,75 @@
-// ---- SphereRenderer.h ----
-
 #pragma once
 
-#include <QObject>
-#include <QOpenGLFunctions_3_3_Core>
-#include <QOpenGLShaderProgram>
-#include <QOpenGLBuffer>
+#include "Component.h"
+#include <QOpenGLFunctions>
 #include <QOpenGLVertexArrayObject>
-#include <QVector3D>
+#include <QOpenGLBuffer>
 #include <QMatrix4x4>
+#include <QVector3D>
+#include <QVector4D>
 #include <vector>
 
-class SphereRenderer : public QObject, protected QOpenGLFunctions_3_3_Core {
-    Q_OBJECT
+class QOpenGLShaderProgram;
 
+class SphereRenderer : public Component, protected QOpenGLFunctions {
 public:
-    explicit SphereRenderer(QObject* parent = nullptr);
-    ~SphereRenderer();
+    SphereRenderer(float radius = 1.0f, int resolution = 36);
+    virtual ~SphereRenderer();
 
-    // Initialization and core rendering
-    void initialize();
-    void render(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model);
+    // Component interface
+    virtual void Initialize() override;
+    virtual void Update(float deltaTime) override;
+    virtual void Render() override;
 
-    // Geometry settings
-    void setRadius(float radius);
-    float getRadius() const { return radius_; }
+    // Sphere properties
+    void SetRadius(float radius);
+    float GetRadius() const { return m_Radius; }
 
-    // Visibility settings
-    void setSphereVisible(bool visible);
-    void setGridLinesVisible(bool visible);
-    void setAxesVisible(bool visible);
+    void SetResolution(int resolution);
+    int GetResolution() const { return m_Resolution; }
 
-    bool isSphereVisible() const { return showSphere_; }
-    bool areGridLinesVisible() const { return showGridLines_; }
-    bool areAxesVisible() const { return showAxes_; }
+    void SetColor(const QVector4D& color) { m_Color = color; }
+    const QVector4D& GetColor() const { return m_Color; }
+
+    void SetVisible(bool visible) { m_Visible = visible; }
+    bool IsVisible() const { return m_Visible; }
+
+    void SetPosition(const QVector3D& position);
+    const QVector3D& GetPosition() const { return m_Position; }
+
+    // Shader and matrices
+    void SetShaderProgram(QOpenGLShaderProgram* program) { m_ShaderProgram = program; }
+    void SetProjectionMatrix(const QMatrix4x4& matrix) { m_ProjectionMatrix = matrix; }
+    void SetViewMatrix(const QMatrix4x4& matrix) { m_ViewMatrix = matrix; }
 
 private:
-    // Placeholder for future implementation
-    // Will contain sphere, grid, and axes rendering code from SphereWidget
-    float radius_ = 100.0f;
-    bool showSphere_ = true;
-    bool showGridLines_ = true;
-    bool showAxes_ = true;
+    void GenerateSphere();
+
+private:
+    // Sphere properties
+    float m_Radius;
+    int m_Resolution;
+    QVector4D m_Color;
+    bool m_Visible;
+    QVector3D m_Position;
+    QMatrix4x4 m_ModelMatrix;
+
+    // OpenGL objects
+    QOpenGLVertexArrayObject m_VAO;
+    QOpenGLBuffer m_VBO;
+    QOpenGLBuffer m_EBO;
+    int m_IndexCount;
+
+    // Mesh data
+    std::vector<float> m_Vertices;
+    std::vector<unsigned int> m_Indices;
+
+    // Shader and matrices
+    QOpenGLShaderProgram* m_ShaderProgram;
+    QMatrix4x4 m_ProjectionMatrix;
+    QMatrix4x4 m_ViewMatrix;
+
+    // State tracking
+    bool m_Initialized;
+    bool m_NeedsRebuild;
 };

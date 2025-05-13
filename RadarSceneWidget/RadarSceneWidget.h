@@ -4,6 +4,7 @@
 
 #include <QWidget>
 #include <QVBoxLayout>
+#include "Entity.h"
 #include "SphereWidget.h"
 
 // Forward declarations
@@ -21,6 +22,9 @@ public:
 
     // Access to the underlying SphereWidget during transition
     SphereWidget* getSphereWidget() const { return sphereWidget_; }
+
+    std::shared_ptr<Entity> m_RadarEntity;
+    std::shared_ptr<SphereRenderer> m_SphereRenderer;
 
     // Radar position control
     void setRadius(float radius);
