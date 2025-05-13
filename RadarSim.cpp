@@ -136,6 +136,27 @@ void RadarSim::setupTabs() {
     // Add group to layout
     configLayout->addWidget(beamSettingsGroup);
 
+
+    // Add a group box for component architecture
+    QGroupBox* architectureGroup = new QGroupBox("Architecture", configTabWidget_);
+    QVBoxLayout* architectureLayout = new QVBoxLayout(architectureGroup);
+
+    // Add switch for component-based rendering
+    QCheckBox* useComponentsCheckbox = new QCheckBox("Use Component Architecture", architectureGroup);
+    useComponentsCheckbox->setChecked(false);
+    useComponentsCheckbox->setToolTip("Switch between old and new rendering architecture");
+    architectureLayout->addWidget(useComponentsCheckbox);
+
+    // Connect checkbox to toggle component rendering
+    connect(useComponentsCheckbox, &QCheckBox::toggled, [this](bool checked) {
+        if (radarSceneView_) {
+            radarSceneView_->enableComponentRendering(checked);
+        }
+        });
+
+    // Add to config layout
+    configLayout->addWidget(architectureGroup);
+
     // Add spacer at the bottom
     configLayout->addStretch();
 

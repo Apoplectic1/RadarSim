@@ -41,6 +41,8 @@ signals:
 	void visibilityChanged(const QString& element, bool visible); // Dummy function for signal to silence warnings
 
 private:
+    bool initialized_ = false;  // Track initialization state
+
     // OpenGL objects
     QOpenGLShaderProgram* shaderProgram = nullptr;
     QOpenGLShaderProgram* axesShaderProgram = nullptr;
@@ -83,4 +85,9 @@ private:
     void createLatitudeLongitudeLines();
     void createCoordinateAxes();
     void setupShaders();
+
+private:
+    // Add these member variables 
+    QOpenGLVertexArrayObject testVAO;
+    QOpenGLBuffer testVBO;
 };

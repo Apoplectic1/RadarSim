@@ -6,6 +6,34 @@ set(PROJECT_VERSION "1.0.0")
 set(PROJECT_VERSION_MAJOR "1")
 set(PROJECT_VERSION_MINOR "0")
 
+# Set default build type if not specified
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Debug")
+endif()
+
+# Configure debug/release options
+if(CMAKE_BUILD_TYPE MATCHES "Release")
+    # Disable debug output in release mode
+    add_definitions(-DQT_NO_DEBUG_OUTPUT)
+    add_definitions(-DQT_NO_WARNING_OUTPUT)  # Optional: also disable warnings
+    
+    # Enable optimizations
+    if(MSVC)
+        add_compile_options(/O2)  # MSVC optimization
+    else()
+        add_compile_options(-O2)  # GCC/Clang optimization
+    endif()
+else()
+    # Debug-specific options
+    add_definitions(-DQT_DEBUG)
+endif()
+
+# Output the build type for verification
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "Debug output enabled: ${CMAKE_BUILD_TYPE} MATCHES Debug")
+
+
+
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(CMAKE_AUTOUIC ON)

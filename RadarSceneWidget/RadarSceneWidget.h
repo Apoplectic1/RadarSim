@@ -1,4 +1,4 @@
-// RadarSceneWidget.h
+// RadarSceneWidget.h - Updated to include RadarGLWidget
 #pragma once
 
 #include <QWidget>
@@ -9,6 +9,7 @@
 #include "BeamController.h"
 #include "CameraController.h"
 #include "ModelManager/ModelManager.h"
+#include "RadarGLWidget.h"
 
 class RadarSceneWidget : public QWidget {
     Q_OBJECT
@@ -42,11 +43,14 @@ public:
     bool areGridLinesVisible() const;
     bool isInertiaEnabled() const;
 
-    // New methods for components
+    // Component access
     SphereRenderer* getSphereRenderer() const { return sphereRenderer_; }
     BeamController* getBeamController() const { return beamController_; }
     CameraController* getCameraController() const { return cameraController_; }
     ModelManager* getModelManager() const { return modelManager_; }
+
+    // Enable component-based rendering
+    void enableComponentRendering(bool enable);
 
 signals:
     void radarPositionChanged(float radius, float theta, float phi);
@@ -54,18 +58,29 @@ signals:
     void beamWidthChanged(float width);
     void visibilityOptionChanged(const QString& option, bool visible);
 
+private slots:
+    void onRadiusChanged(float radius);
+    void onAnglesChanged(float theta, float phi);
+
 private:
+    void createComponents();
     // During transition, maintain the SphereWidget instance
-    SphereWidget* sphereWidget_;
+    SphereWidget* sphereWidget_ = nullptr;
+
+    // New OpenGL widget that will eventually replace SphereWidget
+    RadarGLWidget* radarGLWidget_ = nullptr;
 
     // Layout for this widget
-    QVBoxLayout* layout_;
+    QVBoxLayout* layout_ = nullptr;
 
-    // Component handles (initially nullptr)
+    // Component handles
     SphereRenderer* sphereRenderer_ = nullptr;
     BeamController* beamController_ = nullptr;
     CameraController* cameraController_ = nullptr;
     ModelManager* modelManager_ = nullptr;
+
+    // Current mode
+    bool useComponents_ = false;
 
     // Create and initialize components
     void initializeComponents();
