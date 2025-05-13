@@ -1,75 +1,83 @@
+// SphereRenderer.h
 #pragma once
 
-#include "Component.h"
-#include <QOpenGLFunctions>
-#include <QOpenGLVertexArrayObject>
+#include <QObject>
+#include <QOpenGLFunctions_3_3_Core>
+#include <QOpenGLShaderProgram>
 #include <QOpenGLBuffer>
-#include <QMatrix4x4>
+#include <QOpenGLVertexArrayObject>
 #include <QVector3D>
-#include <QVector4D>
+#include <QMatrix4x4>
 #include <vector>
 
-class QOpenGLShaderProgram;
+class SphereRenderer : public QObject, protected QOpenGLFunctions_3_3_Core {
+    Q_OBJECT
 
-class SphereRenderer : public Component, protected QOpenGLFunctions {
 public:
-    SphereRenderer(float radius = 1.0f, int resolution = 36);
-    virtual ~SphereRenderer();
+    explicit SphereRenderer(QObject* parent = nullptr);
+    ~SphereRenderer();
 
-    // Component interface
-    virtual void Initialize() override;
-    virtual void Update(float deltaTime) override;
-    virtual void Render() override;
+    // Initialization
+    void initialize();
 
-    // Sphere properties
-    void SetRadius(float radius);
-    float GetRadius() const { return m_Radius; }
+    // Rendering
+    void render(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model);
 
-    void SetResolution(int resolution);
-    int GetResolution() const { return m_Resolution; }
+    // Geometry settings
+    void setRadius(float radius);
+    float getRadius() const { return radius_; }
 
-    void SetColor(const QVector4D& color) { m_Color = color; }
-    const QVector4D& GetColor() const { return m_Color; }
+    // Visibility settings
+    void setSphereVisible(bool visible);
+    void setGridLinesVisible(bool visible);
+    void setAxesVisible(bool visible);
 
-    void SetVisible(bool visible) { m_Visible = visible; }
-    bool IsVisible() const { return m_Visible; }
+    bool isSphereVisible() const { return showSphere_; }
+    bool areGridLinesVisible() const { return showGridLines_; }
+    bool areAxesVisible() const { return showAxes_; }
 
-    void SetPosition(const QVector3D& position);
-    const QVector3D& GetPosition() const { return m_Position; }
-
-    // Shader and matrices
-    void SetShaderProgram(QOpenGLShaderProgram* program) { m_ShaderProgram = program; }
-    void SetProjectionMatrix(const QMatrix4x4& matrix) { m_ProjectionMatrix = matrix; }
-    void SetViewMatrix(const QMatrix4x4& matrix) { m_ViewMatrix = matrix; }
+signals:
+    void radiusChanged(float radius);
+    void visibilityChanged(const QString& element, bool visible);
 
 private:
-    void GenerateSphere();
-
-private:
-    // Sphere properties
-    float m_Radius;
-    int m_Resolution;
-    QVector4D m_Color;
-    bool m_Visible;
-    QVector3D m_Position;
-    QMatrix4x4 m_ModelMatrix;
-
     // OpenGL objects
-    QOpenGLVertexArrayObject m_VAO;
-    QOpenGLBuffer m_VBO;
-    QOpenGLBuffer m_EBO;
-    int m_IndexCount;
+    QOpenGLShaderProgram* shaderProgram = nullptr;
 
-    // Mesh data
-    std::vector<float> m_Vertices;
-    std::vector<unsigned int> m_Indices;
+    // Sphere geometry
+    QOpenGLVertexArrayObject sphereVAO;
+    QOpenGLBuffer sphereVBO;
+    QOpenGLBuffer sphereEBO;
+    std::vector<float> sphereVertices;
+    std::vector<unsigned int> sphereIndices;
 
-    // Shader and matrices
-    QOpenGLShaderProgram* m_ShaderProgram;
-    QMatrix4x4 m_ProjectionMatrix;
-    QMatrix4x4 m_ViewMatrix;
+    // Grid lines geometry
+    QOpenGLVertexArrayObject linesVAO;
+    QOpenGLBuffer linesVBO;
+    std::vector<float> latLongLines;
+    int equatorStartIndex = 0;
+    int primeMeridianStartIndex = 0;
+    int latitudeLineCount = 0;
+    int longitudeLineCount = 0;
 
-    // State tracking
-    bool m_Initialized;
-    bool m_NeedsRebuild;
+    // Axes geometry
+    QOpenGLVertexArrayObject axesVAO;
+    QOpenGLBuffer axesVBO;
+    std::vector<float> axesVertices;
+
+    // Properties
+    float radius_ = 100.0f;
+    bool showSphere_ = true;
+    bool showGridLines_ = true;
+    bool showAxes_ = true;
+
+    // Shader sources
+    const char* vertexShaderSource;
+    const char* fragmentShaderSource;
+
+    // Helper methods
+    void createSphere(int latDivisions = 64, int longDivisions = 64);
+    void createLatitudeLongitudeLines();
+    void createCoordinateAxes();
+    void setupShaders();
 };
