@@ -38,7 +38,7 @@ public:
 
 signals:
     void radiusChanged(float radius);
-    void visibilityChanged(const QString& element, bool visible);
+	void visibilityChanged(const QString& element, bool visible); // Dummy function for signal to silence warnings
 
 private:
     // OpenGL objects

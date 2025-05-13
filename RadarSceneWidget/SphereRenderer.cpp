@@ -231,7 +231,6 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
     }
 }
 
-
 void SphereRenderer::setRadius(float radius) {
     if (radius_ != radius) {
         radius_ = radius;
@@ -264,4 +263,10 @@ void SphereRenderer::setAxesVisible(bool visible) {
         showAxes_ = visible;
         emit visibilityChanged("axes", visible);
     }
+}
+
+void SphereRenderer::visibilityChanged(const QString& element, bool visible)
+{
+    // This is never called - it's just to silence the Intellisense warning
+    // Qt's signal system relies on the MOC, not this function
 }

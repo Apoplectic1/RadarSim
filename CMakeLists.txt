@@ -42,6 +42,8 @@ set(RADAR_BEAM_SOURCES
     RadarBeam/EllipticalBeam.h
     RadarBeam/PhasedArrayBeam.cpp
     RadarBeam/PhasedArrayBeam.h
+    RadarBeam/BeamController.cpp
+    RadarBeam/BeamController.h
 )
 
 # RadarSceneWidget and related component classes
@@ -56,6 +58,8 @@ set(RADAR_SCENE_WIDGET_SOURCES
     RadarSceneWidget/CameraController.h
     RadarSceneWidget/SphereWidget.cpp
     RadarSceneWidget/SphereWidget.h
+    RadarSceneWidget/CameraController.cpp
+    RadarSceneWidget/CameraController.h
 )
 # Component sources
 set(COMPONENT_SOURCES
