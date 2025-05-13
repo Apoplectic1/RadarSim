@@ -82,12 +82,7 @@ private:
 
     // Helper methods
     void createSphere(int latDivisions = 64, int longDivisions = 64);
-    void createLatitudeLongitudeLines();
-    void createCoordinateAxes();
+    void createGridLines();
+    void createAxesLines();
     void setupShaders();
-
-private:
-    // Add these member variables 
-    QOpenGLVertexArrayObject testVAO;
-    QOpenGLBuffer testVBO;
 };

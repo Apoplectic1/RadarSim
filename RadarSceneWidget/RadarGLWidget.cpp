@@ -264,7 +264,7 @@ void RadarGLWidget::setupContextMenu() {
 		});
 
 	// Toggle grid lines
-	QAction* toggleGridLinesAction = contextMenu_->addAction("Toggle Grid Lines");
+	QAction* toggleGridLinesAction = contextMenu_->addAction("Toggle Grid");
 	toggleGridLinesAction->setCheckable(true);
 	toggleGridLinesAction->setChecked(true);
 	connect(toggleGridLinesAction, &QAction::toggled, [this](bool checked) {

@@ -11,9 +11,7 @@ SphereRenderer::SphereRenderer(QObject* parent)
 	// Initialize OpenGL buffer types
 	sphereVBO(QOpenGLBuffer::VertexBuffer),
 	sphereEBO(QOpenGLBuffer::IndexBuffer),
-	linesVBO(QOpenGLBuffer::VertexBuffer),
-	axesVBO(QOpenGLBuffer::VertexBuffer),
-	testVBO(QOpenGLBuffer::VertexBuffer)
+	linesVBO(QOpenGLBuffer::VertexBuffer)
 {
 	// Initialize main shader sources
 	vertexShaderSource = R"(
@@ -124,241 +122,28 @@ SphereRenderer::~SphereRenderer() {
 		delete axesShaderProgram;
 		axesShaderProgram = nullptr;
 	}
-
-	// Add cleanup for test triangle
-	if (testVAO.isCreated()) {
-		testVAO.destroy();
-	}
-	if (testVBO.isCreated()) {
-		testVBO.destroy();
-	}
 }
 
 void SphereRenderer::initialize() {
-	qDebug() << "Initializing SphereRenderer";
-
-	// Initialize OpenGL functions
-	bool initResult = initializeOpenGLFunctions();
-	if (!initResult) {
-		qCritical() << "ERROR: SphereRenderer failed to initialize OpenGL functions!";
-		return;
-	}
-
-	qDebug() << "SphereRenderer OpenGL functions initialized successfully";
+	initializeOpenGLFunctions();
 
 	// Set up OpenGL
 	glEnable(GL_DEPTH_TEST);
 
-	// Create and compile shader programs FIRST
-	setupShaders();
+	// Create and compile main shader program
+	shaderProgram = new QOpenGLShaderProgram();
+	shaderProgram->addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShaderSource);
+	shaderProgram->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
+	shaderProgram->link();
 
-	// Only proceed with geometry creation if shaders were created successfully
-	if (shaderProgram && axesShaderProgram) {
-		// Now create geometry with access to the shader programs
-		createSphere();
-		createLatitudeLongitudeLines();
-		createCoordinateAxes();
+	// Create geometry
+	createSphere();
+	createGridLines();
+	createAxesLines();
 
-		// Mark as initialized
-		initialized_ = true;
-
-		qDebug() << "SphereRenderer initialization complete";
-	}
-	else {
-		qCritical() << "SphereRenderer initialization failed - shaders not created";
-	}
+	qDebug() << "SphereRenderer initialization complete";
 }
 
-void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model) {
-	qDebug() << "SphereRenderer::render starting";
-
-	// Check if current context is valid
-	QOpenGLContext* currentContext = QOpenGLContext::currentContext();
-	if (!currentContext) {
-		qCritical() << "ERROR: No current OpenGL context in SphereRenderer::render()";
-		return;
-	}
-
-	qDebug() << "OpenGL context is valid in SphereRenderer::render";
-
-	// Resource checks
-	qDebug() << "Checking OpenGL resources:";
-	qDebug() << "  sphereVAO created:" << sphereVAO.isCreated();
-	qDebug() << "  sphereVBO created:" << sphereVBO.isCreated();
-	qDebug() << "  sphereEBO created:" << sphereEBO.isCreated();
-	qDebug() << "  linesVAO created:" << linesVAO.isCreated();
-	qDebug() << "  linesVBO created:" << linesVBO.isCreated();
-	qDebug() << "  axesVAO created:" << axesVAO.isCreated();
-	qDebug() << "  axesVBO created:" << axesVBO.isCreated();
-
-	qDebug() << "OpenGL context format:" << currentContext->format();
-
-	// STAGE 1: Basic GL state manipulation
-	qDebug() << "STAGE 1: Basic GL state manipulation";
-	glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-	qDebug() << "  glClearColor call successful";
-
-	// STAGE 2: Shader binding
-	qDebug() << "STAGE 2: Shader program binding";
-	if (shaderProgram) {
-		shaderProgram->bind();
-		qDebug() << "  Shader program bound successfully";
-		shaderProgram->release();
-		qDebug() << "  Shader program released successfully";
-	}
-
-	// STAGE 3: VAO binding test
-	qDebug() << "STAGE 3: Testing VAO binding";
-	if (shaderProgram && sphereVAO.isCreated()) {
-		shaderProgram->bind();
-		sphereVAO.bind();
-		qDebug() << "  sphereVAO bound successfully";
-		sphereVAO.release();
-		shaderProgram->release();
-		qDebug() << "  VAO binding test complete";
-	}
-
-	// STAGE 4: Setting uniforms
-	qDebug() << "STAGE 4: Testing uniform setting";
-	if (shaderProgram) {
-		shaderProgram->bind();
-		shaderProgram->setUniformValue("projection", projection);
-		qDebug() << "  projection uniform set";
-		shaderProgram->setUniformValue("view", view);
-		qDebug() << "  view uniform set";
-		shaderProgram->setUniformValue("model", model);
-		qDebug() << "  model uniform set";
-		shaderProgram->setUniformValue("color", QVector3D(0.95f, 0.95f, 0.95f));
-		qDebug() << "  color uniform set";
-		shaderProgram->setUniformValue("lightPos", QVector3D(500.0f, 500.0f, 500.0f));
-		qDebug() << "  lightPos uniform set";
-		shaderProgram->release();
-		qDebug() << "  Uniform setting test complete";
-	}
-
-	// STAGE 5: Testing basic drawing
-	qDebug() << "STAGE 5: Testing basic drawing";
-	if (shaderProgram && sphereVAO.isCreated() && sphereEBO.isCreated()) {
-		try {
-			qDebug() << "  sphereIndices.size() =" << sphereIndices.size();
-			if (sphereIndices.empty()) {
-				qWarning() << "  Empty sphere indices array!";
-				return;
-			}
-
-			shaderProgram->bind();
-			shaderProgram->setUniformValue("projection", projection);
-			shaderProgram->setUniformValue("view", view);
-			shaderProgram->setUniformValue("model", model);
-			shaderProgram->setUniformValue("color", QVector3D(0.95f, 0.95f, 0.95f));
-			shaderProgram->setUniformValue("lightPos", QVector3D(500.0f, 500.0f, 500.0f));
-
-			// Important: Check shader program ID
-			qDebug() << "  Shader program ID:" << shaderProgram->programId();
-
-			// Check active attributes using OpenGL directly
-			GLint numAttribs;
-			glGetProgramiv(shaderProgram->programId(), GL_ACTIVE_ATTRIBUTES, &numAttribs);
-			qDebug() << "  Shader has" << numAttribs << "active attributes";
-
-			GLchar name[256];
-			GLint size;
-			GLenum type;
-			for (int i = 0; i < numAttribs; i++) {
-				glGetActiveAttrib(shaderProgram->programId(), i, sizeof(name), nullptr, &size, &type, name);
-				qDebug() << "    Attribute" << i << ":" << name << "type:" << type << "size:" << size;
-			}
-
-			// Ensure EBO is bound separately for debugging
-			sphereEBO.bind();
-			qDebug() << "  sphereEBO bound successfully";
-
-			// Ensure VAO is bound after setting up EBO
-			sphereVAO.bind();
-			qDebug() << "  sphereVAO bound again successfully";
-
-			// Verify vertex attributes are enabled (optional, VAO should handle this)
-			glEnableVertexAttribArray(0);
-			glEnableVertexAttribArray(1);
-			qDebug() << "  Vertex attributes enabled";
-
-			// Try drawing with a much smaller number of indices as a test
-			// Use just the first triangle (3 indices) as a test
-			const GLsizei testCount = sphereIndices.size() > 3 ? 3 : sphereIndices.size();
-			qDebug() << "  Drawing" << testCount << "indices as a test";
-			glDrawElements(GL_TRIANGLES, testCount, GL_UNSIGNED_INT, 0);
-			qDebug() << "  Test draw succeeded with" << testCount << "indices";
-
-			// If the test draw succeeds, we can try to diagnose further
-
-			// Clean up
-			sphereVAO.release();
-			sphereEBO.release();
-			shaderProgram->release();
-			qDebug() << "  Basic drawing test complete for small test";
-		}
-		catch (const std::exception& e) {
-			qCritical() << "  Exception during draw test:" << e.what();
-		}
-		catch (...) {
-			qCritical() << "  Unknown exception during draw test";
-		}
-	}
-
-	// STAGE 5B: Testing direct drawing (no indices)
-	qDebug() << "STAGE 5B: Testing direct drawing of a triangle";
-	if (shaderProgram && testVAO.isCreated()) {
-		try {
-			shaderProgram->bind();
-			shaderProgram->setUniformValue("projection", projection);
-			shaderProgram->setUniformValue("view", view);
-			shaderProgram->setUniformValue("model", model);
-			shaderProgram->setUniformValue("color", QVector3D(1.0f, 0.0f, 0.0f));  // Red for test
-			shaderProgram->setUniformValue("lightPos", QVector3D(500.0f, 500.0f, 500.0f));
-
-			testVAO.bind();
-			glDrawArrays(GL_TRIANGLES, 0, 3);  // Draw directly without indices
-			qDebug() << "  Successfully drew test triangle";
-			testVAO.release();
-			shaderProgram->release();
-		}
-		catch (...) {
-			qCritical() << "  Exception during test triangle drawing";
-		}
-	}
-
-	// STAGE 6: Testing GL_POLYGON_OFFSET_FILL
-	qDebug() << "STAGE 6: Testing GL_POLYGON_OFFSET_FILL";
-	try {
-		glEnable(GL_POLYGON_OFFSET_FILL);
-		qDebug() << "  glEnable(GL_POLYGON_OFFSET_FILL) succeeded";
-		glPolygonOffset(1.0f, 1.0f);
-		qDebug() << "  glPolygonOffset succeeded";
-		glDisable(GL_POLYGON_OFFSET_FILL);
-		qDebug() << "  glDisable(GL_POLYGON_OFFSET_FILL) succeeded";
-	}
-	catch (...) {
-		qCritical() << "  Exception during GL_POLYGON_OFFSET_FILL test";
-	}
-
-	// STAGE 7: Testing GL_LINE_SMOOTH
-	qDebug() << "STAGE 7: Testing GL_LINE_SMOOTH";
-	try {
-		glEnable(GL_LINE_SMOOTH);
-		qDebug() << "  glEnable(GL_LINE_SMOOTH) succeeded";
-		glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
-		qDebug() << "  glHint(GL_LINE_SMOOTH_HINT, GL_NICEST) succeeded";
-		glDisable(GL_LINE_SMOOTH);
-		qDebug() << "  glDisable(GL_LINE_SMOOTH) succeeded";
-	}
-	catch (...) {
-		qCritical() << "  Exception during GL_LINE_SMOOTH test";
-	}
-
-	// We'll stop here for now - if all these tests pass, we can add more
-	qDebug() << "SphereRenderer::render completed all stages successfully";
-}
-/*
 void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model) {
 	qDebug() << "SphereRenderer::render starting";
 
@@ -505,7 +290,7 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 		axesShaderProgram->release();
 	}
 }
-*/
+
 
 void SphereRenderer::setRadius(float radius) {
 	if (radius_ != radius) {
@@ -513,8 +298,8 @@ void SphereRenderer::setRadius(float radius) {
 
 		// Regenerate geometry
 		createSphere();
-		createLatitudeLongitudeLines();
-		createCoordinateAxes();
+		createGridLines();
+		createAxesLines();
 
 		emit radiusChanged(radius);
 	}
@@ -534,7 +319,7 @@ void SphereRenderer::setGridLinesVisible(bool visible) {
 	}
 }
 
-void SphereRenderer::createCoordinateAxes() {
+void SphereRenderer::createAxesLines() {
 	// Create a local vector to collect all vertices
 	std::vector<float> vertices;
 
@@ -779,40 +564,19 @@ void SphereRenderer::createSphere(int latDivisions, int longDivisions) {
 	sphereEBO.bind();
 	sphereEBO.allocate(sphereIndices.data(), sphereIndices.size() * sizeof(unsigned int));
 
-	// Position attribute
-	GLint aPosLocation = shaderProgram->attributeLocation("aPos");
-	if (aPosLocation != -1) {
-		glVertexAttribPointer(aPosLocation, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-		glEnableVertexAttribArray(aPosLocation);
-		qDebug() << "Set up position attribute (aPos) at location" << aPosLocation;
-	}
-	else {
-		qWarning() << "Could not find attribute 'aPos' in shader program";
-	}
-
-	// Normal attribute
-	GLint aNormalLocation = shaderProgram->attributeLocation("aNormal");
-	if (aNormalLocation != -1) {
-		glVertexAttribPointer(aNormalLocation, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-		glEnableVertexAttribArray(aNormalLocation);
-		qDebug() << "Set up normal attribute (aNormal) at location" << aNormalLocation;
-	}
-	else {
-		qWarning() << "Could not find attribute 'aNormal' in shader program";
-	}
 
 	// Position attribute
-	//glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-	//glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);
 
 	// Normal attribute
-	//glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-	//glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+	glEnableVertexAttribArray(1);
 
 	sphereVAO.release();
 }
 
-void SphereRenderer::createLatitudeLongitudeLines() {
+void SphereRenderer::createGridLines() {
 	// Similar to before, but with a small offset to the grid lines
 	latLongLines.clear();
 

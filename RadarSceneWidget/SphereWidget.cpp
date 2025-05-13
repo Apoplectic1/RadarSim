@@ -84,7 +84,7 @@ SphereWidget::SphereWidget(QWidget* parent)
 		});
 
 	// Add Toggle Grid Lines action
-	QAction* toggleGridLinesAction = contextMenu_->addAction("Toggle Grid Lines");
+	QAction* toggleGridLinesAction = contextMenu_->addAction("Toggle Grid");
 	toggleGridLinesAction->setCheckable(true);
 	toggleGridLinesAction->setChecked(true);
 	connect(toggleGridLinesAction, &QAction::toggled, this, [this](bool checked) {
