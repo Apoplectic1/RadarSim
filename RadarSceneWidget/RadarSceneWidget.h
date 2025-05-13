@@ -1,17 +1,14 @@
-// ---- RadarSceneWidget.h ----
-
+// RadarSceneWidget.h
 #pragma once
 
 #include <QWidget>
 #include <QVBoxLayout>
-#include "Entity.h"
+#include <QOpenGLContext>
 #include "SphereWidget.h"
-
-// Forward declarations
-class SphereRenderer;
-class BeamController;
-class CameraController;
-class ModelManager;
+#include "SphereRenderer.h"
+#include "BeamController.h"
+#include "CameraController.h"
+#include "ModelManager.h"
 
 class RadarSceneWidget : public QWidget {
     Q_OBJECT
@@ -19,12 +16,6 @@ class RadarSceneWidget : public QWidget {
 public:
     explicit RadarSceneWidget(QWidget* parent = nullptr);
     ~RadarSceneWidget();
-
-    // Access to the underlying SphereWidget during transition
-    SphereWidget* getSphereWidget() const { return sphereWidget_; }
-
-    std::shared_ptr<Entity> m_RadarEntity;
-    std::shared_ptr<SphereRenderer> m_SphereRenderer;
 
     // Radar position control
     void setRadius(float radius);
@@ -51,24 +42,31 @@ public:
     bool areGridLinesVisible() const;
     bool isInertiaEnabled() const;
 
+    // New methods for components
+    SphereRenderer* getSphereRenderer() const { return sphereRenderer_; }
+    BeamController* getBeamController() const { return beamController_; }
+    CameraController* getCameraController() const { return cameraController_; }
+    ModelManager* getModelManager() const { return modelManager_; }
+
 signals:
-    // Signals that will be used for component communication
     void radarPositionChanged(float radius, float theta, float phi);
     void beamTypeChanged(BeamType type);
     void beamWidthChanged(float width);
     void visibilityOptionChanged(const QString& option, bool visible);
 
 private:
-    // Eventually, these will become the component classes
-    // For now, we'll just keep the SphereWidget instance
+    // During transition, maintain the SphereWidget instance
     SphereWidget* sphereWidget_;
 
     // Layout for this widget
     QVBoxLayout* layout_;
 
-    // Future component handles (initially nullptr)
+    // Component handles (initially nullptr)
     SphereRenderer* sphereRenderer_ = nullptr;
     BeamController* beamController_ = nullptr;
     CameraController* cameraController_ = nullptr;
     ModelManager* modelManager_ = nullptr;
+
+    // Create and initialize components
+    void initializeComponents();
 };

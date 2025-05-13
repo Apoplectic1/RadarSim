@@ -1,25 +1,58 @@
-// --- RadarSceneWidget.cpp ----
-
+// RadarSceneWidget.cpp
 #include "RadarSceneWidget.h"
+#include <QDebug>
 
-RadarSceneWidget::RadarSceneWidget(QWidget* parent) : QWidget(parent)
+RadarSceneWidget::RadarSceneWidget(QWidget* parent)
+    : QWidget(parent),
+    sphereWidget_(nullptr),
+    layout_(new QVBoxLayout(this)),
+    sphereRenderer_(nullptr),
+    beamController_(nullptr),
+    cameraController_(nullptr),
+    modelManager_(nullptr)
 {
-    // Create a layout
-    QVBoxLayout* layout = new QVBoxLayout(this);
-    layout->setContentsMargins(0, 0, 0, 0);
+    qDebug() << "Creating RadarSceneWidget";
 
-    // Create SphereWidget with proper parent
+    // Set up layout properties
+    layout_->setContentsMargins(0, 0, 0, 0);
+    layout_->setSpacing(0);
+
+    // Create the SphereWidget and add it to the layout
     sphereWidget_ = new SphereWidget(this);
-    layout->addWidget(sphereWidget_);
+    layout_->addWidget(sphereWidget_);
 
-    m_RadarEntity = std::make_shared<Entity>("RadarEntity");
-    m_SphereRenderer = m_RadarEntity->AddComponent<SphereRenderer>(1.0f, 36);
-    m_SphereRenderer->SetShaderProgram(&m_program); // Use your existing shader program
-    m_SphereRenderer->SetColor(QVector4D(0.0f, 1.0f, 0.0f, 0.5f));
+    // Initialize components (but don't use them yet)
+    initializeComponents();
+
+    // Set the layout
+    setLayout(layout_);
+
+    qDebug() << "RadarSceneWidget constructor complete";
 }
 
 RadarSceneWidget::~RadarSceneWidget() {
-    // Components will be deleted automatically as children
+    qDebug() << "RadarSceneWidget destructor called";
+
+    // Clean up components
+    delete sphereRenderer_;
+    delete beamController_;
+    delete cameraController_;
+    delete modelManager_;
+}
+
+void RadarSceneWidget::initializeComponents() {
+    qDebug() << "Initializing RadarSceneWidget components";
+
+    // Create components
+    sphereRenderer_ = new SphereRenderer(this);
+    beamController_ = new BeamController(this);
+    cameraController_ = new CameraController(this);
+    modelManager_ = new ModelManager(this);
+
+    // Eventually, these components will be initialized with OpenGL context
+    // and will replace SphereWidget functionality
+
+    qDebug() << "RadarSceneWidget components created";
 }
 
 // --- Forwarding methods to SphereWidget --- //
@@ -101,13 +134,6 @@ void RadarSceneWidget::setInertiaEnabled(bool enabled) {
     if (sphereWidget_) {
         sphereWidget_->setInertiaEnabled(enabled);
         emit visibilityOptionChanged("inertia", enabled);
-    }
-}
-
-void RadarSceneWidget::setSphereVisible(bool visible)
-{
-    if (m_SphereRenderer) {
-        m_SphereRenderer->SetVisible(visible);
     }
 }
 
