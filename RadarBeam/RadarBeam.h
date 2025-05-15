@@ -40,10 +40,10 @@ public:
     // Core methods
     virtual void initialize();
     virtual void update(const QVector3D& radarPosition);
-    virtual void render(QOpenGLShaderProgram* program, const QMatrix4x4& projection,
-        const QMatrix4x4& view, const QMatrix4x4& model);
+    virtual void render(QOpenGLShaderProgram* program, const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model);
 
     // Property setters
+    virtual BeamType getBeamType() const { return BeamType::Conical; }  // Default
     void setBeamWidth(float degrees);
     void setBeamDirection(BeamDirection direction);
     void setCustomDirection(const QVector3D& direction);

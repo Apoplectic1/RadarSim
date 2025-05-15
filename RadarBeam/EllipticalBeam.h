@@ -7,6 +7,7 @@
 // Derived class for elliptical beam (different horizontal/vertical widths)
 class EllipticalBeam : public RadarBeam {
 public:
+    BeamType getBeamType() const override { return BeamType::Elliptical; }
     EllipticalBeam(float sphereRadius = 100.0f, float horizontalWidthDegrees = 20.0f, float verticalWidthDegrees = 10.0f);
     virtual ~EllipticalBeam();
 

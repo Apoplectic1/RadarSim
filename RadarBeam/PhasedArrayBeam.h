@@ -7,6 +7,7 @@
 // Derived class for phased array beam with full beam forming capabilities
 class PhasedArrayBeam : public RadarBeam {
 public:
+    BeamType getBeamType() const override { return BeamType::Phased; }
     PhasedArrayBeam(float sphereRadius = 100.0f, float mainLobeWidthDegrees = 15.0f);
     virtual ~PhasedArrayBeam();
 
