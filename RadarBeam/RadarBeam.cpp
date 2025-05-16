@@ -78,6 +78,13 @@ RadarBeam::RadarBeam(float sphereRadius, float beamWidthDegrees)
 
 // Destructor
 RadarBeam::~RadarBeam() {
+	// Make sure we're in a valid context before destroying resources
+	QOpenGLContext* currentContext = QOpenGLContext::currentContext();
+	if (!currentContext) {
+		qWarning() << "No OpenGL context in RadarBeam destructor, resources may leak";
+		return;
+	}
+
 	// Clean up OpenGL resources
 	if (beamVAO.isCreated()) {
 		beamVAO.destroy();
@@ -97,17 +104,44 @@ RadarBeam::~RadarBeam() {
 }
 
 void RadarBeam::initialize() {
+	// Make sure we don't initialize twice
+	if (beamVAO.isCreated()) {
+		qDebug() << "RadarBeam already initialized, skipping";
+		return;
+	}
+
 	initializeOpenGLFunctions();
 	setupShaders();
 	createBeamGeometry();
 }
 
 void RadarBeam::setupShaders() {
+	// Check if shader sources are properly initialized
+	if (!beamVertexShaderSource || !beamFragmentShaderSource) {
+		qCritical() << "Shader sources not initialized!";
+		return;
+	}
+
 	// Create and compile beam shader program
 	beamShaderProgram = new QOpenGLShaderProgram();
-	beamShaderProgram->addShaderFromSourceCode(QOpenGLShader::Vertex, beamVertexShaderSource);
-	beamShaderProgram->addShaderFromSourceCode(QOpenGLShader::Fragment, beamFragmentShaderSource);
-	beamShaderProgram->link();
+
+	// Debug shader compilation
+	if (!beamShaderProgram->addShaderFromSourceCode(QOpenGLShader::Vertex, beamVertexShaderSource)) {
+		qCritical() << "Failed to compile vertex shader:" << beamShaderProgram->log();
+		return;
+	}
+
+	if (!beamShaderProgram->addShaderFromSourceCode(QOpenGLShader::Fragment, beamFragmentShaderSource)) {
+		qCritical() << "Failed to compile fragment shader:" << beamShaderProgram->log();
+		return;
+	}
+
+	if (!beamShaderProgram->link()) {
+		qCritical() << "Failed to link shader program:" << beamShaderProgram->log();
+		return;
+	}
+
+	qDebug() << "Beam shader program compiled and linked successfully";
 }
 
 void RadarBeam::update(const QVector3D& radarPosition) {
@@ -115,8 +149,15 @@ void RadarBeam::update(const QVector3D& radarPosition) {
 	createBeamGeometry();
 }
 
-void RadarBeam::render(QOpenGLShaderProgram* program, const QMatrix4x4& projection,	const QMatrix4x4& view, const QMatrix4x4& model) {
+void RadarBeam::render(QOpenGLShaderProgram* program, const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model) {
+	// Early exit checks
 	if (!visible_ || vertices_.empty()) {
+		return;
+	}
+
+	// Check if OpenGL resources are valid
+	if (!beamVAO.isCreated() || !beamVBO.isCreated() || !beamEBO.isCreated() || !beamShaderProgram) {
+		qWarning() << "RadarBeam::render called with invalid OpenGL resources";
 		return;
 	}
 
@@ -150,11 +191,18 @@ void RadarBeam::render(QOpenGLShaderProgram* program, const QMatrix4x4& projecti
 	QVector3D cameraPos = inverseView.column(3).toVector3D();
 	beamShaderProgram->setUniformValue("viewPos", cameraPos);
 
-	// Draw the beam
+	// Bind VAO and draw
 	beamVAO.bind();
-	glDrawElements(GL_TRIANGLES, indices_.size(), GL_UNSIGNED_INT, 0);
+
+	// Check if we have valid indices before drawing
+	if (!indices_.empty()) {
+		glDrawElements(GL_TRIANGLES, indices_.size(), GL_UNSIGNED_INT, 0);
+	}
+
+	// Release VAO
 	beamVAO.release();
 
+	// Release shader program
 	beamShaderProgram->release();
 
 	// Restore previous OpenGL state
@@ -261,6 +309,12 @@ void RadarBeam::calculateBeamVertices(const QVector3D& apex, const QVector3D& di
 	// Clear previous data
 	vertices_.clear();
 	indices_.clear();
+
+	// Sanity check
+	if (length <= 0.0f || baseRadius <= 0.0f) {
+		qWarning() << "Invalid beam dimensions: length =" << length << ", radius =" << baseRadius;
+		return;
+	}
 
 	// Number of segments around the base circle
 	const int segments = 32;
@@ -372,34 +426,3 @@ RadarBeam* RadarBeam::createBeam(BeamType type, float sphereRadius, float beamWi
 		return new ConicalBeam(sphereRadius, beamWidthDegrees);
 	}
 }
-/*
-RadarBeam* RadarBeam::createBeam(BeamType type, float sphereRadius, float beamWidthDegrees) {
-	RadarBeam* beam = nullptr;
-
-	switch (type) {
-	case BeamType::Conical:
-		beam = new ConicalBeam(sphereRadius, beamWidthDegrees);
-		qDebug() << "Created ConicalBeam";
-		break;
-	case BeamType::Elliptical:
-		beam = new EllipticalBeam(sphereRadius, beamWidthDegrees, beamWidthDegrees / 2.0f);
-		qDebug() << "Created EllipticalBeam";
-		break;
-	case BeamType::Phased:
-		beam = new PhasedArrayBeam(sphereRadius, beamWidthDegrees);
-		qDebug() << "Created PhasedArrayBeam";
-		break;
-	case BeamType::Shaped:
-		// For now, return conical but could implement shaped beam later
-		beam = new ConicalBeam(sphereRadius, beamWidthDegrees);
-		qDebug() << "Created Shaped beam (using ConicalBeam)";
-		break;
-	default:
-		beam = new ConicalBeam(sphereRadius, beamWidthDegrees);
-		qDebug() << "Created default ConicalBeam";
-		break;
-	}
-
-	return beam;
-}
-*/

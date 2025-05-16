@@ -44,6 +44,11 @@ public:
 
     // Property setters
     virtual BeamType getBeamType() const { return BeamType::Conical; }  // Default
+    virtual float getHorizontalWidth() const { return getBeamWidth(); }
+    virtual float getVerticalWidth() const { return getBeamWidth(); }
+    virtual void setHorizontalWidth(float width) { setBeamWidth(width); }
+    virtual void setVerticalWidth(float width) { /* Do nothing in base class */ }
+
     void setBeamWidth(float degrees);
     void setBeamDirection(BeamDirection direction);
     void setCustomDirection(const QVector3D& direction);

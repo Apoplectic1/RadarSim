@@ -42,6 +42,18 @@ void RadarGLWidget::initialize(SphereRenderer* sphereRenderer, BeamController* b
 
 	// Store the components but don't initialize them here
 	// They will be initialized in initializeGL when a valid context exists
+	// Set mouse tracking to improve responsiveness
+	setMouseTracking(true);
+
+	// Enable context menu for right-click
+	setContextMenuPolicy(Qt::CustomContextMenu);
+	connect(this, &QWidget::customContextMenuRequested,
+		this, [this](const QPoint& pos) {
+			if (contextMenu_) {
+				contextMenu_->popup(mapToGlobal(pos));
+			}
+		});
+	
 }
 
 void RadarGLWidget::initializeGL() {
@@ -51,7 +63,7 @@ void RadarGLWidget::initializeGL() {
 	initializeOpenGLFunctions();
 
 	// Set up OpenGL
-	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
 	glEnable(GL_DEPTH_TEST);
 
 	// Make sure the context is current
@@ -89,15 +101,22 @@ void RadarGLWidget::resizeGL(int w, int h) {
 }
 
 void RadarGLWidget::paintGL() {
-	// Clear the buffers
+	qDebug() << "RadarGLWidget::paintGL starting";
+
+	// Ensure blending is disabled for the clear operation
+	glDisable(GL_BLEND);
+
+	// Clear the buffers with a distinctive color to see if clearing works
+	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	// Verify context is valid
+	// Check context
 	if (!context() || !context()->isValid()) {
 		qWarning() << "OpenGL context not valid in paintGL";
 		return;
 	}
 
+	// Check camera controller
 	if (!cameraController_) {
 		qWarning() << "CameraController not available in paintGL";
 		return;
@@ -107,26 +126,51 @@ void RadarGLWidget::paintGL() {
 	QMatrix4x4 viewMatrix = cameraController_->getViewMatrix();
 	QMatrix4x4 modelMatrix = cameraController_->getModelMatrix();
 
+	// Debug camera matrices
+	static QElapsedTimer debugTimer;
+	static bool timerInitialized = false;
+
+	if (!timerInitialized) {
+		debugTimer.start();
+		timerInitialized = true;
+	}
+
+	// Log matrices occasionally to avoid console spam
+	if (debugTimer.elapsed() > 1000) { // Once per second
+		qDebug() << "Camera matrices:";
+		qDebug() << "  View:" << viewMatrix;
+		qDebug() << "  Model:" << modelMatrix;
+		debugTimer.restart();
+	}
+
 	// Set up projection matrix
 	QMatrix4x4 projectionMatrix;
 	projectionMatrix.setToIdentity();
 	projectionMatrix.perspective(45.0f, float(width()) / float(height()), 0.1f, 2000.0f);
 
-	// Render sphere and grid
+	// Log component state
+	qDebug() << "  SphereRenderer available:" << (sphereRenderer_ != nullptr);
+	qDebug() << "  BeamController available:" << (beamController_ != nullptr);
+	qDebug() << "  ModelManager available:" << (modelManager_ != nullptr);
+
+	// Draw components with careful error trapping
 	try {
 		if (sphereRenderer_) {
+			qDebug() << "  Rendering sphere...";
 			sphereRenderer_->render(projectionMatrix, viewMatrix, modelMatrix);
 		}
 
-		// Render models
 		if (modelManager_) {
+			qDebug() << "  Rendering models...";
 			modelManager_->render(projectionMatrix, viewMatrix, modelMatrix);
 		}
 
-		// Render radar beam
 		if (beamController_) {
+			qDebug() << "  Rendering beam...";
 			beamController_->render(projectionMatrix, viewMatrix, modelMatrix);
 		}
+
+		qDebug() << "RadarGLWidget::paintGL completed successfully";
 	}
 	catch (const std::exception& e) {
 		qCritical() << "Exception in RadarGLWidget::paintGL:" << e.what();
@@ -177,23 +221,31 @@ void RadarGLWidget::setAngles(float theta, float phi) {
 }
 
 void RadarGLWidget::mousePressEvent(QMouseEvent* event) {
+	// If right-click is for context menu, let it bubble up
+	if (event->button() == Qt::RightButton && contextMenu_) {
+		// Let the context menu event handle it
+		QOpenGLWidget::mousePressEvent(event);
+		return;
+	}
+
+	// Forward to camera controller
 	if (cameraController_) {
 		cameraController_->mousePressEvent(event);
-		update();
+		update(); // Request update after state change
 	}
 }
 
 void RadarGLWidget::mouseMoveEvent(QMouseEvent* event) {
 	if (cameraController_) {
 		cameraController_->mouseMoveEvent(event);
-		update();
+		update(); // Request update after state change
 	}
 }
 
 void RadarGLWidget::mouseReleaseEvent(QMouseEvent* event) {
 	if (cameraController_) {
 		cameraController_->mouseReleaseEvent(event);
-		update();
+		update(); // Request update after state change
 	}
 }
 

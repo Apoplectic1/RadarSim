@@ -1,6 +1,8 @@
 // SphereRenderer.h
 #pragma once
 
+#include "RadarBeam/RadarBeam.h"
+
 #include <QObject>
 #include <QOpenGLFunctions_3_3_Core>
 #include <QOpenGLShaderProgram>
@@ -8,6 +10,7 @@
 #include <QOpenGLVertexArrayObject>
 #include <QVector3D>
 #include <QMatrix4x4>
+#include <QElapsedTimer>
 #include <vector>
 
 class SphereRenderer : public QObject, protected QOpenGLFunctions_3_3_Core {
@@ -18,7 +21,8 @@ public:
     ~SphereRenderer();
 
     // Initialization
-    void initialize();
+    bool initialize();
+    bool initializeShaders();
 
     // Rendering
     void render(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model);
@@ -35,6 +39,30 @@ public:
     bool isSphereVisible() const { return showSphere_; }
     bool areGridLinesVisible() const { return showGridLines_; }
     bool areAxesVisible() const { return showAxes_; }
+
+    // Radar dot methods
+    void setRadarPosition(float theta, float phi);
+    QVector3D getRadarPosition() const;
+    float getTheta() const { return theta_; }
+    float getPhi() const { return phi_; }
+
+    // Radar beam methods
+    void setBeamWidth(float degrees);
+    void setBeamType(BeamType type);
+    void setBeamColor(const QVector3D& color);
+    void setBeamOpacity(float opacity);
+    void setBeamVisible(bool visible);
+    bool isBeamVisible() const { return showBeam_; }
+    RadarBeam* getBeam() const { return radarBeam_; }
+
+    // Inertia control
+    void setInertiaEnabled(bool enabled);
+    bool isInertiaEnabled() const { return inertiaEnabled_; }
+    void setInertiaParameters(float decay, float velocityScale);
+    void applyRotation(const QVector3D& axis, float angle, bool withInertia = true);
+    void resetView();
+    const QQuaternion& getRotation() const { return rotation_; }
+    void setRotation(const QQuaternion& rotation);
 
 signals:
     void radiusChanged(float radius);
@@ -79,10 +107,42 @@ private:
     const char* fragmentShaderSource;
     const char* axesVertexShaderSource;
     const char* axesFragmentShaderSource;
+    const char* dotVertexShaderSource;
+    const char* dotFragmentShaderSource;
 
     // Helper methods
     void createSphere(int latDivisions = 64, int longDivisions = 64);
     void createGridLines();
     void createAxesLines();
-    void setupShaders();
+
+    // Radar dot geometry and properties
+    QOpenGLVertexArrayObject dotVAO;
+    QOpenGLBuffer dotVBO;
+    std::vector<float> dotVertices;
+    QOpenGLShaderProgram* dotShaderProgram = nullptr;
+    float theta_ = 45.0f;  // Spherical coordinate theta (longitude)
+    float phi_ = 45.0f;    // Spherical coordinate phi (latitude)
+
+    // Radar beam
+    RadarBeam* radarBeam_ = nullptr;
+    bool showBeam_ = true;
+
+    // Helper methods
+    void createDot();
+    QVector3D sphericalToCartesian(float r, float thetaDeg, float phiDeg) const;
+
+    // Inertia control
+    // Inertia/momentum for rotation
+    QTimer* inertiaTimer_ = nullptr;
+    QVector3D rotationAxis_;
+    float rotationVelocity_ = 0.0f;
+    float rotationDecay_ = 0.95f;  // Determines how quickly inertia slows down (0.9-0.99)
+    QElapsedTimer frameTimer_;  // Add this line
+    bool inertiaEnabled_ = true;
+    QQuaternion rotation_ = QQuaternion(); // Current rotation
+
+    // Helper methods for inertia
+    void startInertia(const QVector3D& axis, float velocity);
+    void stopInertia();
+    void updateInertia();
 };

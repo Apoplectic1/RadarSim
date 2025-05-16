@@ -40,7 +40,6 @@ RadarSim::RadarSim(QWidget* parent)
 
     // Start with the radar scene tab selected
     tabWidget_->setCurrentIndex(1);
-
 }
 
 // Destructor
@@ -143,8 +142,8 @@ void RadarSim::setupTabs() {
 
     // Add switch for component-based rendering
     QCheckBox* useComponentsCheckbox = new QCheckBox("Use Component Architecture", architectureGroup);
-    useComponentsCheckbox->setChecked(false);
-    useComponentsCheckbox->setToolTip("Switch between old and new rendering architecture");
+    useComponentsCheckbox->setChecked(true);
+    useComponentsCheckbox->setToolTip("Switch between old and new rendering architecture. Checked is new.");
     architectureLayout->addWidget(useComponentsCheckbox);
 
     // Connect checkbox to toggle component rendering

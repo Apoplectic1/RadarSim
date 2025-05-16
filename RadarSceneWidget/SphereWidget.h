@@ -23,6 +23,7 @@ class SphereWidget : public QOpenGLWidget, protected QOpenGLFunctions_3_3_Core {
 public:
     explicit SphereWidget(QWidget* parent = nullptr);
     ~SphereWidget() override;
+    void checkGLError(const char* operation);
 
     void setRadius(float r);
     float getRadius() const { return radius_; }
@@ -180,9 +181,9 @@ private:
 
     // Helper methods
     void createSphere(int latDivisions = 64, int longDivisions = 64);
-    void createLatitudeLongitudeLines();
+    void createSphereGrid();
     void createDot();
-    void createCoordinateAxes();
+    void createSphereAxes();
     bool isDotVisible();
     QVector3D sphericalToCartesian(float r, float thetaDeg, float phiDeg);
 

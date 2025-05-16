@@ -151,6 +151,14 @@ SphereWidget::SphereWidget(QWidget* parent)
 		qDebug() << "Switching to Phased Array beam";
 		setBeamType(BeamType::Phased);
 		});
+
+	connect(this, &QOpenGLWidget::aboutToCompose, this, [this]() {
+		static bool firstFrame = true;
+		if (firstFrame) {
+			firstFrame = false;
+			update();
+		}
+		});
 }
 
 // Destructor to clean up resources
@@ -311,29 +319,24 @@ void main() {
 void SphereWidget::initializeGL() {
 	initializeOpenGLFunctions();
 
-	// Set up OpenGL
-	// Enables depth testing, which ensures that objects closer to the camera are rendered in front of objects farther away.
-	// OpenGL uses a depth buffer to track the depth of each pixel, and this function ensures that fragments(pixels) are only drawn if they pass the depth test.
+	// Set up OpenGL with stronger state management
 	glEnable(GL_DEPTH_TEST);
 
-	// Enables blending, which allows for transparency effects by combining the color of the source (the object being drawn) 
-	// with the color of the destination (what's already on the screen).
-	// This is essential for rendering semi - transparent objects, like your radar dot with reduced opacity.
-	glEnable(GL_BLEND);
+	// Completely disable blending during initialization
+	glDisable(GL_BLEND);
 
-	// Specifies how blending is performed.
-	// GL_SRC_ALPHA uses the alpha value of the source color (object being drawn) to determine its contribution.
-	// GL_ONE_MINUS_SRC_ALPHA uses the inverse of the source alpha to determine the destination's contribution.
-	// This creates a standard transparency effect where the alpha value controls the visibility of the object.
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	// Force viewport to cover the entire widget
+	glViewport(0, 0, width(), height());
 
-	auto gray = QVector3D(0.5f, 0.5f, 0.5f);
-	auto opacity = 0.5f;
-	// Set clear color to gray with specified opacity
-	// This sets the background color of the OpenGL context to a gray color with an alpha value of 0.5.
-	// The alpha value is not used in the clear color, but it can be useful for blending effects.
-	// Note: The actual opacity effect will depend on the blending settings and the objects being drawn.
-	glClearColor(gray.x(), gray.y(), gray.z(), opacity);
+	// Use a distinct clear color (dark blue) to see if clearing is working
+	glClearColor(0.1f, 0.1f, 0.2f, 1.0f);
+
+	// Clear both color and depth buffers
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	// Reset to desired background color
+	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
 
 	// Create and compile main shader program
 	shaderProgram = new QOpenGLShaderProgram(this);
@@ -355,10 +358,10 @@ void SphereWidget::initializeGL() {
 
 	// Create geometry
 	createSphere();
-	createLatitudeLongitudeLines();
+	createSphereGrid();
+	createSphereAxes(); 
 	createDot();
-	createCoordinateAxes();
-
+	
 	// Set up view matrix
 	viewMatrix.setToIdentity();
 	viewMatrix.translate(0, 0, -300.0f); // Same as the fixed-distance camera
@@ -372,6 +375,9 @@ void SphereWidget::initializeGL() {
 	// Update the beam with initial radar position
 	QVector3D radarPos = sphericalToCartesian(radius_, theta_, phi_);
 	radarBeam_->update(radarPos);
+
+	// Force a complete redraw after initialization
+	update();
 }
 
 void SphereWidget::setRadius(float r) {
@@ -382,8 +388,8 @@ void SphereWidget::setRadius(float r) {
 
 	// Update sphere and grid geometry
 	createSphere();
-	createLatitudeLongitudeLines();
-	createCoordinateAxes();
+	createSphereGrid();
+	createSphereAxes();
 
 	// Update beam size if it exists
 	if (radarBeam_) {
@@ -469,7 +475,91 @@ void SphereWidget::resizeGL(int w, int h) {
 
 // Update the paintGL method to improve grid line visibility
 void SphereWidget::paintGL() {
+	// STEP 1: Reset OpenGL state
+	glDisable(GL_BLEND);
+	glEnable(GL_DEPTH_TEST);
+	glDepthMask(GL_TRUE);
+
+	// STEP 2: Initial clear
+	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	// STEP 3: Extra pass with a full-screen shader to ensure complete clearing
+	// Create a simple shader program for this if you don't have one
+	QOpenGLShaderProgram fullscreenShader;
+	if (!fullscreenShader.addShaderFromSourceCode(QOpenGLShader::Vertex,
+		"attribute vec2 position;\n"
+		"void main() {\n"
+		"   gl_Position = vec4(position, 0.0, 1.0);\n"
+		"}\n")) {
+		qDebug() << "Failed to compile fullscreen vertex shader:" << fullscreenShader.log();
+	}
+
+	if (!fullscreenShader.addShaderFromSourceCode(QOpenGLShader::Fragment,
+		"uniform vec4 color;\n"
+		"void main() {\n"
+		"   gl_FragColor = color;\n"
+		"}\n")) {
+		qDebug() << "Failed to compile fullscreen fragment shader:" << fullscreenShader.log();
+	}
+
+	if (!fullscreenShader.link()) {
+		qDebug() << "Failed to link fullscreen shader:" << fullscreenShader.log();
+	}
+
+	// Use the shader to draw a full-screen quad
+	if (fullscreenShader.isLinked()) {
+		fullscreenShader.bind();
+
+		// Set the background color
+		fullscreenShader.setUniformValue("color", QVector4D(0.5f, 0.5f, 0.5f, 1.0f));
+
+		// Create a VAO for the full-screen quad
+		QOpenGLVertexArrayObject vao;
+		vao.create();
+		vao.bind();
+
+		// Vertex data for a full-screen quad
+		const GLfloat vertices[] = {
+			-1.0f, -1.0f,
+			 1.0f, -1.0f,
+			 1.0f,  1.0f,
+			-1.0f,  1.0f
+		};
+
+		// Upload vertex data
+		QOpenGLBuffer vbo(QOpenGLBuffer::VertexBuffer);
+		vbo.create();
+		vbo.bind();
+		vbo.allocate(vertices, sizeof(vertices));
+
+		// Set up vertex attribute
+		fullscreenShader.enableAttributeArray("position");
+		fullscreenShader.setAttributeBuffer("position", GL_FLOAT, 0, 2);
+
+		// Draw the quad
+		glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+
+		// Clean up
+		vbo.release();
+		vao.release();
+		fullscreenShader.release();
+	}
+
+	// STEP 4: Continue with normal rendering
+	
+	// Begin with known OpenGL state
+	glDisable(GL_BLEND);
+	glEnable(GL_DEPTH_TEST);
+	glDepthMask(GL_TRUE);
+
+	// Ensure viewport covers entire widget
+	glViewport(0, 0, width(), height());
+
+	// Clear with solid background color
+	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	checkGLError("clear in paintGL");
 
 	// Set up model matrix with current rotation, zoom, and translation
 	modelMatrix.setToIdentity();
@@ -801,7 +891,7 @@ void SphereWidget::createSphere(int latDivisions, int longDivisions) {
 	sphereVAO.release();
 }
 
-void SphereWidget::createLatitudeLongitudeLines() {
+void SphereWidget::createSphereGrid() {
 	// Similar to before, but with a small offset to the grid lines
 	latLongLines.clear();
 
@@ -1006,7 +1096,7 @@ QVector3D SphereWidget::sphericalToCartesian(float r, float thetaDeg, float phiD
 	);
 }
 
-void SphereWidget::createCoordinateAxes() {
+void SphereWidget::createSphereAxes() {
 	// Create a local vector to collect all vertices
 	std::vector<float> vertices;
 
@@ -1439,4 +1529,9 @@ void SphereWidget::wheelEvent(QWheelEvent* event) {
 	QOpenGLWidget::wheelEvent(event);
 }
 
-
+void SphereWidget::checkGLError(const char* operation) {
+	GLenum error = glGetError();
+	if (error != GL_NO_ERROR) {
+		qWarning() << "OpenGL error after" << operation << ":" << error;
+	}
+}

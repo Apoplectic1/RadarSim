@@ -11,7 +11,7 @@ RadarSceneWidget::RadarSceneWidget(QWidget* parent)
     beamController_(nullptr),
     cameraController_(nullptr),
     modelManager_(nullptr),
-    useComponents_(false)
+    useComponents_(true)  // Default to component-based rendering
 {
     qDebug() << "Creating RadarSceneWidget";
 
@@ -19,11 +19,8 @@ RadarSceneWidget::RadarSceneWidget(QWidget* parent)
     layout_->setContentsMargins(0, 0, 0, 0);
     layout_->setSpacing(0);
 
-    // Create the SphereWidget and add it to the layout
+    // Create both widgets
     sphereWidget_ = new SphereWidget(this);
-    layout_->addWidget(sphereWidget_);
-
-    // Create the RadarGLWidget but don't add it to layout yet
     radarGLWidget_ = new RadarGLWidget(this);
 
     // Create components (but don't initialize OpenGL yet)
@@ -34,6 +31,20 @@ RadarSceneWidget::RadarSceneWidget(QWidget* parent)
         this, &RadarSceneWidget::onRadiusChanged);
     connect(radarGLWidget_, &RadarGLWidget::anglesChanged,
         this, &RadarSceneWidget::onAnglesChanged);
+
+    // Add the appropriate widget to the layout based on useComponents_
+    if (useComponents_) {
+        qDebug() << "Using component architecture by default";
+        layout_->addWidget(radarGLWidget_);
+        // Hide the other widget
+        sphereWidget_->hide();
+    }
+    else {
+        qDebug() << "Using traditional rendering by default";
+        layout_->addWidget(sphereWidget_);
+        // Hide the other widget
+        radarGLWidget_->hide();
+    }
 
     // Set the layout
     setLayout(layout_);
@@ -89,47 +100,101 @@ void RadarSceneWidget::enableComponentRendering(bool enable) {
     }
 
     try {
-        // Make sure components exist and GL widget is ready
-        if (enable && (!sphereRenderer_ || !beamController_ ||
-            !cameraController_ || !modelManager_ || !radarGLWidget_)) {
-            qWarning() << "Can't enable component rendering - not all components ready";
-            return;
-        }
-
         useComponents_ = enable;
 
-        // Remove the current widget from layout
         if (useComponents_) {
+            qDebug() << "Switching to component-based rendering";
+
+            // Ensure components are ready
+            if (!sphereRenderer_ || !beamController_ || !cameraController_ || !modelManager_) {
+                qDebug() << "Creating components for first use";
+                createComponents();
+            }
+
+            // Transfer current state from SphereWidget to components
+            transferStateToComponents();
+
+            // Update layout
             layout_->removeWidget(sphereWidget_);
             sphereWidget_->hide();
 
-            // Add GL widget to layout
             layout_->addWidget(radarGLWidget_);
             radarGLWidget_->show();
 
-            qDebug() << "Switched to component-based rendering";
+            // Force an immediate update to render with new components
+            radarGLWidget_->update();
         }
         else {
+            qDebug() << "Switching to SphereWidget rendering";
+
+            // Update layout
             layout_->removeWidget(radarGLWidget_);
             radarGLWidget_->hide();
 
             layout_->addWidget(sphereWidget_);
             sphereWidget_->show();
 
-            qDebug() << "Switched to SphereWidget rendering";
+            // Force an immediate update
+            sphereWidget_->update();
         }
 
-        // Ensure the widget is updated
+        // Update the parent widget
         update();
     }
     catch (const std::exception& e) {
         qCritical() << "Exception in enableComponentRendering:" << e.what();
-        useComponents_ = false; // Revert to safe state
+        useComponents_ = false;
     }
     catch (...) {
         qCritical() << "Unknown exception in enableComponentRendering";
-        useComponents_ = false; // Revert to safe state
+        useComponents_ = false;
     }
+}
+void RadarSceneWidget::transferStateToComponents() {
+    if (!sphereWidget_ || !sphereRenderer_ || !beamController_ || !cameraController_)
+        return;
+
+    // Transfer state from SphereWidget to components
+
+    // 1. Transfer sphere properties
+    float radius = sphereWidget_->getRadius();
+    sphereRenderer_->setRadius(radius);
+    sphereRenderer_->setSphereVisible(sphereWidget_->isSphereVisible());
+    sphereRenderer_->setGridLinesVisible(sphereWidget_->areGridLinesVisible());
+    sphereRenderer_->setAxesVisible(sphereWidget_->areAxesVisible());
+
+    // 2. Transfer camera/view properties
+    // We can't directly copy rotation state, but we can reset to default
+    // The user can adjust the view after switching
+    cameraController_->setInertiaEnabled(sphereWidget_->isInertiaEnabled());
+
+    // 3. Transfer beam properties
+    RadarBeam* oldBeam = sphereWidget_->getBeam();
+    if (oldBeam) {
+        BeamType beamType = oldBeam->getBeamType();
+
+        beamController_->setBeamType(beamType);
+        beamController_->setBeamWidth(oldBeam->getBeamWidth());
+        beamController_->setBeamColor(oldBeam->getColor());
+        beamController_->setBeamOpacity(oldBeam->getOpacity());
+        beamController_->setBeamVisible(oldBeam->isVisible());
+    }
+
+    // 4. Update radar position
+    radarGLWidget_->setRadius(radius);
+    radarGLWidget_->setAngles(sphereWidget_->getTheta(), sphereWidget_->getPhi());
+}
+
+// Helper function for spherical to cartesian conversion
+QVector3D RadarSceneWidget::sphericalToCartesian(float r, float thetaDeg, float phiDeg) {
+    const float toRad = float(M_PI / 180.0);
+    float theta = thetaDeg * toRad;
+    float phi = phiDeg * toRad;
+    return QVector3D(
+        r * cos(phi) * cos(theta),
+        r * sin(phi),
+        r * cos(phi) * sin(theta)
+    );
 }
 
 // Slot handlers for RadarGLWidget signals

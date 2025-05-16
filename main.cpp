@@ -8,8 +8,7 @@
 
 int main(int argc, char** argv) {
     qDebug() << "Qt version:" << QT_VERSION_STR;
-    qDebug() << "Compiled with Qt version:" << QT_VERSION_STR;
-
+   
     // Set up OpenGL format for better debugging
     QSurfaceFormat format;
     format.setDepthBufferSize(24);

@@ -10,17 +10,17 @@ EllipticalBeam::EllipticalBeam(float sphereRadius, float horizontalWidthDegrees,
 }
 
 EllipticalBeam::~EllipticalBeam() {
-	// Base class destructor will handle cleanup
+    // Base class destructor will handle cleanup
 }
 
 void EllipticalBeam::setHorizontalWidth(float degrees) {
-	horizontalWidthDegrees_ = degrees;
-	createBeamGeometry();
+    horizontalWidthDegrees_ = degrees;
+    createBeamGeometry();
 }
 
 void EllipticalBeam::setVerticalWidth(float degrees) {
-	verticalWidthDegrees_ = degrees;
-	createBeamGeometry();
+    verticalWidthDegrees_ = degrees;
+    createBeamGeometry();
 }
 
 void EllipticalBeam::createBeamGeometry() {

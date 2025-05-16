@@ -1,5 +1,11 @@
 #include "SphereRenderer.h"
+#include "RadarBeam/RadarBeam.h"
+#include "RadarBeam/ConicalBeam.h"
+#include "RadarBeam/EllipticalBeam.h"
+#include "RadarBeam/PhasedArrayBeam.h"
 #include <QtMath>
+#include <qtimer.h>
+
 
 SphereRenderer::SphereRenderer(QObject* parent)
 	: QObject(parent),
@@ -8,10 +14,22 @@ SphereRenderer::SphereRenderer(QObject* parent)
 	showGridLines_(true),
 	showAxes_(true),
 	initialized_(false),
+	theta_(45.0f),
+	phi_(45.0f),
+	showBeam_(true),
 	// Initialize OpenGL buffer types
 	sphereVBO(QOpenGLBuffer::VertexBuffer),
 	sphereEBO(QOpenGLBuffer::IndexBuffer),
-	linesVBO(QOpenGLBuffer::VertexBuffer)
+	linesVBO(QOpenGLBuffer::VertexBuffer),
+	dotVBO(QOpenGLBuffer::VertexBuffer),
+	axesVBO(QOpenGLBuffer::VertexBuffer),
+	// Initialize inertia-related members
+	inertiaTimer_(new QTimer(this)),
+	rotationAxis_(0, 1, 0),
+	rotationVelocity_(0.0f),
+	rotationDecay_(0.95f),
+	inertiaEnabled_(true),
+	rotation_(QQuaternion())
 {
 	// Initialize main shader sources
 	vertexShaderSource = R"(
@@ -85,9 +103,65 @@ SphereRenderer::SphereRenderer(QObject* parent)
             FragColor = vec4(ourColor, 1.0);
         }
     )";
+
+	dotVertexShaderSource = R"(
+        #version 330 core
+        layout (location = 0) in vec3 aPos;
+        layout (location = 1) in vec3 aNormal;
+
+        uniform mat4 model;
+        uniform mat4 view;
+        uniform mat4 projection;
+
+        out vec3 Normal;
+        out vec3 FragPos;
+
+        void main() {
+            FragPos = vec3(model * vec4(aPos, 1.0));
+            Normal = mat3(transpose(inverse(model))) * aNormal;
+            gl_Position = projection * view * model * vec4(aPos, 1.0);
+        }
+    )";
+
+	dotFragmentShaderSource = R"(
+        #version 330 core
+        in vec3 Normal;
+        in vec3 FragPos;
+
+        uniform vec3 lightPos;
+        uniform vec3 color;
+        uniform float opacity;
+
+        out vec4 outColor;
+
+        void main() {
+            // Simple lighting calculation
+            vec3 norm = normalize(Normal);
+            vec3 lightDir = normalize(lightPos - FragPos);
+            float diff = max(dot(norm, lightDir), 0.0);
+            vec3 diffuse = diff * vec3(1.0, 1.0, 1.0);
+            vec3 ambient = vec3(0.3, 0.3, 0.3);
+            vec3 result = (ambient + diffuse) * color;
+            
+            // Apply opacity
+            outColor = vec4(result, opacity);
+        }
+    )";
+	// Connect inertia timer to update slot
+	connect(inertiaTimer_, &QTimer::timeout, this, &SphereRenderer::updateInertia);
+
+	// Start frame timer
+	frameTimer_.start();
 }
 
 SphereRenderer::~SphereRenderer() {
+	// Clean up inertia timer
+	if (inertiaTimer_) {
+		inertiaTimer_->stop();
+		delete inertiaTimer_;
+		inertiaTimer_ = nullptr;
+	}
+
 	// Clean up OpenGL resources
 	if (sphereVAO.isCreated()) {
 		sphereVAO.destroy();
@@ -122,97 +196,303 @@ SphereRenderer::~SphereRenderer() {
 		delete axesShaderProgram;
 		axesShaderProgram = nullptr;
 	}
+
+	if (dotVAO.isCreated()) {
+		dotVAO.destroy();
+	}
+	if (dotVBO.isCreated()) {
+		dotVBO.destroy();
+	}
+
+	if (dotShaderProgram) {
+		delete dotShaderProgram;
+		dotShaderProgram = nullptr;
+	}
+
+	delete radarBeam_;
 }
 
-void SphereRenderer::initialize() {
+bool SphereRenderer::initialize() {
+	qDebug() << "Starting initialization";
+
+	// Initialize OpenGL functions
 	initializeOpenGLFunctions();
 
 	// Set up OpenGL
 	glEnable(GL_DEPTH_TEST);
 
-	// Create and compile main shader program
-	shaderProgram = new QOpenGLShaderProgram();
-	shaderProgram->addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShaderSource);
-	shaderProgram->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
-	shaderProgram->link();
+	// Initialize shaders using the new initializeShaders method
+	if (!initializeShaders()) {
+		qWarning() << "Shader initialization failed";
+		return false;
+	}
 
 	// Create geometry
 	createSphere();
 	createGridLines();
 	createAxesLines();
+	createDot();
 
-	qDebug() << "SphereRenderer initialization complete";
+	// Initialize radar beam
+	radarBeam_ = RadarBeam::createBeam(BeamType::Conical, radius_, 15.0f);
+	if (radarBeam_) {
+		radarBeam_->initialize();
+		radarBeam_->setColor(QVector3D(1.0f, 0.5f, 0.0f)); // Orange-red beam
+		radarBeam_->setOpacity(0.3f); // Semi-transparent
+
+		// Update beam position
+		QVector3D radarPos = sphericalToCartesian(radius_, theta_, phi_);
+		radarBeam_->update(radarPos);
+	}
+
+	// Mark as initialized
+	initialized_ = true;
+
+	qDebug() << "Initialization complete";
+	return true;
+}
+
+bool SphereRenderer::initializeShaders() {
+	// Clean up existing shader programs to prevent memory leaks
+	if (shaderProgram) {
+		delete shaderProgram;
+		shaderProgram = nullptr;
+	}
+
+	if (axesShaderProgram) {
+		delete axesShaderProgram;
+		axesShaderProgram = nullptr;
+	}
+
+	if (dotShaderProgram) {
+		delete dotShaderProgram;
+		dotShaderProgram = nullptr;
+	}
+
+	// Create main shader program
+	shaderProgram = new QOpenGLShaderProgram();
+	// (existing shader code)
+
+	// Create the dot shader program
+	dotShaderProgram = new QOpenGLShaderProgram();
+
+	if (!dotShaderProgram->addShaderFromSourceCode(QOpenGLShader::Vertex, dotVertexShaderSource)) {
+		qWarning() << "Failed to compile dot vertex shader:" << dotShaderProgram->log();
+		return false;
+	}
+
+	if (!dotShaderProgram->addShaderFromSourceCode(QOpenGLShader::Fragment, dotFragmentShaderSource)) {
+		qWarning() << "Failed to compile dot fragment shader:" << dotShaderProgram->log();
+		return false;
+	}
+
+	if (!dotShaderProgram->link()) {
+		qWarning() << "Failed to link dot shader program:" << dotShaderProgram->log();
+		return false;
+	}
+
+	// Load and compile vertex shader
+	if (!shaderProgram->addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShaderSource)) {
+		qWarning() << "Failed to compile vertex shader:" << shaderProgram->log();
+		return false;
+	}
+
+	// Load and compile fragment shader
+	if (!shaderProgram->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource)) {
+		qWarning() << "Failed to compile fragment shader:" << shaderProgram->log();
+		return false;
+	}
+
+	// Link shader program
+	if (!shaderProgram->link()) {
+		qWarning() << "Failed to link main shader program:" << shaderProgram->log();
+		return false;
+	}
+
+	// Create axes shader program
+	axesShaderProgram = new QOpenGLShaderProgram();
+
+	// Load and compile axes vertex shader
+	if (!axesShaderProgram->addShaderFromSourceCode(QOpenGLShader::Vertex, axesVertexShaderSource)) {
+		qWarning() << "Failed to compile axes vertex shader:" << axesShaderProgram->log();
+		return false;
+	}
+
+	// Load and compile axes fragment shader
+	if (!axesShaderProgram->addShaderFromSourceCode(QOpenGLShader::Fragment, axesFragmentShaderSource)) {
+		qWarning() << "Failed to compile axes fragment shader:" << axesShaderProgram->log();
+		return false;
+	}
+
+	// Link axes shader program
+	if (!axesShaderProgram->link()) {
+		qWarning() << "Failed to link axes shader program:" << axesShaderProgram->log();
+		return false;
+	}
+
+	return true;
+}
+
+void SphereRenderer::createDot() {
+	// Create a small sphere for the dot
+	dotVertices.clear();
+
+	float dotRadius = 5.0f;
+	int segments = 16;
+
+	// Generate icosphere vertices for the dot (more efficient than full sphere)
+	// This is a simplified version - a proper icosphere would be better
+	std::vector<QVector3D> positions;
+
+	// Start with icosahedron vertices
+	float t = (1.0f + sqrt(5.0f)) / 2.0f;
+
+	positions.push_back(QVector3D(-1, t, 0).normalized() * dotRadius);
+	positions.push_back(QVector3D(1, t, 0).normalized() * dotRadius);
+	positions.push_back(QVector3D(-1, -t, 0).normalized() * dotRadius);
+	positions.push_back(QVector3D(1, -t, 0).normalized() * dotRadius);
+
+	positions.push_back(QVector3D(0, -1, t).normalized() * dotRadius);
+	positions.push_back(QVector3D(0, 1, t).normalized() * dotRadius);
+	positions.push_back(QVector3D(0, -1, -t).normalized() * dotRadius);
+	positions.push_back(QVector3D(0, 1, -t).normalized() * dotRadius);
+
+	positions.push_back(QVector3D(t, 0, -1).normalized() * dotRadius);
+	positions.push_back(QVector3D(t, 0, 1).normalized() * dotRadius);
+	positions.push_back(QVector3D(-t, 0, -1).normalized() * dotRadius);
+	positions.push_back(QVector3D(-t, 0, 1).normalized() * dotRadius);
+
+	// Define the triangles of the icosahedron
+	std::vector<std::array<int, 3>> faces = {
+		{0, 11, 5}, {0, 5, 1}, {0, 1, 7}, {0, 7, 10}, {0, 10, 11},
+		{1, 5, 9}, {5, 11, 4}, {11, 10, 2}, {10, 7, 6}, {7, 1, 8},
+		{3, 9, 4}, {3, 4, 2}, {3, 2, 6}, {3, 6, 8}, {3, 8, 9},
+		{4, 9, 5}, {2, 4, 11}, {6, 2, 10}, {8, 6, 7}, {9, 8, 1}
+	};
+
+	// Create vertex data for dot
+	for (const auto& face : faces) {
+		for (int idx : face) {
+			QVector3D pos = positions[idx];
+			QVector3D normal = pos.normalized();
+
+			dotVertices.push_back(pos.x());
+			dotVertices.push_back(pos.y());
+			dotVertices.push_back(pos.z());
+			dotVertices.push_back(normal.x());
+			dotVertices.push_back(normal.y());
+			dotVertices.push_back(normal.z());
+		}
+	}
+
+	// Set up VAO and VBO for dot
+	dotVAO.create();
+	dotVAO.bind();
+
+	dotVBO.create();
+	dotVBO.bind();
+	dotVBO.allocate(dotVertices.data(), dotVertices.size() * sizeof(float));
+
+	// Position attribute
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);
+
+	// Normal attribute
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+	glEnableVertexAttribArray(1);
+
+	dotVAO.release();
 }
 
 void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model) {
-	qDebug() << "SphereRenderer::render starting";
+	// Create a local copy of the model matrix that we can modify
+	QMatrix4x4 localModel = model;
 
-	// Check if current context is valid
-	QOpenGLContext* currentContext = QOpenGLContext::currentContext();
-	if (!currentContext) {
-		qCritical() << "ERROR: No current OpenGL context in SphereRenderer::render()";
-		return;
+	// Apply our stored rotation to the model matrix
+	localModel.rotate(rotation_);
+
+#ifdef QT_DEBUG
+	// Single shader validation check
+	if (!shaderProgram || !axesShaderProgram || !dotShaderProgram ||
+		!shaderProgram->isLinked() || !axesShaderProgram->isLinked() || !dotShaderProgram->isLinked()) {
+		qCritical() << "ERROR: render called with invalid shaders";
 	}
+#endif
 
-	qDebug() << "OpenGL context is valid in SphereRenderer::render";
+	// Basic OpenGL state setup
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LESS);
+	glDisable(GL_BLEND);
 
-	// Check that our VAOs and VBOs are valid
-	qDebug() << "Checking OpenGL resources:";
-	qDebug() << "  sphereVAO created:" << sphereVAO.isCreated();
-	qDebug() << "  sphereVBO created:" << sphereVBO.isCreated();
-	qDebug() << "  sphereEBO created:" << sphereEBO.isCreated();
-	qDebug() << "  linesVAO created:" << linesVAO.isCreated();
-	qDebug() << "  linesVBO created:" << linesVBO.isCreated();
-	qDebug() << "  axesVAO created:" << axesVAO.isCreated();
-	qDebug() << "  axesVBO created:" << axesVBO.isCreated();
+	// Track which shader is currently bound
+	QOpenGLShaderProgram* currentShader = nullptr;
 
-	qDebug() << "OpenGL context format:" << currentContext->format();
+	// 1. First, draw the sphere
+	if (showSphere_) {
+		// Release any currently bound shader that's not the one we need
+		if (currentShader && currentShader != shaderProgram) {
+			currentShader->release();
+			currentShader = nullptr;
+		}
 
-	if (!shaderProgram || !axesShaderProgram) {
-		qWarning() << "SphereRenderer::render called before initialization or with invalid shaders";
-		return;
-	}
-
-	// Safety checks for shader programs
-	if (!shaderProgram || !axesShaderProgram) {
-		qWarning() << "SphereRenderer::render called with invalid shaders";
-		return;
-	}
-
-	// Render sphere if visible
-	if (showSphere_ && sphereVAO.isCreated()) {
-		try {
+		// Bind shader if not already bound
+		if (currentShader != shaderProgram) {
 			shaderProgram->bind();
+			currentShader = shaderProgram;
+
+			// Set common uniforms only when binding
 			shaderProgram->setUniformValue("projection", projection);
 			shaderProgram->setUniformValue("view", view);
-			shaderProgram->setUniformValue("model", model);
-			shaderProgram->setUniformValue("color", QVector3D(0.95f, 0.95f, 0.95f));
-			shaderProgram->setUniformValue("lightPos", QVector3D(500.0f, 500.0f, 500.0f));
+			shaderProgram->setUniformValue("model", localModel);  // Use the rotated model
+		}
 
-			sphereVAO.bind();
-			glEnable(GL_POLYGON_OFFSET_FILL);
-			glPolygonOffset(1.0f, 1.0f);
-			glDrawElements(GL_TRIANGLES, sphereIndices.size(), GL_UNSIGNED_INT, 0);
-			glDisable(GL_POLYGON_OFFSET_FILL);
-			sphereVAO.release();
-			shaderProgram->release();
-		}
-		catch (...) {
-			qCritical() << "Exception during sphere rendering";
-		}
+		// Set sphere-specific uniforms
+		shaderProgram->setUniformValue("color", QVector3D(0.95f, 0.95f, 0.95f));
+		shaderProgram->setUniformValue("lightPos", QVector3D(500.0f, 500.0f, 500.0f));
+
+		// Enable face culling for solid appearance
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_BACK);
+
+		sphereVAO.bind();
+		glEnable(GL_POLYGON_OFFSET_FILL);
+		glPolygonOffset(1.0f, 1.0f);
+		glDrawElements(GL_TRIANGLES, sphereIndices.size(), GL_UNSIGNED_INT, 0);
+		glDisable(GL_POLYGON_OFFSET_FILL);
+		sphereVAO.release();
+
+		glDisable(GL_CULL_FACE);
 	}
 
-	// Render grid lines if visible
-	if (showGridLines_ && linesVAO.isCreated()) {
-		shaderProgram->bind();
-		shaderProgram->setUniformValue("projection", projection);
-		shaderProgram->setUniformValue("view", view);
-		shaderProgram->setUniformValue("model", model);
+	// 2. Draw grid lines if visible
+	if (showGridLines_) {
+		// Release any currently bound shader that's not the one we need
+		if (currentShader && currentShader != shaderProgram) {
+			currentShader->release();
+			currentShader = nullptr;
+		}
+
+		// Bind shader if not already bound
+		if (currentShader != shaderProgram) {
+			shaderProgram->bind();
+			currentShader = shaderProgram;
+
+			// Set common uniforms only when binding
+			shaderProgram->setUniformValue("projection", projection);
+			shaderProgram->setUniformValue("view", view);
+			shaderProgram->setUniformValue("model", localModel);  // Use the rotated model
+		}
+
+		// Always update light position for grid lines
 		shaderProgram->setUniformValue("lightPos", QVector3D(500.0f, 500.0f, 500.0f));
 
 		linesVAO.bind();
+
+		// Enable line smoothing for better appearance
 		glEnable(GL_LINE_SMOOTH);
 		glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+
+		// Use LEQUAL depth function to prevent z-fighting with the sphere
 		glDepthFunc(GL_LEQUAL);
 
 		// Regular latitude lines
@@ -241,30 +521,45 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 		// Special lines (equator and prime meridian)
 		glLineWidth(3.5f);
 
-		// Equator (green)
+		// Equator (green) - match SphereWidget
 		shaderProgram->setUniformValue("color", QVector3D(0.0f, 0.9f, 0.0f));
 		glDrawArrays(GL_LINE_STRIP, equatorStartIndex, 72 + 1);
 
-		// Prime Meridian (blue)
+		// Prime Meridian (blue) - match SphereWidget
 		shaderProgram->setUniformValue("color", QVector3D(0.0f, 0.0f, 0.9f));
 		glDrawArrays(GL_LINE_STRIP, primeMeridianStartIndex, 50 + 1);
 
+		// Restore default depth function
 		glDepthFunc(GL_LESS);
 		glDisable(GL_LINE_SMOOTH);
 		linesVAO.release();
-		shaderProgram->release();
 	}
 
-	// Render coordinate axes if visible
-	if (showAxes_ && axesVAO.isCreated()) {
-		axesShaderProgram->bind();
+	// 3. Draw coordinate axes if visible
+	if (showAxes_) {
+		// Release any currently bound shader that's not the one we need
+		if (currentShader && currentShader != axesShaderProgram) {
+			currentShader->release();
+			currentShader = nullptr;
+		}
+
+		// Bind shader if not already bound
+		if (currentShader != axesShaderProgram) {
+			axesShaderProgram->bind();
+			currentShader = axesShaderProgram;
+		}
+
 		axesShaderProgram->setUniformValue("projection", projection);
 		axesShaderProgram->setUniformValue("view", view);
-		axesShaderProgram->setUniformValue("model", model);
+		axesShaderProgram->setUniformValue("model", localModel);  // Use the rotated model
 
 		axesVAO.bind();
+
+		// Enable line smoothing
 		glEnable(GL_LINE_SMOOTH);
 		glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+
+		// Enable polygon offset to prevent z-fighting
 		glEnable(GL_POLYGON_OFFSET_FILL);
 		glPolygonOffset(1.0f, 1.0f);
 
@@ -278,28 +573,233 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 		int segments = 12;
 		glDrawArrays(GL_TRIANGLES, 6, segments * 3 * 3); // All 3 arrowheads
 
-		try {
-			glDisable(GL_POLYGON_OFFSET_FILL);
-			glDisable(GL_LINE_SMOOTH);
-		}
-		catch (...) {
-			qCritical() << "Exception caught during OpenGL state restoration";
-		}
+		glDisable(GL_POLYGON_OFFSET_FILL);
+		glDisable(GL_LINE_SMOOTH);
 
 		axesVAO.release();
-		axesShaderProgram->release();
+
+		// Release axesShaderProgram before switching to another shader
+		if (currentShader == axesShaderProgram) {
+			currentShader->release();
+			currentShader = nullptr;
+		}
+	}
+
+	// 4. Draw radar dot
+	// Calculate dot position in spherical coordinates
+	QVector3D dotPos = sphericalToCartesian(radius_, theta_, phi_);
+
+	// Create a separate model matrix for the dot that includes our rotation
+	QMatrix4x4 dotModelMatrix = localModel;
+	dotModelMatrix.translate(dotPos);
+
+	// 4.1. First, draw opaque parts of the dot (front-facing parts)
+	// Switch to dot shader program
+	if (currentShader && currentShader != dotShaderProgram) {
+		currentShader->release();
+		currentShader = nullptr;
+	}
+
+	dotShaderProgram->bind();
+	currentShader = dotShaderProgram;
+
+	// Ensure proper depth testing for opaque rendering
+	glDisable(GL_BLEND);
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LESS);
+	glDepthMask(GL_TRUE);
+
+	dotShaderProgram->setUniformValue("projection", projection);
+	dotShaderProgram->setUniformValue("view", view);
+	dotShaderProgram->setUniformValue("model", dotModelMatrix);
+	dotShaderProgram->setUniformValue("color", QVector3D(1.0f, 0.0f, 0.0f));  // Red dot
+	dotShaderProgram->setUniformValue("lightPos", QVector3D(500.0f, 500.0f, 500.0f));
+	dotShaderProgram->setUniformValue("opacity", 1.0f);  // Fully opaque
+
+	dotVAO.bind();
+
+	// Only draw front-facing polygons in this pass
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
+	glDrawArrays(GL_TRIANGLES, 0, dotVertices.size() / 6);
+	glDisable(GL_CULL_FACE);
+
+	dotVAO.release();
+
+	// 4.2. Then, draw transparent parts of the dot (back-facing parts)
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glDepthMask(GL_FALSE);  // Don't write to depth buffer for transparent parts
+
+	dotShaderProgram->setUniformValue("opacity", 0.2f);  // Partially transparent
+
+	dotVAO.bind();
+
+	// Draw with special depth test for transparency
+	glDepthFunc(GL_GREATER);  // Only draw if behind other objects
+
+	glDrawArrays(GL_TRIANGLES, 0, dotVertices.size() / 6);
+
+	// Restore default depth function and settings
+	glDepthFunc(GL_LESS);
+	glDepthMask(GL_TRUE);
+
+	dotVAO.release();
+
+	if (currentShader == dotShaderProgram) {
+		currentShader->release();
+		currentShader = nullptr;
+	}
+
+	// 5. Draw radar beam if visible
+	if (showBeam_ && radarBeam_ && radarBeam_->isVisible()) {
+		radarBeam_->render(shaderProgram, projection, view, localModel);  // Use the rotated model
+	}
+
+	// Final cleanup - ensure all shaders are released
+	if (currentShader) {
+		currentShader->release();
 	}
 }
 
+void SphereRenderer::setRadarPosition(float theta, float phi) {
+	theta_ = theta;
+	phi_ = phi;
+
+	// Update beam when radar position changes
+	if (radarBeam_) {
+		QVector3D radarPos = sphericalToCartesian(radius_, theta_, phi_);
+		radarBeam_->update(radarPos);
+	}
+}
+
+QVector3D SphereRenderer::getRadarPosition() const {
+	return sphericalToCartesian(radius_, theta_, phi_);
+}
+
+void SphereRenderer::setBeamWidth(float degrees) {
+	if (radarBeam_) {
+		radarBeam_->setBeamWidth(degrees);
+	}
+}
+
+void SphereRenderer::setBeamType(BeamType type) {
+	// Check if we need to make a change
+	if (radarBeam_ && radarBeam_->getBeamType() == type) {
+		return;  // No change needed
+	}
+
+	// Get current properties before deleting the beam
+	float width = radarBeam_ ? radarBeam_->getBeamWidth() : 15.0f;
+	QVector3D color = radarBeam_ ? radarBeam_->getColor() : QVector3D(1.0f, 0.5f, 0.0f);
+	float opacity = radarBeam_ ? radarBeam_->getOpacity() : 0.3f;
+	bool visible = radarBeam_ ? radarBeam_->isVisible() : true;
+	float horizontalWidth = radarBeam_ ? radarBeam_->getHorizontalWidth() : width;
+	float verticalWidth = radarBeam_ ? radarBeam_->getVerticalWidth() : width / 2.0f;
+
+	// Delete the old beam - store the pointer temporarily
+	RadarBeam* oldBeam = radarBeam_;
+	radarBeam_ = nullptr;  // Clear the pointer before creating a new beam
+
+	// Create the new beam
+	try {
+		radarBeam_ = RadarBeam::createBeam(type, radius_, horizontalWidth);
+
+		if (radarBeam_) {
+			radarBeam_->initialize();
+			radarBeam_->setColor(color);
+			radarBeam_->setOpacity(opacity);
+			radarBeam_->setVisible(visible);
+
+			// For elliptical beams, set the vertical width
+			if (type == BeamType::Elliptical) {
+				radarBeam_->setVerticalWidth(verticalWidth);
+			}
+
+			// Update position
+			QVector3D radarPos = sphericalToCartesian(radius_, theta_, phi_);
+			radarBeam_->update(radarPos);
+		}
+	}
+	catch (const std::exception& e) {
+		qCritical() << "Exception creating new beam:" << e.what();
+		radarBeam_ = nullptr;  // Make sure pointer is null if creation failed
+	}
+
+	// Now that the new beam is fully set up, delete the old one
+	if (oldBeam) {
+		delete oldBeam;
+	}
+}
+
+void SphereRenderer::setBeamColor(const QVector3D& color) {
+	if (radarBeam_) {
+		radarBeam_->setColor(color);
+	}
+}
+
+void SphereRenderer::setBeamOpacity(float opacity) {
+	if (radarBeam_) {
+		radarBeam_->setOpacity(opacity);
+	}
+}
+
+void SphereRenderer::setBeamVisible(bool visible) {
+	showBeam_ = visible;
+	if (radarBeam_) {
+		radarBeam_->setVisible(visible);
+	}
+}
 
 void SphereRenderer::setRadius(float radius) {
 	if (radius_ != radius) {
 		radius_ = radius;
 
-		// Regenerate geometry
-		createSphere();
-		createGridLines();
-		createAxesLines();
+		// Only regenerate if already initialized
+		if (initialized_) {
+			// Regenerate geometry
+			createSphere();
+			createGridLines();
+			createAxesLines();
+			createDot();
+
+			// Update beam size if it exists
+			if (radarBeam_) {
+				// Save current beam properties
+				BeamType currentType = radarBeam_->getBeamType();
+				float width = radarBeam_->getBeamWidth();
+				QVector3D color = radarBeam_->getColor();
+				float opacity = radarBeam_->getOpacity();
+				bool visible = radarBeam_->isVisible();
+
+				// Get horizontal and vertical widths using virtual methods
+				float horizontalWidth = radarBeam_->getHorizontalWidth();
+				float verticalWidth = radarBeam_->getVerticalWidth();
+
+				// Delete old beam
+				delete radarBeam_;
+				radarBeam_ = nullptr;
+
+				// Create new beam using the factory method
+				radarBeam_ = RadarBeam::createBeam(currentType, radius_, horizontalWidth);
+
+				// For elliptical beams, set the vertical width separately
+				if (currentType == BeamType::Elliptical && radarBeam_) {
+					radarBeam_->setVerticalWidth(verticalWidth);
+				}
+
+				if (radarBeam_) {
+					radarBeam_->initialize();
+					radarBeam_->setColor(color);
+					radarBeam_->setOpacity(opacity);
+					radarBeam_->setVisible(visible);
+
+					// Calculate current radar position and update beam
+					QVector3D radarPos = sphericalToCartesian(radius_, theta_, phi_);
+					radarBeam_->update(radarPos);
+				}
+			}
+		}
 
 		emit radiusChanged(radius);
 	}
@@ -681,36 +1181,118 @@ void SphereRenderer::createGridLines() {
 	linesVAO.release();
 }
 
-void SphereRenderer::setupShaders() {
-	qDebug() << "Setting up shaders for SphereRenderer";
+// Helper method for spherical to cartesian conversion
+QVector3D SphereRenderer::sphericalToCartesian(float r, float thetaDeg, float phiDeg) const {
+	const float toRad = float(M_PI / 180.0);
+	float theta = thetaDeg * toRad;
+	float phi = phiDeg * toRad;
+	return QVector3D(
+		r * cos(phi) * cos(theta),
+		r * sin(phi),
+		r * cos(phi) * sin(theta)
+	);
+}
 
-	// Create and compile main shader program for sphere and grid lines
-	shaderProgram = new QOpenGLShaderProgram();
-	if (!shaderProgram->addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShaderSource)) {
-		qDebug() << "Error compiling vertex shader:" << shaderProgram->log();
+void SphereRenderer::startInertia(const QVector3D& axis, float velocity) {
+	if (!inertiaEnabled_)
+		return;
+
+	rotationAxis_ = axis.normalized();
+	rotationVelocity_ = velocity;
+
+	// Start timer if not already running
+	if (!inertiaTimer_->isActive()) {
+		inertiaTimer_->start(16); // ~60 FPS
+	}
+}
+
+void SphereRenderer::stopInertia() {
+	inertiaTimer_->stop();
+	rotationVelocity_ = 0.0f;
+}
+
+void SphereRenderer::updateInertia() {
+	// Apply rotation based on velocity and time
+	if (rotationVelocity_ > 0.05f) { // Stop when velocity gets very small
+		// Apply rotation based on current velocity
+		QQuaternion inertiaRotation = QQuaternion::fromAxisAndAngle(
+			rotationAxis_, rotationVelocity_);
+
+		// Update the rotation
+		rotation_ = inertiaRotation * rotation_;
+
+		// Decay the velocity
+		rotationVelocity_ *= rotationDecay_;
+
+		// Signal that the view has changed - this will trigger a redraw in the parent
+		emit radiusChanged(radius_); // Reuse existing signal as a view change notification
+	}
+	else {
+		// Stop the timer when velocity is negligible
+		stopInertia();
+	}
+}
+
+void SphereRenderer::setInertiaEnabled(bool enabled) {
+	inertiaEnabled_ = enabled;
+
+	// If disabling inertia, stop any ongoing inertia
+	if (!enabled) {
+		stopInertia();
+	}
+}
+
+void SphereRenderer::setInertiaParameters(float decay, float velocityScale) {
+	// Clamp decay value between 0.8 and 0.99
+	rotationDecay_ = qBound(0.8f, decay, 0.99f);
+
+	// This would be used when calculating initial velocity from input
+	// Not used directly in this implementation but provided for API completeness
+}
+
+void SphereRenderer::applyRotation(const QVector3D& axis, float angle, bool withInertia) {
+	// Create quaternion from axis and angle
+	QQuaternion newRotation = QQuaternion::fromAxisAndAngle(axis, angle);
+
+	// Apply the rotation
+	rotation_ = newRotation * rotation_;
+
+	// Start inertia if requested
+	if (withInertia && inertiaEnabled_) {
+		float dt = frameTimer_.elapsed() / 1000.0f; // Convert to seconds
+		frameTimer_.restart();
+
+		// Avoid division by zero
+		if (dt < 0.001f) dt = 0.016f; // Default to ~60 FPS
+
+		// Calculate velocity based on angle and time
+		float velocity = angle / dt * 0.1f; // Scale down for smoother inertia
+
+		startInertia(axis, velocity);
 	}
 
-	if (!shaderProgram->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource)) {
-		qDebug() << "Error compiling fragment shader:" << shaderProgram->log();
-	}
+	// Signal that the view has changed
+	emit radiusChanged(radius_); // Reuse existing signal
+}
 
-	if (!shaderProgram->link()) {
-		qDebug() << "Error linking shader program:" << shaderProgram->log();
-	}
+void SphereRenderer::resetView() {
+	// Stop inertia
+	stopInertia();
 
-	// Create and compile axes shader program
-	axesShaderProgram = new QOpenGLShaderProgram();
-	if (!axesShaderProgram->addShaderFromSourceCode(QOpenGLShader::Vertex, axesVertexShaderSource)) {
-		qDebug() << "Error compiling axes vertex shader:" << axesShaderProgram->log();
-	}
+	// Reset rotation to identity
+	rotation_ = QQuaternion();
 
-	if (!axesShaderProgram->addShaderFromSourceCode(QOpenGLShader::Fragment, axesFragmentShaderSource)) {
-		qDebug() << "Error compiling axes fragment shader:" << axesShaderProgram->log();
-	}
+	// Signal that the view has changed
+	emit radiusChanged(radius_);
+}
 
-	if (!axesShaderProgram->link()) {
-		qDebug() << "Error linking axes shader program:" << axesShaderProgram->log();
-	}
+void SphereRenderer::setRotation(const QQuaternion& rotation) {
+	// Stop any ongoing inertia
+	stopInertia();
 
-	qDebug() << "Shader setup complete";
+	// Set new rotation
+	rotation_ = rotation;
+
+	// Signal that the view has changed
+	emit radiusChanged(radius_);
 }

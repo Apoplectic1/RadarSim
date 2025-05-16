@@ -51,6 +51,8 @@ public:
 
     // Enable component-based rendering
     void enableComponentRendering(bool enable);
+    void transferStateToComponents();
+    QVector3D sphericalToCartesian(float r, float thetaDeg, float phiDeg);
 
 signals:
     void radarPositionChanged(float radius, float theta, float phi);
@@ -80,7 +82,7 @@ private:
     ModelManager* modelManager_ = nullptr;
 
     // Current mode
-    bool useComponents_ = false;
+    bool useComponents_ = true;
 
     // Create and initialize components
     void initializeComponents();
