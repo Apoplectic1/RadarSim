@@ -15,6 +15,12 @@ BeamController::~BeamController() {
     delete radarBeam_;
 }
 
+void BeamController::rebuildBeamGeometry() {
+    if (radarBeam_) {
+        // This must run with a valid GL context (we’re in paintGL)
+        radarBeam_->uploadGeometryToGPU();
+    }
+}
 void BeamController::initialize() {
     qDebug() << "Initializing BeamController";
 

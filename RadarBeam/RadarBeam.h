@@ -37,6 +37,8 @@ public:
     // Destructor
     virtual ~RadarBeam();
 
+    void uploadGeometryToGPU();
+
     // Core methods
     virtual void initialize();
     virtual void update(const QVector3D& radarPosition);

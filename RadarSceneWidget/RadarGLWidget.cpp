@@ -103,6 +103,15 @@ void RadarGLWidget::resizeGL(int w, int h) {
 void RadarGLWidget::paintGL() {
 	qDebug() << "RadarGLWidget::paintGL starting";
 
+	// Re‐generate beam geometry now that we have a current context
+	if (beamDirty_) {
+		updateBeamPosition();
+		beamDirty_ = false;
+
+		// GPU: re-upload the new geometry into your VAO/VBO/EBO
+		beamController_->rebuildBeamGeometry();
+	}
+
 	// Ensure blending is disabled for the clear operation
 	glDisable(GL_BLEND);
 
@@ -193,14 +202,12 @@ void RadarGLWidget::updateBeamPosition() {
 void RadarGLWidget::setRadius(float radius) {
 	if (radius_ != radius) {
 		radius_ = radius;
+		beamDirty_ = true;
 
-		// Update sphere renderer
+		// Update the sphere itself
 		if (sphereRenderer_) {
 			sphereRenderer_->setRadius(radius);
 		}
-
-		// Update beam position
-		updateBeamPosition();
 
 		emit radiusChanged(radius);
 		update();
@@ -210,11 +217,13 @@ void RadarGLWidget::setRadius(float radius) {
 void RadarGLWidget::setAngles(float theta, float phi) {
 	if (theta_ != theta || phi_ != phi) {
 		theta_ = theta;
+		beamDirty_ = true;
+
 		phi_ = phi;
-
-		// Update beam position
-		updateBeamPosition();
-
+		if (sphereRenderer_) {
+			sphereRenderer_->setRadarPosition(theta, phi);
+		}
+		
 		emit anglesChanged(theta, phi);
 		update();
 	}

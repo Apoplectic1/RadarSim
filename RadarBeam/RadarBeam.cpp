@@ -103,6 +103,23 @@ RadarBeam::~RadarBeam() {
 	qDebug() << "RadarBeam destructor called - cleaned up OpenGL resources";
 }
 
+void RadarBeam::uploadGeometryToGPU() {
+	// Make sure we have a VAO, VBO, and EBO already created in initialize()
+	beamVAO.bind();
+
+	// Vertex buffer
+	beamVBO.bind();
+	beamVBO.allocate(vertices_.data(),
+		static_cast<int>(vertices_.size() * sizeof(float)));
+
+	// Index buffer
+	beamEBO.bind();
+	beamEBO.allocate(indices_.data(),
+		static_cast<int>(indices_.size() * sizeof(unsigned int)));
+
+	beamVAO.release();
+}
+
 void RadarBeam::initialize() {
 	// Make sure we don't initialize twice
 	if (beamVAO.isCreated()) {
@@ -195,12 +212,16 @@ void RadarBeam::render(QOpenGLShaderProgram* program, const QMatrix4x4& projecti
 	beamVAO.bind();
 
 	// Check if we have valid indices before drawing
-	if (!indices_.empty()) {
-		glDrawElements(GL_TRIANGLES, indices_.size(), GL_UNSIGNED_INT, 0);
-	}
+	if (!visible_ || vertices_.empty() || indices_.empty())
+		return;
+	
+	glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices_.size()), GL_UNSIGNED_INT, nullptr);
+	
 
 	// Release VAO
-	beamVAO.release();
+	if (beamVAO.isCreated() && beamVAO.objectId() != 0) {
+		beamVAO.release();
+	}
 
 	// Release shader program
 	beamShaderProgram->release();
@@ -408,7 +429,7 @@ void RadarBeam::calculateBeamVertices(const QVector3D& apex, const QVector3D& di
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
 	glEnableVertexAttribArray(1);
 
-	beamVAO.release();
+	//beamVAO.release();
 }
 
 RadarBeam* RadarBeam::createBeam(BeamType type, float sphereRadius, float beamWidthDegrees) {
