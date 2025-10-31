@@ -26,7 +26,7 @@
       "name": "QtDesignStudio_qt6_design_studio_reduced_version",
       "inherits": "Qt",
       "environment": {
-        "QTDIR": "E:/Projects/VisualStudio/Libraries/Qt/Tools/QtDesignStudio/qt6_design_studio_reduced_version"
+        "QTDIR": "E:/Projects/VisualStudio/Libraries/Qt/6.10.0/msvc2022_64"
       },
       "architecture": {
         "strategy": "external",
@@ -35,24 +35,42 @@
       "generator": "Ninja",
       "vendor": {
         "qt-project.org/Version": {
-          "checksum": "o/YGGNSebZRc6VlYyy5P7tHxlTE="
+          "checksum": "UrqwDa/TcReYvOzr7XhT6LWNoFg="
         }
       }
     },
     {
       "hidden": true,
       "name": "Qt-Default",
-      "inherits": null,
+      "inherits": "6.10.0_msvc2022_64",
       "vendor": {
         "qt-project.org/Default": {
-          "checksum": "VoalogTkyWuFomeO1TLFx0olLJ4="
+          "checksum": "zq0FM69rn9DqFNaR+j05x3FkQsY="
+        }
+      }
+    },
+    {
+      "hidden": true,
+      "name": "6.10.0_msvc2022_64",
+      "inherits": "Qt",
+      "environment": {
+        "QTDIR": "E:/Projects/VisualStudio/Libraries/Qt/6.10.0/msvc2022_64"
+      },
+      "architecture": {
+        "strategy": "external",
+        "value": "x64"
+      },
+      "generator": "Ninja",
+      "vendor": {
+        "qt-project.org/Version": {
+          "checksum": "xlzQ59CHxpVEQHNLjsWVW+unE1c="
         }
       }
     }
   ],
   "vendor": {
     "qt-project.org/Presets": {
-      "checksum": "+wPpPDN2/ngl+Kwath/WSRwEXyo="
+      "checksum": "le4T2khSYz54j5vI4WxIdiuS23k="
     }
   }
 }

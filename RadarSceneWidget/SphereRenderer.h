@@ -12,6 +12,7 @@
 #include <QMatrix4x4>
 #include <QElapsedTimer>
 #include <vector>
+#include <QQuaternion>
 
 class SphereRenderer : public QObject, protected QOpenGLFunctions_3_3_Core {
     Q_OBJECT

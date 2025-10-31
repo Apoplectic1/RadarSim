@@ -1,6 +1,7 @@
 // ModelManager.cpp
 #include "ModelManager.h"
 #include <QDebug>
+#include <QQuaternion>
 
 // We'll need to define the Model class later
 class Model {

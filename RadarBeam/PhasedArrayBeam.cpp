@@ -3,6 +3,7 @@
 #include "PhasedArrayBeam.h"
 #include "EllipticalBeam.h"
 #include <cmath>
+#include <QQuaternion>
 
 PhasedArrayBeam::PhasedArrayBeam(float sphereRadius, float mainLobeWidthDegrees)
     : RadarBeam(sphereRadius, mainLobeWidthDegrees),
