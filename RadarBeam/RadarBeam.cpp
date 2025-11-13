@@ -129,8 +129,32 @@ void RadarBeam::initialize() {
 
 	initializeOpenGLFunctions();
 	setupShaders();
+
+	// Create VAO, VBO, and EBO - THIS IS DONE ONLY ONCE
+	beamVAO.create();
+	beamVAO.bind();
+
+	beamVBO.create();
+	beamVBO.bind();
+
+	beamEBO.create();
+	beamEBO.bind();
+
+	// Set up vertex attributes - THIS IS ALSO DONE ONLY ONCE
+	// Position attribute (location 0)
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);
+
+	// Normal attribute (location 1)
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+	glEnableVertexAttribArray(1);
+
+	beamVAO.release();
+
+	// Now create the initial geometry
 	createBeamGeometry();
 }
+
 
 void RadarBeam::setupShaders() {
 	// Check if shader sources are properly initialized
@@ -167,9 +191,26 @@ void RadarBeam::update(const QVector3D& radarPosition) {
 }
 
 void RadarBeam::render(QOpenGLShaderProgram* program, const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model) {
+	static int frameCount = 0;
+	bool shouldLog = (++frameCount % 60 == 0); // Log every 60 frames
+
+	if (shouldLog) {
+		qDebug() << "RadarBeam::render() called:";
+		qDebug() << "  visible_:" << visible_;
+		qDebug() << "  vertices_.empty():" << vertices_.empty();
+		qDebug() << "  indices_.size():" << indices_.size();
+	}
+
 	// Early exit checks
 	if (!visible_ || vertices_.empty()) {
+		if (shouldLog) {
+			qDebug() << "  EARLY EXIT - not rendering";
+		}
 		return;
+	}
+
+	if (shouldLog) {
+		qDebug() << "  RENDERING beam";
 	}
 
 	// Check if OpenGL resources are valid
@@ -210,10 +251,6 @@ void RadarBeam::render(QOpenGLShaderProgram* program, const QMatrix4x4& projecti
 
 	// Bind VAO and draw
 	beamVAO.bind();
-
-	// Check if we have valid indices before drawing
-	if (!visible_ || vertices_.empty() || indices_.empty())
-		return;
 	
 	glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices_.size()), GL_UNSIGNED_INT, nullptr);
 	
@@ -360,10 +397,6 @@ void RadarBeam::calculateBeamVertices(const QVector3D& apex, const QVector3D& di
 	vertices_.push_back(apex.x());
 	vertices_.push_back(apex.y());
 	vertices_.push_back(apex.z());
-
-	// Normal at apex (improved to enhance visibility during rotation)
-	// Instead of just using the beam direction, we'll use a normal that's 
-	// more conducive to consistent lighting
 	vertices_.push_back(normDirection.x());
 	vertices_.push_back(normDirection.y());
 	vertices_.push_back(normDirection.z());
@@ -375,10 +408,6 @@ void RadarBeam::calculateBeamVertices(const QVector3D& apex, const QVector3D& di
 		float sA = sin(angle);
 
 		QVector3D circlePoint = baseCenter + (right * cA + up * sA) * baseRadius;
-
-		// Calculate normal (improved calculation for better lighting)
-		// We blend between the beam direction and the outward direction
-		// for smoother shading that's consistent during rotation
 		QVector3D toCircle = (circlePoint - baseCenter).normalized();
 		QVector3D normal = (normDirection * 0.2f + toCircle * 0.8f).normalized();
 
@@ -396,40 +425,24 @@ void RadarBeam::calculateBeamVertices(const QVector3D& apex, const QVector3D& di
 	// Create triangles (apex to each pair of adjacent base vertices)
 	for (int i = 0; i < segments; i++) {
 		int next = (i + 1) % segments;
-
-		// Indices (apex is 0, base starts at 1)
 		indices_.push_back(0);  // Apex
 		indices_.push_back(i + 1);  // Current base vertex
 		indices_.push_back(next + 1);  // Next base vertex
 	}
 
-	// Set up VAO and VBO for the beam
-	if (!beamVAO.isCreated()) {
-		beamVAO.create();
+	// CRITICAL: ONLY upload data to existing buffers - do NOT create new VAOs/VBOs
+	// VAOs and VBOs should only be created once in initialize()
+	if (beamVAO.isCreated() && beamVBO.isCreated() && beamEBO.isCreated()) {
+		beamVAO.bind();
+
+		beamVBO.bind();
+		beamVBO.allocate(vertices_.data(), vertices_.size() * sizeof(float));
+
+		beamEBO.bind();
+		beamEBO.allocate(indices_.data(), indices_.size() * sizeof(unsigned int));
+
+		beamVAO.release();
 	}
-	beamVAO.bind();
-
-	if (!beamVBO.isCreated()) {
-		beamVBO.create();
-	}
-	beamVBO.bind();
-	beamVBO.allocate(vertices_.data(), vertices_.size() * sizeof(float));
-
-	if (!beamEBO.isCreated()) {
-		beamEBO.create();
-	}
-	beamEBO.bind();
-	beamEBO.allocate(indices_.data(), indices_.size() * sizeof(unsigned int));
-
-	// Position attribute
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
-
-	// Normal attribute
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-	glEnableVertexAttribArray(1);
-
-	//beamVAO.release();
 }
 
 RadarBeam* RadarBeam::createBeam(BeamType type, float sphereRadius, float beamWidthDegrees) {

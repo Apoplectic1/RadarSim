@@ -350,10 +350,17 @@ void RadarGLWidget::setupContextMenu() {
 	toggleBeamAction->setCheckable(true);
 	toggleBeamAction->setChecked(true);
 	connect(toggleBeamAction, &QAction::toggled, [this](bool checked) {
+		// Update BeamController's beam
 		if (beamController_) {
 			beamController_->setBeamVisible(checked);
-			update();
 		}
+
+		// ALSO update SphereRenderer's beam
+		if (sphereRenderer_) {
+			sphereRenderer_->setBeamVisible(checked);
+		}
+
+		update();
 		});
 
 	// Add beam type submenu

@@ -31,7 +31,7 @@ void BeamController::initialize() {
 }
 
 void BeamController::render(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model) {
-    if (radarBeam_ && showBeam_) {
+    if (radarBeam_) {
         radarBeam_->render(nullptr, projection, view, model);
     }
 }
@@ -94,15 +94,29 @@ float BeamController::getBeamOpacity() const {
 }
 
 void BeamController::setBeamVisible(bool visible) {
+    qDebug() << "=== BeamController::setBeamVisible called ===";
+    qDebug() << "  Requested visible:" << visible;
+    qDebug() << "  Current showBeam_:" << showBeam_;
+
     if (showBeam_ != visible) {
         showBeam_ = visible;
+        qDebug() << "  Changed showBeam_ to:" << showBeam_;
 
         if (radarBeam_) {
             radarBeam_->setVisible(visible);
+            qDebug() << "  Called radarBeam_->setVisible(" << visible << ")";
+            qDebug() << "  radarBeam_->isVisible() now returns:" << radarBeam_->isVisible();
+        }
+        else {
+            qDebug() << "  ERROR: radarBeam_ is nullptr!";
         }
 
         emit beamVisibilityChanged(visible);
     }
+    else {
+        qDebug() << "  No change - already at" << visible;
+    }
+    qDebug() << "===========================================";
 }
 
 bool BeamController::isBeamVisible() const {

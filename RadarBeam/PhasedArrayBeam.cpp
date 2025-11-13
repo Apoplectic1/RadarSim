@@ -94,11 +94,13 @@ void PhasedArrayBeam::createBeamGeometry() {
         if (qAbs(QVector3D::dotProduct(normDirection, up)) > 0.99f) {
             up = QVector3D(1.0f, 0.0f, 0.0f);
         }
+
         QVector3D right = QVector3D::crossProduct(normDirection, up).normalized();
         up = QVector3D::crossProduct(right, normDirection).normalized();
 
         // Apply azimuth rotation (around up vector)
         QQuaternion azimuthRotation = QQuaternion::fromAxisAndAngle(up, azimuthOffset_);
+
         // Apply elevation rotation (around right vector)
         QQuaternion elevationRotation = QQuaternion::fromAxisAndAngle(right, elevationOffset_);
 
@@ -180,33 +182,18 @@ void PhasedArrayBeam::createBeamGeometry() {
         indices_.push_back(next + 1);  // Next base vertex
     }
 
-    // Setup VAO and VBO part remains the same...
-    if (!beamVAO.isCreated()) {
-        beamVAO.create();
+    // CRITICAL: ONLY upload data to existing buffers
+    if (beamVAO.isCreated() && beamVBO.isCreated() && beamEBO.isCreated()) {
+        beamVAO.bind();
+
+        beamVBO.bind();
+        beamVBO.allocate(vertices_.data(), vertices_.size() * sizeof(float));
+
+        beamEBO.bind();
+        beamEBO.allocate(indices_.data(), indices_.size() * sizeof(unsigned int));
+
+        beamVAO.release();
     }
-    beamVAO.bind();
-
-    if (!beamVBO.isCreated()) {
-        beamVBO.create();
-    }
-    beamVBO.bind();
-    beamVBO.allocate(vertices_.data(), vertices_.size() * sizeof(float));
-
-    if (!beamEBO.isCreated()) {
-        beamEBO.create();
-    }
-    beamEBO.bind();
-    beamEBO.allocate(indices_.data(), indices_.size() * sizeof(unsigned int));
-
-    // Position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    // Normal attribute
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-
-    beamVAO.release();
 
     // Then create side lobes if enabled
     if (showSideLobes_) {

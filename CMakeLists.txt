@@ -13,44 +13,34 @@ endif()
 
 # Configure debug/release options
 if(CMAKE_BUILD_TYPE MATCHES "Release")
-    # Disable debug output in release mode
     add_definitions(-DQT_NO_DEBUG_OUTPUT)
-    add_definitions(-DQT_NO_WARNING_OUTPUT)  # Optional: also disable warnings
+    add_definitions(-DQT_NO_WARNING_OUTPUT)
     
-    # Enable optimizations
     if(MSVC)
-        add_compile_options(/O2)  # MSVC optimization
+        add_compile_options(/O2)
     else()
-        add_compile_options(-O2)  # GCC/Clang optimization
+        add_compile_options(-O2)
     endif()
 else()
-    # Debug-specific options
     add_definitions(-DQT_DEBUG)
 endif()
 
-# Output the build type for verification
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
-message(STATUS "Debug output enabled: ${CMAKE_BUILD_TYPE} MATCHES Debug")
-
-
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
-
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
-
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Find Qt packages with the correct modules
+# Find Qt packages
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core Gui Widgets)
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Gui Widgets OpenGLWidgets)
 else()
     find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Gui Widgets OpenGL)
 endif()
-include_directories(${Qt${QT_VERSION_MAJOR}_INCLUDE_DIRS})
 
 # ModelManager sources
 set(MODEL_MANAGER_SOURCES
@@ -58,18 +48,18 @@ set(MODEL_MANAGER_SOURCES
     ModelManager/ModelManager.h
 )
 
-# RadarBeam classes
+# RadarBeam classes - CRITICAL: Use absolute paths from source directory
 set(RADAR_BEAM_SOURCES
-    RadarBeam/BeamController.cpp
-    RadarBeam/BeamController.h
-    RadarBeam/ConicalBeam.cpp
-    RadarBeam/ConicalBeam.h
-    RadarBeam/EllipticalBeam.cpp
-    RadarBeam/EllipticalBeam.h
-    RadarBeam/PhasedArrayBeam.cpp
-    RadarBeam/PhasedArrayBeam.h
-    RadarBeam/RadarBeam.cpp
-    RadarBeam/RadarBeam.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/BeamController.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/BeamController.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/ConicalBeam.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/ConicalBeam.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/EllipticalBeam.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/EllipticalBeam.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/PhasedArrayBeam.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/PhasedArrayBeam.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/RadarBeam.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/RadarBeam.h
 )
 
 # RadarSceneWidget and related component classes
@@ -94,6 +84,11 @@ set(PROJECT_SOURCES
     RadarSim.ui
 )
 
+# Debug: Print source files
+message(STATUS "RadarBeam sources:")
+foreach(src ${RADAR_BEAM_SOURCES})
+    message(STATUS "  ${src}")
+endforeach()
 
 # Create executable
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
@@ -113,27 +108,15 @@ else()
     )
 endif()
 
-# Define target properties for Android with Qt 6 as:
-# set_property(TARGET RadarSim APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
-#     ${CMAKE_CURRENT_SOURCE_DIR}/android)
-# For more information, see https://doc.qt.io/qt-6/qt-add-executable.html#target-creation
-
-# Include directories
+# CRITICAL: Include directories for proper header resolution
 target_include_directories(RadarSim PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam
     ${CMAKE_CURRENT_SOURCE_DIR}/RadarSceneWidget
+    ${CMAKE_CURRENT_SOURCE_DIR}/ModelManager
 )
 
-# Link libraries
-target_link_libraries(RadarSim PRIVATE
-    Qt${QT_VERSION_MAJOR}::Core
-    Qt${QT_VERSION_MAJOR}::Gui
-    Qt${QT_VERSION_MAJOR}::Widgets
-    Qt${QT_VERSION_MAJOR}::OpenGL
-)
-
-# Link libraries with the correct modules
+# Link Qt libraries
 target_link_libraries(RadarSim PRIVATE
     Qt${QT_VERSION_MAJOR}::Core
     Qt${QT_VERSION_MAJOR}::Gui

@@ -108,31 +108,16 @@ void EllipticalBeam::createBeamGeometry() {
         indices_.push_back(next + 1);  // Next base vertex
     }
 
-    // Set up VAO and VBO for the beam
-    if (!beamVAO.isCreated()) {
-        beamVAO.create();
+    // CRITICAL: ONLY upload data to existing buffers
+    if (beamVAO.isCreated() && beamVBO.isCreated() && beamEBO.isCreated()) {
+        beamVAO.bind();
+
+        beamVBO.bind();
+        beamVBO.allocate(vertices_.data(), vertices_.size() * sizeof(float));
+
+        beamEBO.bind();
+        beamEBO.allocate(indices_.data(), indices_.size() * sizeof(unsigned int));
+
+        beamVAO.release();
     }
-    beamVAO.bind();
-
-    if (!beamVBO.isCreated()) {
-        beamVBO.create();
-    }
-    beamVBO.bind();
-    beamVBO.allocate(vertices_.data(), vertices_.size() * sizeof(float));
-
-    if (!beamEBO.isCreated()) {
-        beamEBO.create();
-    }
-    beamEBO.bind();
-    beamEBO.allocate(indices_.data(), indices_.size() * sizeof(unsigned int));
-
-    // Position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    // Normal attribute
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-
-    //beamVAO.release();
 }
