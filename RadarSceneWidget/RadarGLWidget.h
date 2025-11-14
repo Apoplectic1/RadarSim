@@ -58,7 +58,7 @@ private:
     float radius_ = 100.0f;
     float theta_ = 45.0f;
     float phi_ = 45.0f;
-    bool beamDirty_ = false;
+    bool beamDirty_ = true;
 
     // Component references (owned by RadarSceneWidget)
     SphereRenderer* sphereRenderer_ = nullptr;

@@ -93,6 +93,17 @@ float BeamController::getBeamOpacity() const {
     return radarBeam_ ? radarBeam_->getOpacity() : 0.3f;
 }
 
+void BeamController::setSphereRadius(float radius) {
+    if (sphereRadius_ != radius) {
+        sphereRadius_ = radius;
+
+        // Recreate the beam with the new sphere radius
+        if (radarBeam_) {
+            createBeam();
+        }
+    }
+}
+
 void BeamController::setBeamVisible(bool visible) {
     qDebug() << "=== BeamController::setBeamVisible called ===";
     qDebug() << "  Requested visible:" << visible;

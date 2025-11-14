@@ -38,6 +38,8 @@ public:
 
     // Beam position
     void updateBeamPosition(const QVector3D& position);
+    void setSphereRadius(float radius);
+    float getSphereRadius() const { return sphereRadius_; }
 
     // Access beam
     RadarBeam* getBeam() const { return radarBeam_; }

@@ -80,6 +80,7 @@ void RadarGLWidget::initializeGL() {
 
 		if (beamController_) {
 			beamController_->initialize();
+			beamController_->setSphereRadius(radius_);
 		}
 
 		if (modelManager_) {
@@ -204,9 +205,13 @@ void RadarGLWidget::setRadius(float radius) {
 		radius_ = radius;
 		beamDirty_ = true;
 
-		// Update the sphere itself
 		if (sphereRenderer_) {
 			sphereRenderer_->setRadius(radius);
+		}
+
+		// ADD THIS:
+		if (beamController_) {
+			beamController_->setSphereRadius(radius);
 		}
 
 		emit radiusChanged(radius);
