@@ -21,9 +21,8 @@ PhasedArrayBeam::PhasedArrayBeam(float sphereRadius, float mainLobeWidthDegrees)
         return 1.0f;  // Uniform gain
         };
 
-    // Initialize OpenGL resources
-     // Note: This will be called again by SphereWidget but that's ok
-    initialize();
+    // Don't call initialize() here - it requires a valid OpenGL context
+    // BeamController::createBeam() will call initialize() after construction
 }
 
 PhasedArrayBeam::~PhasedArrayBeam() {
@@ -42,33 +41,39 @@ void PhasedArrayBeam::setMainLobeDirection(float azimuthOffset, float elevationO
     azimuthOffset_ = azimuthOffset;
     elevationOffset_ = elevationOffset;
     createBeamGeometry();
+    uploadGeometryToGPU();
 }
 
 void PhasedArrayBeam::setElementCount(int horizontalElements, int verticalElements) {
     horizontalElements_ = horizontalElements;
     verticalElements_ = verticalElements;
     createBeamGeometry();
+    uploadGeometryToGPU();
 }
 
 void PhasedArrayBeam::setElementSpacing(float horizontalSpacing, float verticalSpacing) {
     horizontalSpacing_ = horizontalSpacing;
     verticalSpacing_ = verticalSpacing;
     createBeamGeometry();
+    uploadGeometryToGPU();
 }
 
 void PhasedArrayBeam::setSideLobeVisibility(bool visible) {
     showSideLobes_ = visible;
     createBeamGeometry();
+    uploadGeometryToGPU();
 }
 
 void PhasedArrayBeam::setSideLobeIntensity(float intensity) {
     sideLobeIntensity_ = intensity;
     createBeamGeometry();
+    uploadGeometryToGPU();
 }
 
 void PhasedArrayBeam::setCustomPattern(std::function<float(float, float)> patternFunc) {
     patternFunction_ = patternFunc;
     createBeamGeometry();
+    uploadGeometryToGPU();
 }
 
 void PhasedArrayBeam::createBeamGeometry() {
@@ -180,19 +185,6 @@ void PhasedArrayBeam::createBeamGeometry() {
         indices_.push_back(0);  // Apex
         indices_.push_back(i + 1);  // Current base vertex
         indices_.push_back(next + 1);  // Next base vertex
-    }
-
-    // CRITICAL: ONLY upload data to existing buffers
-    if (beamVAO.isCreated() && beamVBO.isCreated() && beamEBO.isCreated()) {
-        beamVAO.bind();
-
-        beamVBO.bind();
-        beamVBO.allocate(vertices_.data(), vertices_.size() * sizeof(float));
-
-        beamEBO.bind();
-        beamEBO.allocate(indices_.data(), indices_.size() * sizeof(unsigned int));
-
-        beamVAO.release();
     }
 
     // Then create side lobes if enabled

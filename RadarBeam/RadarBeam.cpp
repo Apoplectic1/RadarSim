@@ -89,11 +89,13 @@ RadarBeam::~RadarBeam() {
 	if (beamVAO.isCreated()) {
 		beamVAO.destroy();
 	}
-	if (beamVBO.isCreated()) {
-		beamVBO.destroy();
+	if (vboId_ != 0) {
+		glDeleteBuffers(1, &vboId_);
+		vboId_ = 0;
 	}
-	if (beamEBO.isCreated()) {
-		beamEBO.destroy();
+	if (eboId_ != 0) {
+		glDeleteBuffers(1, &eboId_);
+		eboId_ = 0;
 	}
 	if (beamShaderProgram) {
 		delete beamShaderProgram;
@@ -104,20 +106,57 @@ RadarBeam::~RadarBeam() {
 }
 
 void RadarBeam::uploadGeometryToGPU() {
-	// Make sure we have a VAO, VBO, and EBO already created in initialize()
+	// Check for valid OpenGL context
+	if (!QOpenGLContext::currentContext()) {
+		// No GL context - mark geometry as dirty for later upload
+		geometryDirty_ = true;
+		return;
+	}
+
+	// Make sure VAO exists
+	if (!beamVAO.isCreated()) {
+		geometryDirty_ = true;
+		return;
+	}
+
+	// Don't upload empty geometry
+	if (vertices_.empty() || indices_.empty()) {
+		return;
+	}
+
 	beamVAO.bind();
 
-	// Vertex buffer
-	beamVBO.bind();
-	beamVBO.allocate(vertices_.data(),
-		static_cast<int>(vertices_.size() * sizeof(float)));
+	// Create VBO if needed
+	if (vboId_ == 0) {
+		glGenBuffers(1, &vboId_);
+	}
+	glBindBuffer(GL_ARRAY_BUFFER, vboId_);
+	glBufferData(GL_ARRAY_BUFFER,
+		vertices_.size() * sizeof(float),
+		vertices_.data(),
+		GL_DYNAMIC_DRAW);
 
-	// Index buffer
-	beamEBO.bind();
-	beamEBO.allocate(indices_.data(),
-		static_cast<int>(indices_.size() * sizeof(unsigned int)));
+	// Setup vertex attributes while VBO is bound
+	// Position attribute (location 0)
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);
+
+	// Normal attribute (location 1)
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+	glEnableVertexAttribArray(1);
+
+	// Create EBO if needed
+	if (eboId_ == 0) {
+		glGenBuffers(1, &eboId_);
+	}
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eboId_);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+		indices_.size() * sizeof(unsigned int),
+		indices_.data(),
+		GL_DYNAMIC_DRAW);
 
 	beamVAO.release();
+	geometryDirty_ = false;
 }
 
 void RadarBeam::initialize() {
@@ -130,29 +169,14 @@ void RadarBeam::initialize() {
 	initializeOpenGLFunctions();
 	setupShaders();
 
-	// Create VAO, VBO, and EBO - THIS IS DONE ONLY ONCE
+	// Create VAO only - buffers will be created in uploadGeometryToGPU
 	beamVAO.create();
 	beamVAO.bind();
-
-	beamVBO.create();
-	beamVBO.bind();
-
-	beamEBO.create();
-	beamEBO.bind();
-
-	// Set up vertex attributes - THIS IS ALSO DONE ONLY ONCE
-	// Position attribute (location 0)
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
-
-	// Normal attribute (location 1)
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-	glEnableVertexAttribArray(1);
-
 	beamVAO.release();
 
-	// Now create the initial geometry
+	// Now create the initial geometry and upload to GPU
 	createBeamGeometry();
+	uploadGeometryToGPU();
 }
 
 
@@ -188,6 +212,7 @@ void RadarBeam::setupShaders() {
 void RadarBeam::update(const QVector3D& radarPosition) {
 	currentRadarPosition_ = radarPosition;
 	createBeamGeometry();
+	uploadGeometryToGPU();
 }
 
 void RadarBeam::render(QOpenGLShaderProgram* program, const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model) {
@@ -214,8 +239,25 @@ void RadarBeam::render(QOpenGLShaderProgram* program, const QMatrix4x4& projecti
 	}
 
 	// Check if OpenGL resources are valid
-	if (!beamVAO.isCreated() || !beamVBO.isCreated() || !beamEBO.isCreated() || !beamShaderProgram) {
+	if (!beamVAO.isCreated() || !beamShaderProgram) {
 		qWarning() << "RadarBeam::render called with invalid OpenGL resources";
+		return;
+	}
+
+	// Upload geometry if it was deferred (no GL context when setter was called)
+	if (geometryDirty_) {
+		uploadGeometryToGPU();
+	}
+
+	// Verify buffers exist
+	if (vboId_ == 0 || eboId_ == 0) {
+		qWarning() << "RadarBeam::render - buffers not created";
+		return;
+	}
+
+	// Verify we have valid index count before drawing
+	if (indices_.empty()) {
+		qWarning() << "RadarBeam::render - indices_ is empty, skipping draw";
 		return;
 	}
 
@@ -251,7 +293,11 @@ void RadarBeam::render(QOpenGLShaderProgram* program, const QMatrix4x4& projecti
 
 	// Bind VAO and draw
 	beamVAO.bind();
-	
+
+	// Bind buffers explicitly
+	glBindBuffer(GL_ARRAY_BUFFER, vboId_);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eboId_);
+
 	glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices_.size()), GL_UNSIGNED_INT, nullptr);
 	
 
@@ -274,17 +320,29 @@ void RadarBeam::render(QOpenGLShaderProgram* program, const QMatrix4x4& projecti
 void RadarBeam::setBeamWidth(float degrees) {
 	beamWidthDegrees_ = degrees;
 	createBeamGeometry();
+	uploadGeometryToGPU();
+}
+
+void RadarBeam::setSphereRadius(float radius) {
+	if (sphereRadius_ != radius) {
+		sphereRadius_ = radius;
+		// Regenerate geometry and upload to GPU
+		createBeamGeometry();
+		uploadGeometryToGPU();
+	}
 }
 
 void RadarBeam::setBeamDirection(BeamDirection direction) {
 	beamDirection_ = direction;
 	createBeamGeometry();
+	uploadGeometryToGPU();
 }
 
 void RadarBeam::setCustomDirection(const QVector3D& direction) {
 	customDirection_ = direction.normalized();
 	beamDirection_ = BeamDirection::Custom;
 	createBeamGeometry();
+	uploadGeometryToGPU();
 }
 
 void RadarBeam::setColor(const QVector3D& color) {
@@ -302,6 +360,7 @@ void RadarBeam::setVisible(bool visible) {
 void RadarBeam::setBeamLength(float length) {
 	beamLengthFactor_ = length;
 	createBeamGeometry();
+	uploadGeometryToGPU();
 }
 
 QVector3D RadarBeam::calculateBeamDirection(const QVector3D& radarPosition) {
@@ -430,19 +489,7 @@ void RadarBeam::calculateBeamVertices(const QVector3D& apex, const QVector3D& di
 		indices_.push_back(next + 1);  // Next base vertex
 	}
 
-	// CRITICAL: ONLY upload data to existing buffers - do NOT create new VAOs/VBOs
-	// VAOs and VBOs should only be created once in initialize()
-	if (beamVAO.isCreated() && beamVBO.isCreated() && beamEBO.isCreated()) {
-		beamVAO.bind();
 
-		beamVBO.bind();
-		beamVBO.allocate(vertices_.data(), vertices_.size() * sizeof(float));
-
-		beamEBO.bind();
-		beamEBO.allocate(indices_.data(), indices_.size() * sizeof(unsigned int));
-
-		beamVAO.release();
-	}
 }
 
 RadarBeam* RadarBeam::createBeam(BeamType type, float sphereRadius, float beamWidthDegrees) {

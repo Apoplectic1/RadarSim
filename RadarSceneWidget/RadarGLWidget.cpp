@@ -45,6 +45,13 @@ void RadarGLWidget::initialize(SphereRenderer* sphereRenderer, BeamController* b
 	// Set mouse tracking to improve responsiveness
 	setMouseTracking(true);
 
+	// Connect camera controller's viewChanged signal to trigger repaints
+	// This is essential for smooth inertia animation
+	if (cameraController_) {
+		connect(cameraController_, &CameraController::viewChanged,
+			this, QOverload<>::of(&QWidget::update));
+	}
+
 	// Enable context menu for right-click
 	setContextMenuPolicy(Qt::CustomContextMenu);
 	connect(this, &QWidget::customContextMenuRequested,
@@ -53,7 +60,7 @@ void RadarGLWidget::initialize(SphereRenderer* sphereRenderer, BeamController* b
 				contextMenu_->popup(mapToGlobal(pos));
 			}
 		});
-	
+
 }
 
 void RadarGLWidget::initializeGL() {
@@ -80,6 +87,7 @@ void RadarGLWidget::initializeGL() {
 
 		if (beamController_) {
 			beamController_->initialize();
+			// Synchronize sphere radius after initialization
 			beamController_->setSphereRadius(radius_);
 		}
 

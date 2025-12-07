@@ -97,9 +97,9 @@ void BeamController::setSphereRadius(float radius) {
     if (sphereRadius_ != radius) {
         sphereRadius_ = radius;
 
-        // Recreate the beam with the new sphere radius
+        // Update the beam's sphere radius (only regenerates geometry, no GPU upload)
         if (radarBeam_) {
-            createBeam();
+            radarBeam_->setSphereRadius(radius);
         }
     }
 }

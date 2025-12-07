@@ -16,11 +16,13 @@ EllipticalBeam::~EllipticalBeam() {
 void EllipticalBeam::setHorizontalWidth(float degrees) {
     horizontalWidthDegrees_ = degrees;
     createBeamGeometry();
+    uploadGeometryToGPU();
 }
 
 void EllipticalBeam::setVerticalWidth(float degrees) {
     verticalWidthDegrees_ = degrees;
     createBeamGeometry();
+    uploadGeometryToGPU();
 }
 
 void EllipticalBeam::createBeamGeometry() {
@@ -106,18 +108,5 @@ void EllipticalBeam::createBeamGeometry() {
         indices_.push_back(0);  // Apex
         indices_.push_back(i + 1);  // Current base vertex
         indices_.push_back(next + 1);  // Next base vertex
-    }
-
-    // CRITICAL: ONLY upload data to existing buffers
-    if (beamVAO.isCreated() && beamVBO.isCreated() && beamEBO.isCreated()) {
-        beamVAO.bind();
-
-        beamVBO.bind();
-        beamVBO.allocate(vertices_.data(), vertices_.size() * sizeof(float));
-
-        beamEBO.bind();
-        beamEBO.allocate(indices_.data(), indices_.size() * sizeof(unsigned int));
-
-        beamVAO.release();
     }
 }

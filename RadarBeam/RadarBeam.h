@@ -52,6 +52,7 @@ public:
     virtual void setVerticalWidth(float width) { /* Do nothing in base class */ }
 
     void setBeamWidth(float degrees);
+    void setSphereRadius(float radius);  // Update sphere radius and regenerate geometry
     void setBeamDirection(BeamDirection direction);
     void setCustomDirection(const QVector3D& direction);
     void setColor(const QVector3D& color);
@@ -61,6 +62,7 @@ public:
 
     // Property getters
     float getBeamWidth() const { return beamWidthDegrees_; }
+    float getSphereRadius() const { return sphereRadius_; }
     BeamDirection getBeamDirection() const { return beamDirection_; }
     QVector3D getCustomDirection() const { return customDirection_; }
     QVector3D getColor() const { return color_; }
@@ -75,8 +77,12 @@ protected:
     // OpenGL resources
     QOpenGLShaderProgram* beamShaderProgram = nullptr;
     QOpenGLVertexArrayObject beamVAO;
-    QOpenGLBuffer beamVBO;
-    QOpenGLBuffer beamEBO;
+    GLuint vboId_ = 0;  // Raw OpenGL buffer ID for vertices
+    GLuint eboId_ = 0;  // Raw OpenGL buffer ID for indices
+
+    // Keep QOpenGLBuffer for compatibility but mark as deprecated
+    QOpenGLBuffer beamVBO;  // deprecated - use vboId_
+    QOpenGLBuffer beamEBO;  // deprecated - use eboId_
 
     // Beam properties
     float sphereRadius_;
@@ -92,6 +98,7 @@ protected:
     // Geometry data
     std::vector<float> vertices_;
     std::vector<unsigned int> indices_;
+    bool geometryDirty_ = false;  // Flag to defer GPU upload until valid context
 
     // Shader sources
     const char* beamVertexShaderSource;

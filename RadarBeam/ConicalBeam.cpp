@@ -5,9 +5,8 @@
 ConicalBeam::ConicalBeam(float sphereRadius, float beamWidthDegrees)
     : RadarBeam(sphereRadius, beamWidthDegrees)
 {
-    // Make sure initialize is called if this is the first beam
-    // Note: This will be called again by SphereWidget but that's ok
-    initialize();
+    // Don't call initialize() here - it requires a valid OpenGL context
+    // BeamController::createBeam() will call initialize() after construction
 }
 
 ConicalBeam::~ConicalBeam() {
