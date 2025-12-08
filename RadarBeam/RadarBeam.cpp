@@ -408,6 +408,14 @@ void RadarBeam::createBeamGeometry() {
 	// Base implementation for a simple beam
 	// This will be overridden by derived classes
 
+	// Skip geometry creation if position hasn't been set yet
+	// (avoids creating stray geometry at the origin)
+	if (currentRadarPosition_.isNull()) {
+		vertices_.clear();
+		indices_.clear();
+		return;
+	}
+
 	// Calculate beam direction
 	QVector3D direction = calculateBeamDirection(currentRadarPosition_);
 

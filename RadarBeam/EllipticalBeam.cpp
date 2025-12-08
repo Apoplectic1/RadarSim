@@ -30,6 +30,11 @@ void EllipticalBeam::createBeamGeometry() {
     vertices_.clear();
     indices_.clear();
 
+    // Skip geometry creation if position hasn't been set yet
+    if (currentRadarPosition_.isNull()) {
+        return;
+    }
+
     // Number of segments around the base ellipse
     const int segments = 32;
 
