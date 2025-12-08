@@ -16,7 +16,6 @@ class QOpenGLShaderProgram;
 // Enum for different beam types
 enum class BeamType {
     Conical,       // Standard conical beam
-    Elliptical,    // Elliptical beam (different horizontal/vertical angles)
     Shaped,        // Custom shaped beam using a pattern function
     Phased         // Full phased array beam with multiple lobes
 };
@@ -46,10 +45,6 @@ public:
 
     // Property setters
     virtual BeamType getBeamType() const { return BeamType::Conical; }  // Default
-    virtual float getHorizontalWidth() const { return getBeamWidth(); }
-    virtual float getVerticalWidth() const { return getBeamWidth(); }
-    virtual void setHorizontalWidth(float width) { setBeamWidth(width); }
-    virtual void setVerticalWidth(float width) { /* Do nothing in base class */ }
 
     void setBeamWidth(float degrees);
     void setSphereRadius(float radius);  // Update sphere radius and regenerate geometry

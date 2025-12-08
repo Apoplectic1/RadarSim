@@ -1,8 +1,6 @@
 // SphereRenderer.h
 #pragma once
 
-#include "RadarBeam/RadarBeam.h"
-
 #include <QObject>
 #include <QOpenGLFunctions_3_3_Core>
 #include <QOpenGLShaderProgram>
@@ -46,15 +44,6 @@ public:
     QVector3D getRadarPosition() const;
     float getTheta() const { return theta_; }
     float getPhi() const { return phi_; }
-
-    // Radar beam methods
-    void setBeamWidth(float degrees);
-    void setBeamType(BeamType type);
-    void setBeamColor(const QVector3D& color);
-    void setBeamOpacity(float opacity);
-    void setBeamVisible(bool visible);
-    bool isBeamVisible() const { return showBeam_; }
-    RadarBeam* getBeam() const { return radarBeam_; }
 
     // Inertia control
     void setInertiaEnabled(bool enabled);
@@ -123,10 +112,6 @@ private:
     QOpenGLShaderProgram* dotShaderProgram = nullptr;
     float theta_ = 45.0f;  // Spherical coordinate theta (longitude)
     float phi_ = 45.0f;    // Spherical coordinate phi (latitude)
-
-    // Radar beam
-    RadarBeam* radarBeam_ = nullptr;
-    bool showBeam_ = true;
 
     // Helper methods
     void createDot();

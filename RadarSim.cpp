@@ -123,7 +123,6 @@ void RadarSim::setupTabs() {
     // Add some placeholder settings
     QComboBox* beamTypeComboBox = new QComboBox(beamSettingsGroup);
     beamTypeComboBox->addItem("Conical");
-    beamTypeComboBox->addItem("Elliptical");
     beamTypeComboBox->addItem("Phased Array");
     beamSettingsLayout->addRow("Default Beam Type:", beamTypeComboBox);
 

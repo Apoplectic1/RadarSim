@@ -4,7 +4,7 @@
 
 RadarSim is a Qt-based 3D radar simulation application written in C++17 with OpenGL 3.3 core rendering. It visualizes radar beams with interactive controls, featuring a tabbed UI interface and a component-based architecture supporting multiple beam types.
 
-- **Qt Version**: 6.10.0 (with Qt5 fallback support)
+- **Qt Version**: 6.10.1 (with Qt5 fallback support)
 - **OpenGL**: 3.3 Core Profile
 - **Build System**: CMake 3.14+
 - **Platform**: Cross-platform (Windows, Linux, macOS)
@@ -32,7 +32,6 @@ RadarSim/
 ├── RadarBeam/                  # Beam visualization module
 │   ├── RadarBeam.h/.cpp        # Base beam class (VAO/VBO/shaders)
 │   ├── ConicalBeam.h/.cpp      # Simple cone geometry
-│   ├── EllipticalBeam.h/.cpp   # Different H/V beam widths
 │   ├── PhasedArrayBeam.h/.cpp  # Array beam with side lobes
 │   └── BeamController.h/.cpp   # Component wrapper for beams
 ├── RadarSceneWidget/           # OpenGL scene management
@@ -71,7 +70,6 @@ void RadarGLWidget::initializeGL() {
 ```
 RadarBeam (base)
 ├── ConicalBeam
-├── EllipticalBeam
 └── PhasedArrayBeam
 ```
 
@@ -137,6 +135,30 @@ if (vboId_ != 0) {
 - Check `QOpenGLContext::currentContext()` before any GL operations outside render methods
 - `BeamController::createBeam()` handles calling `initialize()` after construction with valid context
 
+### Deferred Beam Type Changes
+
+Beam type changes from UI (context menu) must be deferred to `paintGL()` where a valid GL context exists:
+
+```cpp
+// In BeamController - defer the change
+void setBeamType(BeamType type) {
+    pendingBeamType_ = type;
+    beamTypeChangePending_ = true;
+}
+
+// In rebuildBeamGeometry() called from paintGL()
+void rebuildBeamGeometry() {
+    if (beamTypeChangePending_) {
+        currentBeamType_ = pendingBeamType_;
+        beamTypeChangePending_ = false;
+        createBeam();  // Now we have GL context for proper cleanup
+    }
+    // ... upload geometry
+}
+```
+
+**Why**: Deleting a beam outside GL context leaks OpenGL resources (VAO/VBO/EBO). The destructor needs a valid context to call `glDeleteBuffers()`.
+
 ### Signal Connections for Animation
 
 Components that update asynchronously (e.g., inertia timers) must have their signals connected to trigger widget repaints:
@@ -201,7 +223,7 @@ void RadarSim::onNewSliderChanged(int value) {
 
 1. Add enum value in `RadarBeam.h`:
 ```cpp
-enum class BeamType { Conical, Elliptical, Shaped, Phased, NewType };
+enum class BeamType { Conical, Shaped, Phased, NewType };
 ```
 
 2. Create new class inheriting from `RadarBeam`:

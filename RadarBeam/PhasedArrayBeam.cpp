@@ -1,7 +1,6 @@
 // ---- PhasedArrayBeam.cpp ----
 
 #include "PhasedArrayBeam.h"
-#include "EllipticalBeam.h"
 #include <cmath>
 #include <QQuaternion>
 
@@ -88,6 +87,7 @@ void PhasedArrayBeam::createBeamGeometry() {
 
     // Number of segments around the base ellipse
     const int segments = 32;
+    const int capRings = 8;  // Number of rings for the spherical cap
 
     // Calculate beam direction
     QVector3D direction = calculateBeamDirection(currentRadarPosition_);
@@ -140,20 +140,23 @@ void PhasedArrayBeam::createBeamGeometry() {
     QVector3D right = QVector3D::crossProduct(normDirection, up).normalized();
     up = QVector3D::crossProduct(right, normDirection).normalized();
 
-    // Base center
+    // Base center (conceptual center of cone base before projection)
     QVector3D baseCenter = currentRadarPosition_ + normDirection * beamLength;
+
+    // Cap center is where the beam axis exits the sphere on the opposite side
+    // This should be the antipodal point from the radar position
+    QVector3D capCenter = -currentRadarPosition_.normalized() * sphereRadius_;
 
     // Add apex vertex (with normal pointing to beam direction)
     vertices_.push_back(currentRadarPosition_.x());
     vertices_.push_back(currentRadarPosition_.y());
     vertices_.push_back(currentRadarPosition_.z());
-
-    // Normal at apex
     vertices_.push_back(normDirection.x());
     vertices_.push_back(normDirection.y());
     vertices_.push_back(normDirection.z());
 
-    // Add base vertices
+    // Store the outer rim vertices on the sphere (where cone meets sphere)
+    std::vector<QVector3D> outerRimPoints;
     for (int i = 0; i < segments; i++) {
         float angle = 2.0f * M_PI * i / segments;
         float cA = cos(angle);
@@ -162,13 +165,13 @@ void PhasedArrayBeam::createBeamGeometry() {
         // Elliptical calculation
         QVector3D circlePoint = baseCenter + right * (cA * horizontalRadius) + up * (sA * verticalRadius);
 
-        // Calculate normal (improved calculation for better lighting)
-        // Get the vector from base center to the current point on the ellipse
-        QVector3D toCircle = circlePoint - baseCenter;
+        // Project point onto sphere surface
+        circlePoint = circlePoint.normalized() * sphereRadius_;
+        outerRimPoints.push_back(circlePoint);
 
-        // Create a blend of the beam direction and the outward direction
-        // Higher blend factor towards the direction creates a more focused-looking beam
-        float blendFactor = 0.25f; // Adjust this value between 0.0 and 1.0 to control the blend
+        // Calculate normal for cone surface
+        QVector3D toCircle = circlePoint - baseCenter;
+        float blendFactor = 0.25f;
         QVector3D normal = (normDirection * blendFactor + toCircle.normalized() * (1.0f - blendFactor)).normalized();
 
         // Position
@@ -182,14 +185,72 @@ void PhasedArrayBeam::createBeamGeometry() {
         vertices_.push_back(normal.z());
     }
 
-    // Create triangles (apex to each pair of adjacent base vertices)
+    // Create cone side triangles (apex to each pair of adjacent rim vertices)
     for (int i = 0; i < segments; i++) {
         int next = (i + 1) % segments;
-
-        // Indices (apex is 0, base starts at 1)
         indices_.push_back(0);  // Apex
-        indices_.push_back(i + 1);  // Current base vertex
-        indices_.push_back(next + 1);  // Next base vertex
+        indices_.push_back(i + 1);  // Current rim vertex
+        indices_.push_back(next + 1);  // Next rim vertex
+    }
+
+    // Add the spherical cap to fill in the "dish"
+    int capStartVertex = segments + 1;
+
+    // Add vertices for inner rings of the cap
+    for (int ring = 1; ring <= capRings; ring++) {
+        float t = (float)ring / (float)capRings;
+
+        for (int i = 0; i < segments; i++) {
+            QVector3D outerPoint = outerRimPoints[i];
+            QVector3D interpolated = (outerPoint * (1.0f - t) + capCenter * t).normalized() * sphereRadius_;
+            QVector3D normal = -interpolated.normalized();
+
+            vertices_.push_back(interpolated.x());
+            vertices_.push_back(interpolated.y());
+            vertices_.push_back(interpolated.z());
+            vertices_.push_back(normal.x());
+            vertices_.push_back(normal.y());
+            vertices_.push_back(normal.z());
+        }
+    }
+
+    // Create triangles for the cap - first ring
+    for (int i = 0; i < segments; i++) {
+        int next = (i + 1) % segments;
+        int outerCurr = i + 1;
+        int outerNext = next + 1;
+        int innerCurr = capStartVertex + i;
+        int innerNext = capStartVertex + next;
+
+        indices_.push_back(outerCurr);
+        indices_.push_back(innerCurr);
+        indices_.push_back(outerNext);
+
+        indices_.push_back(outerNext);
+        indices_.push_back(innerCurr);
+        indices_.push_back(innerNext);
+    }
+
+    // Remaining rings
+    for (int ring = 1; ring < capRings; ring++) {
+        int outerRingStart = capStartVertex + (ring - 1) * segments;
+        int innerRingStart = capStartVertex + ring * segments;
+
+        for (int i = 0; i < segments; i++) {
+            int next = (i + 1) % segments;
+            int outerCurr = outerRingStart + i;
+            int outerNext = outerRingStart + next;
+            int innerCurr = innerRingStart + i;
+            int innerNext = innerRingStart + next;
+
+            indices_.push_back(outerCurr);
+            indices_.push_back(innerCurr);
+            indices_.push_back(outerNext);
+
+            indices_.push_back(outerNext);
+            indices_.push_back(innerCurr);
+            indices_.push_back(innerNext);
+        }
     }
 
     // Then create side lobes if enabled

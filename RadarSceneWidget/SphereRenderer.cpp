@@ -1,8 +1,4 @@
 #include "SphereRenderer.h"
-#include "RadarBeam/RadarBeam.h"
-#include "RadarBeam/ConicalBeam.h"
-#include "RadarBeam/EllipticalBeam.h"
-#include "RadarBeam/PhasedArrayBeam.h"
 #include <QtMath>
 #include <qtimer.h>
 
@@ -16,7 +12,6 @@ SphereRenderer::SphereRenderer(QObject* parent)
 	initialized_(false),
 	theta_(45.0f),
 	phi_(45.0f),
-	showBeam_(true),
 	// Initialize OpenGL buffer types
 	sphereVBO(QOpenGLBuffer::VertexBuffer),
 	sphereEBO(QOpenGLBuffer::IndexBuffer),
@@ -208,8 +203,6 @@ SphereRenderer::~SphereRenderer() {
 		delete dotShaderProgram;
 		dotShaderProgram = nullptr;
 	}
-
-	delete radarBeam_;
 }
 
 bool SphereRenderer::initialize() {
@@ -232,18 +225,6 @@ bool SphereRenderer::initialize() {
 	createGridLines();
 	createAxesLines();
 	createDot();
-
-	// Initialize radar beam
-	radarBeam_ = RadarBeam::createBeam(BeamType::Conical, radius_, 15.0f);
-	if (radarBeam_) {
-		radarBeam_->initialize();
-		radarBeam_->setColor(QVector3D(1.0f, 0.5f, 0.0f)); // Orange-red beam
-		radarBeam_->setOpacity(0.3f); // Semi-transparent
-
-		// Update beam position
-		QVector3D radarPos = sphericalToCartesian(radius_, theta_, phi_);
-		radarBeam_->update(radarPos);
-	}
 
 	// Mark as initialized
 	initialized_ = true;
@@ -651,10 +632,7 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 		currentShader = nullptr;
 	}
 
-	// 5. Draw radar beam if visible
-	if (showBeam_ && radarBeam_ && radarBeam_->isVisible()) {
-		radarBeam_->render(shaderProgram, projection, view, localModel);  // Use the rotated model
-	}
+	// Note: Beam rendering is handled by BeamController
 
 	// Final cleanup - ensure all shaders are released
 	if (currentShader) {
@@ -665,90 +643,10 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 void SphereRenderer::setRadarPosition(float theta, float phi) {
 	theta_ = theta;
 	phi_ = phi;
-
-	// Update beam when radar position changes
-	if (radarBeam_) {
-		QVector3D radarPos = sphericalToCartesian(radius_, theta_, phi_);
-		radarBeam_->update(radarPos);
-	}
 }
 
 QVector3D SphereRenderer::getRadarPosition() const {
 	return sphericalToCartesian(radius_, theta_, phi_);
-}
-
-void SphereRenderer::setBeamWidth(float degrees) {
-	if (radarBeam_) {
-		radarBeam_->setBeamWidth(degrees);
-	}
-}
-
-void SphereRenderer::setBeamType(BeamType type) {
-	// Check if we need to make a change
-	if (radarBeam_ && radarBeam_->getBeamType() == type) {
-		return;  // No change needed
-	}
-
-	// Get current properties before deleting the beam
-	float width = radarBeam_ ? radarBeam_->getBeamWidth() : 15.0f;
-	QVector3D color = radarBeam_ ? radarBeam_->getColor() : QVector3D(1.0f, 0.5f, 0.0f);
-	float opacity = radarBeam_ ? radarBeam_->getOpacity() : 0.3f;
-	bool visible = radarBeam_ ? radarBeam_->isVisible() : true;
-	float horizontalWidth = radarBeam_ ? radarBeam_->getHorizontalWidth() : width;
-	float verticalWidth = radarBeam_ ? radarBeam_->getVerticalWidth() : width / 2.0f;
-
-	// Delete the old beam - store the pointer temporarily
-	RadarBeam* oldBeam = radarBeam_;
-	radarBeam_ = nullptr;  // Clear the pointer before creating a new beam
-
-	// Create the new beam
-	try {
-		radarBeam_ = RadarBeam::createBeam(type, radius_, horizontalWidth);
-
-		if (radarBeam_) {
-			radarBeam_->initialize();
-			radarBeam_->setColor(color);
-			radarBeam_->setOpacity(opacity);
-			radarBeam_->setVisible(visible);
-
-			// For elliptical beams, set the vertical width
-			if (type == BeamType::Elliptical) {
-				radarBeam_->setVerticalWidth(verticalWidth);
-			}
-
-			// Update position
-			QVector3D radarPos = sphericalToCartesian(radius_, theta_, phi_);
-			radarBeam_->update(radarPos);
-		}
-	}
-	catch (const std::exception& e) {
-		qCritical() << "Exception creating new beam:" << e.what();
-		radarBeam_ = nullptr;  // Make sure pointer is null if creation failed
-	}
-
-	// Now that the new beam is fully set up, delete the old one
-	if (oldBeam) {
-		delete oldBeam;
-	}
-}
-
-void SphereRenderer::setBeamColor(const QVector3D& color) {
-	if (radarBeam_) {
-		radarBeam_->setColor(color);
-	}
-}
-
-void SphereRenderer::setBeamOpacity(float opacity) {
-	if (radarBeam_) {
-		radarBeam_->setOpacity(opacity);
-	}
-}
-
-void SphereRenderer::setBeamVisible(bool visible) {
-	showBeam_ = visible;
-	if (radarBeam_) {
-		radarBeam_->setVisible(visible);
-	}
 }
 
 void SphereRenderer::setRadius(float radius) {
@@ -762,43 +660,6 @@ void SphereRenderer::setRadius(float radius) {
 			createGridLines();
 			createAxesLines();
 			createDot();
-
-			// Update beam size if it exists
-			if (radarBeam_) {
-				// Save current beam properties
-				BeamType currentType = radarBeam_->getBeamType();
-				float width = radarBeam_->getBeamWidth();
-				QVector3D color = radarBeam_->getColor();
-				float opacity = radarBeam_->getOpacity();
-				bool visible = radarBeam_->isVisible();
-
-				// Get horizontal and vertical widths using virtual methods
-				float horizontalWidth = radarBeam_->getHorizontalWidth();
-				float verticalWidth = radarBeam_->getVerticalWidth();
-
-				// Delete old beam
-				delete radarBeam_;
-				radarBeam_ = nullptr;
-
-				// Create new beam using the factory method
-				radarBeam_ = RadarBeam::createBeam(currentType, radius_, horizontalWidth);
-
-				// For elliptical beams, set the vertical width separately
-				if (currentType == BeamType::Elliptical && radarBeam_) {
-					radarBeam_->setVerticalWidth(verticalWidth);
-				}
-
-				if (radarBeam_) {
-					radarBeam_->initialize();
-					radarBeam_->setColor(color);
-					radarBeam_->setOpacity(opacity);
-					radarBeam_->setVisible(visible);
-
-					// Calculate current radar position and update beam
-					QVector3D radarPos = sphericalToCartesian(radius_, theta_, phi_);
-					radarBeam_->update(radarPos);
-				}
-			}
 		}
 
 		emit radiusChanged(radius);

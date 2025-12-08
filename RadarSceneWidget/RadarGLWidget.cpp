@@ -363,14 +363,9 @@ void RadarGLWidget::setupContextMenu() {
 	toggleBeamAction->setCheckable(true);
 	toggleBeamAction->setChecked(true);
 	connect(toggleBeamAction, &QAction::toggled, [this](bool checked) {
-		// Update BeamController's beam
+		// Update BeamController's beam (SphereRenderer's beam is disabled)
 		if (beamController_) {
 			beamController_->setBeamVisible(checked);
-		}
-
-		// ALSO update SphereRenderer's beam
-		if (sphereRenderer_) {
-			sphereRenderer_->setBeamVisible(checked);
 		}
 
 		update();
@@ -383,16 +378,12 @@ void RadarGLWidget::setupContextMenu() {
 	conicalBeamAction->setCheckable(true);
 	conicalBeamAction->setChecked(true);
 
-	QAction* ellipticalBeamAction = beamTypeMenu->addAction("Elliptical");
-	ellipticalBeamAction->setCheckable(true);
-
 	QAction* phasedBeamAction = beamTypeMenu->addAction("Phased Array");
 	phasedBeamAction->setCheckable(true);
 
 	// Make them exclusive
 	QActionGroup* beamTypeGroup = new QActionGroup(this);
 	beamTypeGroup->addAction(conicalBeamAction);
-	beamTypeGroup->addAction(ellipticalBeamAction);
 	beamTypeGroup->addAction(phasedBeamAction);
 	beamTypeGroup->setExclusive(true);
 
@@ -400,13 +391,7 @@ void RadarGLWidget::setupContextMenu() {
 	connect(conicalBeamAction, &QAction::triggered, [this]() {
 		if (beamController_) {
 			beamController_->setBeamType(BeamType::Conical);
-			update();
-		}
-		});
-
-	connect(ellipticalBeamAction, &QAction::triggered, [this]() {
-		if (beamController_) {
-			beamController_->setBeamType(BeamType::Elliptical);
+			beamDirty_ = true;  // Force geometry rebuild with GL context
 			update();
 		}
 		});
@@ -414,6 +399,7 @@ void RadarGLWidget::setupContextMenu() {
 	connect(phasedBeamAction, &QAction::triggered, [this]() {
 		if (beamController_) {
 			beamController_->setBeamType(BeamType::Phased);
+			beamDirty_ = true;  // Force geometry rebuild with GL context
 			update();
 		}
 		});

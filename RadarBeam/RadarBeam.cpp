@@ -2,7 +2,6 @@
 
 #include "RadarBeam.h"
 #include "ConicalBeam.h"
-#include "EllipticalBeam.h"
 #include "PhasedArrayBeam.h"
 #include <cmath>
 #include <QDebug>
@@ -326,6 +325,13 @@ void RadarBeam::setBeamWidth(float degrees) {
 void RadarBeam::setSphereRadius(float radius) {
 	if (sphereRadius_ != radius) {
 		sphereRadius_ = radius;
+
+		// Scale the current radar position to the new sphere radius
+		// This ensures the radar stays on the sphere surface
+		if (!currentRadarPosition_.isNull()) {
+			currentRadarPosition_ = currentRadarPosition_.normalized() * radius;
+		}
+
 		// Regenerate geometry and upload to GPU
 		createBeamGeometry();
 		uploadGeometryToGPU();
@@ -443,6 +449,7 @@ void RadarBeam::calculateBeamVertices(const QVector3D& apex, const QVector3D& di
 
 	// Number of segments around the base circle
 	const int segments = 32;
+	const int capRings = 8;  // Number of rings for the spherical cap
 
 	// Normalized direction vector
 	QVector3D normDirection = direction.normalized();
@@ -457,10 +464,15 @@ void RadarBeam::calculateBeamVertices(const QVector3D& apex, const QVector3D& di
 	QVector3D right = QVector3D::crossProduct(normDirection, up).normalized();
 	up = QVector3D::crossProduct(right, normDirection).normalized();
 
-	// Base center
+	// Base center (conceptual center of cone base before projection)
 	QVector3D baseCenter = apex + normDirection * length;
 
-	// Add apex vertex (with normal pointing to beam direction)
+	// Cap center is where the beam axis exits the sphere on the opposite side
+	// This should be the antipodal point from the radar position (apex)
+	QVector3D capCenter = -apex.normalized() * sphereRadius_;
+
+	// Add apex vertex (with normal pointing outward from cone surface)
+	// Vertex 0
 	vertices_.push_back(apex.x());
 	vertices_.push_back(apex.y());
 	vertices_.push_back(apex.z());
@@ -468,13 +480,20 @@ void RadarBeam::calculateBeamVertices(const QVector3D& apex, const QVector3D& di
 	vertices_.push_back(normDirection.y());
 	vertices_.push_back(normDirection.z());
 
-	// Add base vertices
+	// Store the outer rim vertices on the sphere (where cone meets sphere)
+	// These will be vertices 1 to segments
+	std::vector<QVector3D> outerRimPoints;
 	for (int i = 0; i < segments; i++) {
 		float angle = 2.0f * M_PI * i / segments;
 		float cA = cos(angle);
 		float sA = sin(angle);
 
 		QVector3D circlePoint = baseCenter + (right * cA + up * sA) * baseRadius;
+
+		// Project point onto sphere surface
+		circlePoint = circlePoint.normalized() * sphereRadius_;
+		outerRimPoints.push_back(circlePoint);
+
 		QVector3D toCircle = (circlePoint - baseCenter).normalized();
 		QVector3D normal = (normDirection * 0.2f + toCircle * 0.8f).normalized();
 
@@ -483,29 +502,95 @@ void RadarBeam::calculateBeamVertices(const QVector3D& apex, const QVector3D& di
 		vertices_.push_back(circlePoint.y());
 		vertices_.push_back(circlePoint.z());
 
-		// Normal
+		// Normal (pointing outward for cone surface)
 		vertices_.push_back(normal.x());
 		vertices_.push_back(normal.y());
 		vertices_.push_back(normal.z());
 	}
 
-	// Create triangles (apex to each pair of adjacent base vertices)
+	// Create cone side triangles (apex to each pair of adjacent rim vertices)
 	for (int i = 0; i < segments; i++) {
 		int next = (i + 1) % segments;
 		indices_.push_back(0);  // Apex
-		indices_.push_back(i + 1);  // Current base vertex
-		indices_.push_back(next + 1);  // Next base vertex
+		indices_.push_back(i + 1);  // Current rim vertex
+		indices_.push_back(next + 1);  // Next rim vertex
 	}
 
+	// Now add the spherical cap to fill in the "dish"
+	// We'll create concentric rings from the outer rim toward the cap center
 
+	int capStartVertex = segments + 1;  // First vertex of cap interior
+
+	// Add vertices for inner rings of the cap
+	for (int ring = 1; ring <= capRings; ring++) {
+		float t = (float)ring / (float)capRings;  // 0 = outer rim, 1 = center
+
+		for (int i = 0; i < segments; i++) {
+			// Interpolate between outer rim point and cap center on the sphere surface
+			QVector3D outerPoint = outerRimPoints[i];
+
+			// Spherical interpolation (slerp) between outer point and cap center
+			QVector3D interpolated = (outerPoint * (1.0f - t) + capCenter * t).normalized() * sphereRadius_;
+
+			// Normal points inward (toward sphere center) for the cap
+			QVector3D normal = -interpolated.normalized();
+
+			vertices_.push_back(interpolated.x());
+			vertices_.push_back(interpolated.y());
+			vertices_.push_back(interpolated.z());
+			vertices_.push_back(normal.x());
+			vertices_.push_back(normal.y());
+			vertices_.push_back(normal.z());
+		}
+	}
+
+	// Create triangles for the cap
+	// First ring: connect outer rim (vertices 1..segments) to first inner ring
+	for (int i = 0; i < segments; i++) {
+		int next = (i + 1) % segments;
+		int outerCurr = i + 1;  // Outer rim vertex
+		int outerNext = next + 1;
+		int innerCurr = capStartVertex + i;  // First inner ring vertex
+		int innerNext = capStartVertex + next;
+
+		// Two triangles per quad
+		indices_.push_back(outerCurr);
+		indices_.push_back(innerCurr);
+		indices_.push_back(outerNext);
+
+		indices_.push_back(outerNext);
+		indices_.push_back(innerCurr);
+		indices_.push_back(innerNext);
+	}
+
+	// Remaining rings: connect ring to ring
+	for (int ring = 1; ring < capRings; ring++) {
+		int outerRingStart = capStartVertex + (ring - 1) * segments;
+		int innerRingStart = capStartVertex + ring * segments;
+
+		for (int i = 0; i < segments; i++) {
+			int next = (i + 1) % segments;
+			int outerCurr = outerRingStart + i;
+			int outerNext = outerRingStart + next;
+			int innerCurr = innerRingStart + i;
+			int innerNext = innerRingStart + next;
+
+			// Two triangles per quad
+			indices_.push_back(outerCurr);
+			indices_.push_back(innerCurr);
+			indices_.push_back(outerNext);
+
+			indices_.push_back(outerNext);
+			indices_.push_back(innerCurr);
+			indices_.push_back(innerNext);
+		}
+	}
 }
 
 RadarBeam* RadarBeam::createBeam(BeamType type, float sphereRadius, float beamWidthDegrees) {
 	switch (type) {
 	case BeamType::Conical:
 		return new ConicalBeam(sphereRadius, beamWidthDegrees);
-	case BeamType::Elliptical:
-		return new EllipticalBeam(sphereRadius, beamWidthDegrees, beamWidthDegrees / 2.0f);
 	case BeamType::Phased:
 		return new PhasedArrayBeam(sphereRadius, beamWidthDegrees);
 	case BeamType::Shaped:

@@ -55,8 +55,11 @@ private:
     // Beam properties
     RadarBeam* radarBeam_ = nullptr;
     BeamType currentBeamType_ = BeamType::Conical;
+    BeamType pendingBeamType_ = BeamType::Conical;  // For deferred type changes
+    bool beamTypeChangePending_ = false;  // Flag for deferred type change
     float sphereRadius_ = 100.0f;
     bool showBeam_ = true;
+    QVector3D currentPosition_;  // Store current radar position
 
     // Create the appropriate beam based on current settings
     void createBeam();

@@ -54,8 +54,6 @@ set(RADAR_BEAM_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/BeamController.h
     ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/ConicalBeam.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/ConicalBeam.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/EllipticalBeam.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/EllipticalBeam.h
     ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/PhasedArrayBeam.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/PhasedArrayBeam.h
     ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/RadarBeam.cpp

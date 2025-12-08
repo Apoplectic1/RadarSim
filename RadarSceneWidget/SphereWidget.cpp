@@ -1,9 +1,8 @@
-﻿// ---- SphereWidget.cpp ----
+// ---- SphereWidget.cpp ----
 
 #include "SphereWidget.h"
 #include "RadarBeam.h"
 #include "ConicalBeam.h"
-#include "EllipticalBeam.h"
 #include "PhasedArrayBeam.h"
 #include <QOpenGLContext>
 #include <QActionGroup>  // For QActionGroup
@@ -123,16 +122,12 @@ SphereWidget::SphereWidget(QWidget* parent)
 	conicalBeamAction->setCheckable(true);
 	conicalBeamAction->setChecked(true);
 
-	QAction* ellipticalBeamAction = beamTypeMenu->addAction("Elliptical");
-	ellipticalBeamAction->setCheckable(true);
-
 	QAction* phasedBeamAction = beamTypeMenu->addAction("Phased Array");
 	phasedBeamAction->setCheckable(true);
 
 	// Make them exclusive
 	QActionGroup* beamTypeGroup = new QActionGroup(this);
 	beamTypeGroup->addAction(conicalBeamAction);
-	beamTypeGroup->addAction(ellipticalBeamAction);
 	beamTypeGroup->addAction(phasedBeamAction);
 	beamTypeGroup->setExclusive(true);
 
@@ -140,11 +135,6 @@ SphereWidget::SphereWidget(QWidget* parent)
 	connect(conicalBeamAction, &QAction::triggered, this, [this]() {
 		qDebug() << "Switching to Conical beam";
 		setBeamType(BeamType::Conical);
-		});
-
-	connect(ellipticalBeamAction, &QAction::triggered, this, [this]() {
-		qDebug() << "Switching to Elliptical beam";
-		setBeamType(BeamType::Elliptical);
 		});
 
 	connect(phasedBeamAction, &QAction::triggered, this, [this]() {
@@ -401,24 +391,9 @@ void SphereWidget::setRadius(float r) {
 		float opacity = radarBeam_->getOpacity();
 		bool visible = radarBeam_->isVisible();
 
-		// Special case for EllipticalBeam
-		float horizontalWidth = width;
-		float verticalWidth = width / 2.0f;
-
-		EllipticalBeam* ellipticalBeam = dynamic_cast<EllipticalBeam*>(radarBeam_);
-		if (ellipticalBeam) {
-			horizontalWidth = ellipticalBeam->getHorizontalWidth();
-			verticalWidth = ellipticalBeam->getVerticalWidth();
-			qDebug() << "Elliptical beam detected - Horizontal width:" << horizontalWidth
-				<< "Vertical width:" << verticalWidth;
-		}
-
 		// Determine beam type
 		BeamType currentType = BeamType::Conical; // Default
-		if (ellipticalBeam) {
-			currentType = BeamType::Elliptical;
-		}
-		else if (dynamic_cast<PhasedArrayBeam*>(radarBeam_)) {
+		if (dynamic_cast<PhasedArrayBeam*>(radarBeam_)) {
 			currentType = BeamType::Phased;
 		}
 
@@ -426,15 +401,8 @@ void SphereWidget::setRadius(float r) {
 		delete radarBeam_;
 		radarBeam_ = nullptr;
 
-		// Create and initialize new beam
-		if (currentType == BeamType::Elliptical) {
-			// Create elliptical beam directly to preserve both widths
-			radarBeam_ = new EllipticalBeam(radius_, horizontalWidth, verticalWidth);
-		}
-		else {
-			// Use factory method for other types
-			radarBeam_ = RadarBeam::createBeam(currentType, radius_, width);
-		}
+		// Create and initialize new beam using factory method
+		radarBeam_ = RadarBeam::createBeam(currentType, radius_, width);
 
 		if (radarBeam_) {
 			radarBeam_->initialize();
@@ -791,9 +759,6 @@ void SphereWidget::paintGL() {
 		// Debug check
 		if (dynamic_cast<ConicalBeam*>(radarBeam_)) {
 			qDebug() << "Rendering ConicalBeam";
-		}
-		else if (dynamic_cast<EllipticalBeam*>(radarBeam_)) {
-			qDebug() << "Rendering EllipticalBeam";
 		}
 		else if (dynamic_cast<PhasedArrayBeam*>(radarBeam_)) {
 			qDebug() << "Rendering PhasedArrayBeam";

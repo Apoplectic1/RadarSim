@@ -16,8 +16,19 @@ BeamController::~BeamController() {
 }
 
 void BeamController::rebuildBeamGeometry() {
+    // Handle deferred beam type change (requires GL context for proper cleanup)
+    if (beamTypeChangePending_) {
+        currentBeamType_ = pendingBeamType_;
+        beamTypeChangePending_ = false;
+
+        // Re-create beam with new type (now we have GL context)
+        createBeam();
+
+        emit beamTypeChanged(currentBeamType_);
+    }
+
     if (radarBeam_) {
-        // This must run with a valid GL context (we’re in paintGL)
+        // This must run with a valid GL context (we're in paintGL)
         radarBeam_->uploadGeometryToGPU();
     }
 }
@@ -38,12 +49,10 @@ void BeamController::render(const QMatrix4x4& projection, const QMatrix4x4& view
 
 void BeamController::setBeamType(BeamType type) {
     if (currentBeamType_ != type) {
-        currentBeamType_ = type;
-
-        // Re-create beam with new type
-        createBeam();
-
-        emit beamTypeChanged(type);
+        // Defer the actual beam creation to when we have a GL context
+        pendingBeamType_ = type;
+        beamTypeChangePending_ = true;
+        // Don't emit signal yet - wait until beam is actually created
     }
 }
 
@@ -135,6 +144,7 @@ bool BeamController::isBeamVisible() const {
 }
 
 void BeamController::updateBeamPosition(const QVector3D& position) {
+    currentPosition_ = position;  // Store position for beam recreation
     if (radarBeam_) {
         radarBeam_->update(position);
     }
@@ -167,5 +177,10 @@ void BeamController::createBeam() {
         radarBeam_->setColor(color);
         radarBeam_->setOpacity(opacity);
         radarBeam_->setVisible(visible);
+
+        // Update beam with stored position so geometry is created
+        if (!currentPosition_.isNull()) {
+            radarBeam_->update(currentPosition_);
+        }
     }
 }
