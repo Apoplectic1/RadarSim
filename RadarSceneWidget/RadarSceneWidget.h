@@ -9,6 +9,7 @@
 #include "BeamController.h"
 #include "CameraController.h"
 #include "ModelManager/ModelManager.h"
+#include "WireframeTargetController.h"
 #include "RadarGLWidget.h"
 
 class RadarSceneWidget : public QWidget {
@@ -48,6 +49,7 @@ public:
     BeamController* getBeamController() const { return beamController_; }
     CameraController* getCameraController() const { return cameraController_; }
     ModelManager* getModelManager() const { return modelManager_; }
+    WireframeTargetController* getWireframeController() const { return wireframeController_; }
 
     // Enable component-based rendering
     void enableComponentRendering(bool enable);
@@ -80,6 +82,7 @@ private:
     BeamController* beamController_ = nullptr;
     CameraController* cameraController_ = nullptr;
     ModelManager* modelManager_ = nullptr;
+    WireframeTargetController* wireframeController_ = nullptr;
 
     // Current mode
     bool useComponents_ = true;

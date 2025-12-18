@@ -11,6 +11,7 @@ RadarSceneWidget::RadarSceneWidget(QWidget* parent)
     beamController_(nullptr),
     cameraController_(nullptr),
     modelManager_(nullptr),
+    wireframeController_(nullptr),
     useComponents_(true)  // Default to component-based rendering
 {
     qDebug() << "Creating RadarSceneWidget";
@@ -60,6 +61,7 @@ RadarSceneWidget::~RadarSceneWidget() {
     delete beamController_;
     delete cameraController_;
     delete modelManager_;
+    delete wireframeController_;
 }
 
 void RadarSceneWidget::createComponents() {
@@ -70,10 +72,11 @@ void RadarSceneWidget::createComponents() {
     beamController_ = new BeamController(this);
     cameraController_ = new CameraController(this);
     modelManager_ = new ModelManager(this);
+    wireframeController_ = new WireframeTargetController(this);
 
     // Associate with the GL widget
     radarGLWidget_->initialize(sphereRenderer_, beamController_,
-        cameraController_, modelManager_);
+        cameraController_, modelManager_, wireframeController_);
 
     qDebug() << "RadarSceneWidget components created";
 }
@@ -86,10 +89,11 @@ void RadarSceneWidget::initializeComponents() {
     beamController_ = new BeamController(this);
     cameraController_ = new CameraController(this);
     modelManager_ = new ModelManager(this);
+    wireframeController_ = new WireframeTargetController(this);
 
     // Initialize the RadarGLWidget with components
     radarGLWidget_->initialize(sphereRenderer_, beamController_,
-        cameraController_, modelManager_);
+        cameraController_, modelManager_, wireframeController_);
 
     qDebug() << "RadarSceneWidget components created";
 }

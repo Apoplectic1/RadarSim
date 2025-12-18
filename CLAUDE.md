@@ -40,8 +40,15 @@ RadarSim/
 │   ├── SphereRenderer.h/.cpp   # Sphere/grid/axes component
 │   ├── RadarSceneWidget.h/.cpp # Scene container
 │   └── CameraController.h/.cpp # View/camera controls
-└── ModelManager/               # 3D model handling
-    └── ModelManager.h/.cpp     # Model loading component
+├── ModelManager/               # 3D model handling
+│   └── ModelManager.h/.cpp     # Model loading component
+└── WireframeTarget/            # Solid target visualization (for RCS calculations)
+    ├── WireframeShapes.h       # WireframeType enum
+    ├── WireframeTarget.h/.cpp  # Base target class (GL_TRIANGULAR solid rendering)
+    ├── WireframeTargetController.h/.cpp  # Component wrapper
+    ├── CubeWireframe.h/.cpp    # Solid cube (6 faces, 12 triangles)
+    ├── CylinderWireframe.h/.cpp# Solid cylinder (caps + sides)
+    └── AircraftWireframe.h/.cpp# Solid fighter jet model
 ```
 
 ## Architecture
@@ -54,6 +61,7 @@ The project uses a component-based architecture where `RadarGLWidget` owns and c
 - **BeamController**: Manages radar beam creation and rendering
 - **CameraController**: Handles view transformations, mouse interaction, inertia
 - **ModelManager**: Loads and renders 3D models
+- **WireframeTargetController**: Manages solid target shapes with transforms (for RCS)
 
 Components are initialized after OpenGL context is ready:
 ```cpp
@@ -62,6 +70,7 @@ void RadarGLWidget::initializeGL() {
     beamController_->initialize();
     cameraController_->initialize();
     modelManager_->initialize();
+    wireframeController_->initialize();
 }
 ```
 
@@ -77,6 +86,22 @@ Factory method for beam creation:
 ```cpp
 std::shared_ptr<RadarBeam> RadarBeam::createBeam(BeamType type);
 ```
+
+### WireframeTarget Hierarchy
+
+```
+WireframeTarget (base)
+├── CubeWireframe      # 6 faces, 12 triangles
+├── CylinderWireframe  # Top/bottom caps + side surface
+└── AircraftWireframe  # Triangulated fighter jet surfaces
+```
+
+Factory method for target creation:
+```cpp
+WireframeTarget* WireframeTarget::createTarget(WireframeType type);
+```
+
+WireframeTarget uses solid surface rendering (GL_TRIANGLES) with indexed drawing (EBO). Vertex format is `[x, y, z, nx, ny, nz]` where the normal vector supports diffuse + ambient lighting. Face culling (`GL_CULL_FACE`) ensures only outside surfaces are drawn. Geometry is designed for future radar cross-section (RCS) calculations.
 
 ### Dual Implementation (Transition State)
 
@@ -176,21 +201,26 @@ Without this connection, timer-based animations will appear stuttery because `up
 | Task | Files |
 |------|-------|
 | Add new beam type | `RadarBeam/RadarBeam.h` (enum), new class inheriting `RadarBeam` |
+| Add new solid target | `WireframeTarget/WireframeShapes.h` (enum), new class inheriting `WireframeTarget` |
 | Modify UI controls | `RadarSim.cpp` (`setupTabs()`, slot methods) |
 | Change rendering | `RadarGLWidget.cpp` (`paintGL()`), component `render()` methods |
 | Adjust camera | `CameraController.cpp` |
 | Sphere geometry | `SphereRenderer.cpp` |
+| Target transforms | `WireframeTargetController.cpp`, `RadarSim.cpp` (target slots) |
 
 ## Rendering Pipeline
 
 ```
 RadarGLWidget::paintGL()
   ├── Clear buffers (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-  ├── SphereRenderer::render(projection, view)
-  ├── BeamController::render(projection, view, model)
-  ├── ModelManager::render(projection, view)
+  ├── SphereRenderer::render(projection, view, model)
+  ├── ModelManager::render(projection, view, model)
+  ├── WireframeTargetController::render(projection, view, model)  # Solid, opaque
+  ├── BeamController::render(projection, view, model)             # Semi-transparent
   └── (implicit buffer swap)
 ```
+
+Note: Solid targets render before beam so they are visible through semi-transparent beam. Target rendering explicitly sets depth test, disables blending, and enables face culling for correct opaque solid rendering.
 
 ## Common Modifications
 
@@ -235,6 +265,39 @@ class NewBeam : public RadarBeam {
 
 3. Update factory in `RadarBeam::createBeam()`
 
+### Adding a New Solid Target Type
+
+1. Add enum value in `WireframeShapes.h`:
+```cpp
+enum class WireframeType { Cube, Cylinder, Aircraft, NewShape };
+```
+
+2. Create new class inheriting from `WireframeTarget`:
+```cpp
+class NewShapeWireframe : public WireframeTarget {
+protected:
+    void generateGeometry() override {
+        clearGeometry();
+
+        // Define vertices with positions and normals
+        GLuint baseIdx = getVertexCount();
+        addVertex(QVector3D(x, y, z), QVector3D(nx, ny, nz));  // position, normal
+        // ... more vertices
+
+        // Define triangles using vertex indices
+        addTriangle(idx0, idx1, idx2);
+        // Or quads (converted to 2 triangles internally)
+        addQuad(idx0, idx1, idx2, idx3);
+    }
+};
+```
+
+3. Update factory in `WireframeTarget::createTarget()`
+
+4. Add context menu action in `RadarGLWidget::setupContextMenu()`
+
+**Note**: Ensure correct winding order (counter-clockwise when viewed from outside) for face culling to work properly. Normals should point outward for correct lighting.
+
 ### Adding a Component
 
 1. Create header/source in appropriate directory
@@ -258,12 +321,77 @@ No external libraries beyond Qt - all math via `QMatrix4x4`, `QVector3D`, `QQuat
 - Use `qDebug()` for logging (output formatted per pattern)
 - Check `initializeOpenGLFunctions()` return value for GL issues
 
+## Shadow Volume / Beam Occlusion (Work in Progress)
+
+The system implements shadow volumes using the Z-fail (Carmack's Reverse) stencil algorithm to occlude the radar beam behind solid targets. This is foundational work for future radar cross-section (RCS) calculations.
+
+### Current Status
+
+**Working:**
+- Shadow volume generation from target geometry
+- Beam occlusion through solid targets (beam not visible inside target)
+- Shadow follows radar position changes (azimuth, elevation, radius sliders)
+
+**Not Working:**
+- Shadow does NOT follow whole-scene rotations (mouse drag rotation)
+- Depth cap disabled due to visibility issues
+
+### Implementation Details
+
+**Components:**
+- **Shadow Volume Generation** (`WireframeTarget::generateShadowVolume`): For each front-facing triangle of the target, extrudes vertices away from the radar position to create a closed shadow volume (front cap, back cap, side walls).
+- **Depth Cap** (DISABLED): Was intended to provide far-plane depth values for Z-fail algorithm, but caused target/beam to become invisible. Code remains but is commented out.
+- **Stencil Rendering** (`renderShadowVolume`): Two-pass rendering with face culling to increment/decrement stencil buffer.
+
+**Render Flow:**
+```
+WireframeTarget::render()
+  ├── Pass 1: Render solid target (color + depth)
+  ├── Pass 2: Shadow volume (stencil operations)
+  │   ├── Generate shadow volume in VIEW space
+  │   ├── Render back faces (stencil increment on depth fail)
+  │   ├── Render front faces (stencil decrement on depth fail)
+  │   └── Leave stencil test enabled for beam
+  └── Beam renders with stencil test (GL_EQUAL, 0)
+```
+
+**Coordinate Space:**
+- Shadow volume generated in VIEW space (`view * combinedModel` applied to vertices)
+- Radar position also transformed to view space
+- Rendered with projection only (view/model identity since already in view space)
+
+### Known Issues
+
+1. **Scene Rotation**: Shadow does not follow when the whole scene is rotated via mouse drag. The coordinate space transformation between radar position and shadow volume is not correctly accounting for scene rotation in all cases.
+
+2. **Depth Cap Disabled**: The depth cap sphere (needed for proper Z-fail algorithm) causes the target and beam to become invisible. Multiple approaches tried (different culling modes, render order) but none worked correctly. Without the depth cap, the Z-fail algorithm may not work correctly for all viewing angles.
+
+3. **Z-Fail Limitations**: The Z-fail algorithm requires proper far-plane geometry (depth cap) to work correctly. Without it, shadow may disappear or behave incorrectly when camera is inside the shadow volume.
+
+### Files Involved
+
+| File | Shadow-Related Code |
+|------|---------------------|
+| `WireframeTarget.h` | Shadow VAO/VBO/EBO, depth cap resources, method declarations |
+| `WireframeTarget.cpp` | `generateShadowVolume()`, `renderShadowVolume()`, `generateDepthCap()`, `renderDepthCap()` (disabled), `setupShadowShaders()` |
+| `RadarBeam.cpp` | Stencil test in `render()` method |
+| `RadarGLWidget.cpp` | Clears stencil buffer, passes radar position and sphere radius |
+
+### Future Work
+
+1. **Fix scene rotation tracking** - Investigate why shadow doesn't follow mouse-drag scene rotation
+2. **Fix depth cap** - Resolve visibility issues so Z-fail algorithm works correctly
+3. **Consider Z-pass alternative** - Z-pass algorithm doesn't need depth cap but fails when camera is inside shadow
+4. **Implement diffraction effects** - For realistic radar simulation
+5. **Use shadow geometry for RCS calculations** - Leverage shadow volume for radar cross-section
+
 ## Known Technical Debt
 
 1. Dual rendering paths (legacy SphereWidget + new component system)
 2. Mixed memory management (raw `new`/`delete` and `std::shared_ptr`)
 3. ModelManager intersection testing is placeholder
 4. No unit test coverage
+5. Shadow volume scene rotation has edge cases (see Shadow Volume section)
 
 ## Coordinate System
 

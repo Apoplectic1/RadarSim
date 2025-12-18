@@ -17,6 +17,7 @@ public:
 
     // Rendering
     void render(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model);
+    void renderDepthOnly(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model);
 
     // Beam management
     void rebuildBeamGeometry();

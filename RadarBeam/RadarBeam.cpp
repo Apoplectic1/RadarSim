@@ -272,8 +272,22 @@ void RadarBeam::render(QOpenGLShaderProgram* program, const QMatrix4x4& projecti
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	// Disable depth writing for transparent objects but still do depth test
+	// Enable depth testing so beam is occluded by solid objects (targets)
+	// but disable depth writing for transparent objects
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LESS);
 	glDepthMask(GL_FALSE);
+
+	// Use stencil test for shadow volume occlusion
+	// Target render sets stencil > 0 in shadow regions
+	// Only draw beam where stencil == 0 (not in shadow)
+	glEnable(GL_STENCIL_TEST);
+	glStencilFunc(GL_EQUAL, 0, 0xFF);  // Pass only where stencil == 0
+	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);  // Don't modify stencil
+
+	// Enable face culling - only render front faces of beam cone
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
 
 	// Use the beam shader program
 	beamShaderProgram->bind();
@@ -310,10 +324,61 @@ void RadarBeam::render(QOpenGLShaderProgram* program, const QMatrix4x4& projecti
 
 	// Restore previous OpenGL state
 	glDepthMask(depthMaskPrevious);
+	glDisable(GL_CULL_FACE);
+	glDisable(GL_STENCIL_TEST);
 	if (!blendPrevious) {
 		glDisable(GL_BLEND);
 	}
 	glBlendFunc(blendSrcPrevious, blendDstPrevious);
+}
+
+void RadarBeam::renderDepthOnly(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model) {
+	if (!visible_) return;
+
+	// Verify VAO exists
+	if (!beamVAO.isCreated() || beamVAO.objectId() == 0) {
+		return;
+	}
+
+	// Verify buffers exist
+	if (vboId_ == 0 || eboId_ == 0 || indices_.empty()) {
+		return;
+	}
+
+	// Render to depth buffer only - no color output
+	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+	glDepthMask(GL_TRUE);
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LESS);
+	glDisable(GL_STENCIL_TEST);  // No stencil for depth pre-pass
+	glDisable(GL_BLEND);
+
+	// Enable face culling - only render front faces
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
+
+	// Use the beam shader program
+	beamShaderProgram->bind();
+
+	// Set uniforms
+	beamShaderProgram->setUniformValue("projection", projection);
+	beamShaderProgram->setUniformValue("view", view);
+	beamShaderProgram->setUniformValue("model", model);
+	beamShaderProgram->setUniformValue("beamColor", color_);
+	beamShaderProgram->setUniformValue("opacity", 1.0f);  // Full opacity for depth
+
+	// Bind VAO and draw
+	beamVAO.bind();
+	glBindBuffer(GL_ARRAY_BUFFER, vboId_);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eboId_);
+	glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices_.size()), GL_UNSIGNED_INT, nullptr);
+	beamVAO.release();
+
+	beamShaderProgram->release();
+
+	// Restore state
+	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+	glDisable(GL_CULL_FACE);
 }
 
 void RadarBeam::setBeamWidth(float degrees) {

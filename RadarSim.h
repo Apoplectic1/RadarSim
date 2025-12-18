@@ -22,13 +22,22 @@ public:
     ~RadarSim();
 
 private slots:
-    // Your existing slots remain
+    // Radar control slots
     void onRadiusSliderValueChanged(int value);
     void onThetaSliderValueChanged(int value);
     void onPhiSliderValueChanged(int value);
     void onRadiusSpinBoxValueChanged(int value);
     void onThetaSpinBoxValueChanged(int value);
     void onPhiSpinBoxValueChanged(int value);
+
+    // Target control slots
+    void onTargetPosXChanged(int value);
+    void onTargetPosYChanged(int value);
+    void onTargetPosZChanged(int value);
+    void onTargetPitchChanged(int value);
+    void onTargetYawChanged(int value);
+    void onTargetRollChanged(int value);
+    void onTargetScaleChanged(int value);
 
 private:
     void setupUI();
@@ -46,10 +55,27 @@ private:
     RadarSceneWidget* radarSceneView_;
     QSplitter* radarSplitter_ = nullptr;
 
+    // Radar controls
     QSlider* radiusSlider_;
     QSlider* thetaSlider_;
     QSlider* phiSlider_;
     QSpinBox* radiusSpinBox_;
     QSpinBox* thetaSpinBox_;
     QSpinBox* phiSpinBox_;
+
+    // Target controls
+    QSlider* targetPosXSlider_;
+    QSlider* targetPosYSlider_;
+    QSlider* targetPosZSlider_;
+    QSlider* targetPitchSlider_;
+    QSlider* targetYawSlider_;
+    QSlider* targetRollSlider_;
+    QSlider* targetScaleSlider_;
+    QSpinBox* targetPosXSpinBox_;
+    QSpinBox* targetPosYSpinBox_;
+    QSpinBox* targetPosZSpinBox_;
+    QSpinBox* targetPitchSpinBox_;
+    QSpinBox* targetYawSpinBox_;
+    QSpinBox* targetRollSpinBox_;
+    QSpinBox* targetScaleSpinBox_;
 };

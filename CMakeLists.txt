@@ -48,6 +48,21 @@ set(MODEL_MANAGER_SOURCES
     ModelManager/ModelManager.h
 )
 
+# WireframeTarget sources
+set(WIREFRAME_TARGET_SOURCES
+    WireframeTarget/WireframeShapes.h
+    WireframeTarget/WireframeTarget.cpp
+    WireframeTarget/WireframeTarget.h
+    WireframeTarget/WireframeTargetController.cpp
+    WireframeTarget/WireframeTargetController.h
+    WireframeTarget/CubeWireframe.cpp
+    WireframeTarget/CubeWireframe.h
+    WireframeTarget/CylinderWireframe.cpp
+    WireframeTarget/CylinderWireframe.h
+    WireframeTarget/AircraftWireframe.cpp
+    WireframeTarget/AircraftWireframe.h
+)
+
 # RadarBeam classes - CRITICAL: Use absolute paths from source directory
 set(RADAR_BEAM_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/BeamController.cpp
@@ -96,6 +111,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         ${RADAR_BEAM_SOURCES}
         ${RADAR_SCENE_WIDGET_SOURCES}
         ${MODEL_MANAGER_SOURCES}
+        ${WIREFRAME_TARGET_SOURCES}
     )
 else()
     add_executable(RadarSim
@@ -103,6 +119,7 @@ else()
         ${RADAR_BEAM_SOURCES}
         ${RADAR_SCENE_WIDGET_SOURCES}
         ${MODEL_MANAGER_SOURCES}
+        ${WIREFRAME_TARGET_SOURCES}
     )
 endif()
 
@@ -112,6 +129,7 @@ target_include_directories(RadarSim PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam
     ${CMAKE_CURRENT_SOURCE_DIR}/RadarSceneWidget
     ${CMAKE_CURRENT_SOURCE_DIR}/ModelManager
+    ${CMAKE_CURRENT_SOURCE_DIR}/WireframeTarget
 )
 
 # Link Qt libraries

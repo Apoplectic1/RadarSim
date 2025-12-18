@@ -12,6 +12,7 @@ RadarGLWidget::RadarGLWidget(QWidget* parent)
 	beamController_(nullptr),
 	cameraController_(nullptr),
 	modelManager_(nullptr),
+	wireframeController_(nullptr),
 	contextMenu_(new QMenu(this))
 {
 	qDebug() << "Creating RadarGLWidget";
@@ -32,13 +33,14 @@ RadarGLWidget::~RadarGLWidget() {
 	delete contextMenu_;
 }
 
-void RadarGLWidget::initialize(SphereRenderer* sphereRenderer, BeamController* beamController, CameraController* cameraController, ModelManager* modelManager) {
+void RadarGLWidget::initialize(SphereRenderer* sphereRenderer, BeamController* beamController, CameraController* cameraController, ModelManager* modelManager, WireframeTargetController* wireframeController) {
 	qDebug() << "RadarGLWidget::initialize called";
 
 	sphereRenderer_ = sphereRenderer;
 	beamController_ = beamController;
 	cameraController_ = cameraController;
 	modelManager_ = modelManager;
+	wireframeController_ = wireframeController;
 
 	// Store the components but don't initialize them here
 	// They will be initialized in initializeGL when a valid context exists
@@ -94,6 +96,10 @@ void RadarGLWidget::initializeGL() {
 		if (modelManager_) {
 			modelManager_->initialize();
 		}
+
+		if (wireframeController_) {
+			wireframeController_->initialize();
+		}
 	}
 	catch (const std::exception& e) {
 		qCritical() << "Exception during component initialization:" << e.what();
@@ -121,12 +127,20 @@ void RadarGLWidget::paintGL() {
 		beamController_->rebuildBeamGeometry();
 	}
 
-	// Ensure blending is disabled for the clear operation
-	glDisable(GL_BLEND);
+	// Rebuild wireframe geometry if type changed
+	if (wireframeController_) {
+		wireframeController_->rebuildGeometry();
+	}
 
-	// Clear the buffers with a distinctive color to see if clearing works
+	// Ensure blending and stencil are in clean state
+	glDisable(GL_BLEND);
+	glDisable(GL_STENCIL_TEST);
+
+	// Clear all buffers including stencil for shadow volume rendering
 	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glClearStencil(0);
+	glStencilMask(0xFF);  // Enable stencil writing for clear
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 	// Check context
 	if (!context() || !context()->isValid()) {
@@ -170,6 +184,7 @@ void RadarGLWidget::paintGL() {
 	qDebug() << "  SphereRenderer available:" << (sphereRenderer_ != nullptr);
 	qDebug() << "  BeamController available:" << (beamController_ != nullptr);
 	qDebug() << "  ModelManager available:" << (modelManager_ != nullptr);
+	qDebug() << "  WireframeController available:" << (wireframeController_ != nullptr);
 
 	// Draw components with careful error trapping
 	try {
@@ -181,6 +196,13 @@ void RadarGLWidget::paintGL() {
 		if (modelManager_) {
 			qDebug() << "  Rendering models...";
 			modelManager_->render(projectionMatrix, viewMatrix, modelMatrix);
+		}
+
+		if (wireframeController_) {
+			qDebug() << "  Rendering wireframe target...";
+			// Pass radar position and sphere radius for shadow volume calculation
+			QVector3D radarPos = sphericalToCartesian(radius_, theta_, phi_);
+			wireframeController_->render(projectionMatrix, viewMatrix, modelMatrix, radarPos, radius_);
 		}
 
 		if (beamController_) {
@@ -400,6 +422,65 @@ void RadarGLWidget::setupContextMenu() {
 		if (beamController_) {
 			beamController_->setBeamType(BeamType::Phased);
 			beamDirty_ = true;  // Force geometry rebuild with GL context
+			update();
+		}
+		});
+
+	// Add separator before target menu
+	contextMenu_->addSeparator();
+
+	// Add target submenu
+	QMenu* targetMenu = contextMenu_->addMenu("Target");
+
+	// Toggle target visibility
+	QAction* toggleTargetAction = targetMenu->addAction("Show Target");
+	toggleTargetAction->setCheckable(true);
+	toggleTargetAction->setChecked(true);
+	connect(toggleTargetAction, &QAction::toggled, [this](bool checked) {
+		if (wireframeController_) {
+			wireframeController_->setVisible(checked);
+			update();
+		}
+		});
+
+	// Target type submenu
+	QMenu* targetTypeMenu = targetMenu->addMenu("Type");
+
+	QAction* cubeTargetAction = targetTypeMenu->addAction("Cube");
+	cubeTargetAction->setCheckable(true);
+	cubeTargetAction->setChecked(true);
+
+	QAction* cylinderTargetAction = targetTypeMenu->addAction("Cylinder");
+	cylinderTargetAction->setCheckable(true);
+
+	QAction* aircraftTargetAction = targetTypeMenu->addAction("Aircraft");
+	aircraftTargetAction->setCheckable(true);
+
+	// Make target types exclusive
+	QActionGroup* targetTypeGroup = new QActionGroup(this);
+	targetTypeGroup->addAction(cubeTargetAction);
+	targetTypeGroup->addAction(cylinderTargetAction);
+	targetTypeGroup->addAction(aircraftTargetAction);
+	targetTypeGroup->setExclusive(true);
+
+	// Connect target type actions
+	connect(cubeTargetAction, &QAction::triggered, [this]() {
+		if (wireframeController_) {
+			wireframeController_->setTargetType(WireframeType::Cube);
+			update();
+		}
+		});
+
+	connect(cylinderTargetAction, &QAction::triggered, [this]() {
+		if (wireframeController_) {
+			wireframeController_->setTargetType(WireframeType::Cylinder);
+			update();
+		}
+		});
+
+	connect(aircraftTargetAction, &QAction::triggered, [this]() {
+		if (wireframeController_) {
+			wireframeController_->setTargetType(WireframeType::Aircraft);
 			update();
 		}
 		});

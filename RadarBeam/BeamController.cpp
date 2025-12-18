@@ -47,6 +47,12 @@ void BeamController::render(const QMatrix4x4& projection, const QMatrix4x4& view
     }
 }
 
+void BeamController::renderDepthOnly(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model) {
+    if (radarBeam_ && showBeam_) {
+        radarBeam_->renderDepthOnly(projection, view, model);
+    }
+}
+
 void BeamController::setBeamType(BeamType type) {
     if (currentBeamType_ != type) {
         // Defer the actual beam creation to when we have a GL context

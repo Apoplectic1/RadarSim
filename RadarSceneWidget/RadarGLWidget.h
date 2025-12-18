@@ -14,6 +14,7 @@
 #include "RadarBeam/BeamController.h"
 #include "RadarSceneWidget/CameraController.h"
 #include "ModelManager/ModelManager.h"
+#include "WireframeTargetController.h"
 
 class RadarGLWidget : public QOpenGLWidget, protected QOpenGLFunctions_3_3_Core {
     Q_OBJECT
@@ -26,7 +27,8 @@ public:
     void initialize(SphereRenderer* sphereRenderer,
         BeamController* beamController,
         CameraController* cameraController,
-        ModelManager* modelManager);
+        ModelManager* modelManager,
+        WireframeTargetController* wireframeController);
 
     // Radar position
     void setRadius(float radius);
@@ -65,6 +67,7 @@ private:
     BeamController* beamController_ = nullptr;
     CameraController* cameraController_ = nullptr;
     ModelManager* modelManager_ = nullptr;
+    WireframeTargetController* wireframeController_ = nullptr;
 
     // Context menu
     QMenu* contextMenu_ = nullptr;
