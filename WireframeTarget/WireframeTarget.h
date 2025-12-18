@@ -1,0 +1,133 @@
+// WireframeTarget.h
+#pragma once
+
+#include <QOpenGLFunctions_3_3_Core>
+#include <QOpenGLShaderProgram>
+#include <QOpenGLVertexArrayObject>
+#include <QVector3D>
+#include <QMatrix4x4>
+#include <QQuaternion>
+#include <vector>
+
+#include "WireframeShapes.h"
+
+class WireframeTarget : protected QOpenGLFunctions_3_3_Core {
+public:
+    WireframeTarget();
+    virtual ~WireframeTarget();
+
+    // Core lifecycle
+    virtual void initialize();
+    virtual void render(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& sceneModel,
+                       const QVector3D& radarPosition = QVector3D(), float sphereRadius = 100.0f);
+    void uploadGeometryToGPU();
+
+    // Type identification
+    virtual WireframeType getType() const = 0;
+
+    // Transform setters
+    void setPosition(const QVector3D& position);
+    void setPosition(float x, float y, float z);
+    void setRotation(const QVector3D& eulerAngles);  // pitch, yaw, roll in degrees
+    void setRotation(float pitch, float yaw, float roll);
+    void setRotation(const QQuaternion& rotation);
+    void setScale(float uniformScale);
+    void setScale(const QVector3D& scale);
+
+    // Transform getters
+    QVector3D getPosition() const { return position_; }
+    QVector3D getRotationEuler() const;
+    QQuaternion getRotation() const { return rotation_; }
+    QVector3D getScale() const { return scale_; }
+
+    // Appearance
+    void setColor(const QVector3D& color);
+    void setVisible(bool visible);
+
+    QVector3D getColor() const { return color_; }
+    bool isVisible() const { return visible_; }
+
+    // Future: Illumination support
+    void setIlluminated(bool illuminated);
+    void setLightDirection(const QVector3D& lightDir);
+    bool isIlluminated() const { return illuminated_; }
+    QVector3D getLightDirection() const { return lightDirection_; }
+
+    // Factory method
+    static WireframeTarget* createTarget(WireframeType type);
+
+protected:
+    // OpenGL resources for target geometry
+    QOpenGLShaderProgram* shaderProgram_ = nullptr;
+    QOpenGLVertexArrayObject vao_;
+    GLuint vboId_ = 0;
+    GLuint eboId_ = 0;
+
+    // OpenGL resources for shadow volume
+    QOpenGLShaderProgram* shadowShaderProgram_ = nullptr;
+    QOpenGLVertexArrayObject shadowVao_;
+    GLuint shadowVboId_ = 0;
+    GLuint shadowEboId_ = 0;
+    std::vector<float> shadowVertices_;
+    std::vector<GLuint> shadowIndices_;
+    int shadowIndexCount_ = 0;
+
+    // OpenGL resources for depth cap sphere (ensures shadow works when sphere hidden)
+    QOpenGLVertexArrayObject depthCapVao_;
+    GLuint depthCapVboId_ = 0;
+    GLuint depthCapEboId_ = 0;
+    std::vector<float> depthCapVertices_;
+    std::vector<GLuint> depthCapIndices_;
+    int depthCapIndexCount_ = 0;
+    float lastDepthCapRadius_ = 0.0f;
+
+    // Geometry data - vertices for GL_TRIANGLES
+    // Format: [x, y, z, nx, ny, nz] per vertex (position + surface normal)
+    std::vector<float> vertices_;
+    std::vector<GLuint> indices_;
+    int vertexCount_ = 0;
+    int indexCount_ = 0;
+    bool geometryDirty_ = false;
+
+    // Transform state
+    QVector3D position_ = QVector3D(0.0f, 0.0f, 0.0f);
+    QQuaternion rotation_ = QQuaternion();
+    QVector3D scale_ = QVector3D(1.0f, 1.0f, 1.0f);
+
+    // Appearance state
+    QVector3D color_ = QVector3D(0.0f, 1.0f, 0.0f);  // Default: green
+    bool visible_ = true;
+
+    // Illumination state (for future beam illumination)
+    bool illuminated_ = false;
+    QVector3D lightDirection_ = QVector3D(0.0f, 0.0f, 1.0f);
+
+    // Shader sources
+    const char* vertexShaderSource_;
+    const char* fragmentShaderSource_;
+
+    // Abstract method for derived classes
+    virtual void generateGeometry() = 0;
+
+    // Helper methods
+    void setupShaders();
+    void setupShadowShaders();
+    QMatrix4x4 buildModelMatrix() const;
+
+    // Geometry helpers for solid surface rendering
+    void addVertex(const QVector3D& position, const QVector3D& normal);
+    void addTriangle(GLuint v0, GLuint v1, GLuint v2);
+    void addQuad(GLuint v0, GLuint v1, GLuint v2, GLuint v3);
+    GLuint getVertexCount() const { return static_cast<GLuint>(vertices_.size() / 6); }
+    void clearGeometry();
+
+    // Shadow volume helpers
+    void generateShadowVolume(const QVector3D& lightPos, const QMatrix4x4& modelMatrix, float extrudeDistance);
+    void uploadShadowVolumeToGPU();
+    void renderShadowVolume(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& sceneModel);
+
+    // Depth cap helpers (sphere at scene boundary for shadow z-fail algorithm)
+    void generateDepthCap(float radius);
+    void uploadDepthCapToGPU();
+    void renderDepthCap(const QMatrix4x4& projection, const QMatrix4x4& viewModel);
+};

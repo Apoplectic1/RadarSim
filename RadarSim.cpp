@@ -76,8 +76,8 @@ void RadarSim::setupUI() {
     // Set the main window title
     setWindowTitle("Radar Simulation System");
 
-    // Set minimum window size (expanded to accommodate Target Controls)
-    setMinimumSize(1024, 1100);
+    // Set minimum window size
+    setMinimumSize(1024, 900);
 }
 
 void RadarSim::setupTabs() {
@@ -216,6 +216,8 @@ void RadarSim::setupTabs() {
     // Create controls group
     QGroupBox* controlsGroup = new QGroupBox("Radar Controls", controlsFrame);
     QVBoxLayout* controlsLayout = new QVBoxLayout(controlsGroup);
+    controlsLayout->setSpacing(2);
+    controlsLayout->setContentsMargins(6, 6, 6, 6);
     controlsFrameLayout->addWidget(controlsGroup);
 
     // Radius controls
@@ -272,8 +274,9 @@ void RadarSim::setupTabs() {
 
     // Create Target Controls group box
     QGroupBox* targetControlsGroup = new QGroupBox("Target Controls", controlsFrame);
-    targetControlsGroup->setMinimumHeight(450);  // Ensure enough vertical space for all controls
     QVBoxLayout* targetControlsLayout = new QVBoxLayout(targetControlsGroup);
+    targetControlsLayout->setSpacing(2);
+    targetControlsLayout->setContentsMargins(6, 6, 6, 6);
     controlsFrameLayout->addWidget(targetControlsGroup);
 
     // Target Position X
@@ -567,6 +570,7 @@ void RadarSim::onTargetPosXChanged(int value) {
     if (auto* controller = radarSceneView_->getWireframeController()) {
         QVector3D pos = controller->getPosition();
         controller->setPosition(static_cast<float>(value), pos.y(), pos.z());
+        radarSceneView_->update();
     }
 }
 
@@ -583,6 +587,7 @@ void RadarSim::onTargetPosYChanged(int value) {
     if (auto* controller = radarSceneView_->getWireframeController()) {
         QVector3D pos = controller->getPosition();
         controller->setPosition(pos.x(), static_cast<float>(value), pos.z());
+        radarSceneView_->update();
     }
 }
 
@@ -599,6 +604,7 @@ void RadarSim::onTargetPosZChanged(int value) {
     if (auto* controller = radarSceneView_->getWireframeController()) {
         QVector3D pos = controller->getPosition();
         controller->setPosition(pos.x(), pos.y(), static_cast<float>(value));
+        radarSceneView_->update();
     }
 }
 
@@ -615,6 +621,7 @@ void RadarSim::onTargetPitchChanged(int value) {
     if (auto* controller = radarSceneView_->getWireframeController()) {
         QVector3D rot = controller->getRotation();
         controller->setRotation(static_cast<float>(value), rot.y(), rot.z());
+        radarSceneView_->update();
     }
 }
 
@@ -631,6 +638,7 @@ void RadarSim::onTargetYawChanged(int value) {
     if (auto* controller = radarSceneView_->getWireframeController()) {
         QVector3D rot = controller->getRotation();
         controller->setRotation(rot.x(), static_cast<float>(value), rot.z());
+        radarSceneView_->update();
     }
 }
 
@@ -647,6 +655,7 @@ void RadarSim::onTargetRollChanged(int value) {
     if (auto* controller = radarSceneView_->getWireframeController()) {
         QVector3D rot = controller->getRotation();
         controller->setRotation(rot.x(), rot.y(), static_cast<float>(value));
+        radarSceneView_->update();
     }
 }
 
@@ -662,5 +671,6 @@ void RadarSim::onTargetScaleChanged(int value) {
     // Update the wireframe target scale
     if (auto* controller = radarSceneView_->getWireframeController()) {
         controller->setScale(static_cast<float>(value));
+        radarSceneView_->update();
     }
 }

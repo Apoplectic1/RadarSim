@@ -385,6 +385,46 @@ WireframeTarget::render()
 4. **Implement diffraction effects** - For realistic radar simulation
 5. **Use shadow geometry for RCS calculations** - Leverage shadow volume for radar cross-section
 
+## UI Layout
+
+### Control Group Box Pattern
+
+Both Radar Controls and Target Controls use compact layout:
+```cpp
+QVBoxLayout* layout = new QVBoxLayout(groupBox);
+layout->setSpacing(2);                    // Minimal vertical spacing
+layout->setContentsMargins(6, 6, 6, 6);   // Compact margins
+```
+
+Each control follows this pattern:
+```cpp
+QLabel* label = new QLabel("Control Name", groupBox);
+layout->addWidget(label);
+
+QHBoxLayout* controlLayout = new QHBoxLayout();
+QSlider* slider = new QSlider(Qt::Horizontal, groupBox);
+QSpinBox* spinBox = new QSpinBox(groupBox);
+controlLayout->addWidget(slider);
+controlLayout->addWidget(spinBox);
+layout->addLayout(controlLayout);
+```
+
+### Target Controls Slots
+
+Target control slots must call `radarSceneView_->update()` after modifying the controller:
+```cpp
+void RadarSim::onTargetPosXChanged(int value) {
+    // Sync slider and spinbox with blockSignals()
+    // ...
+
+    if (auto* controller = radarSceneView_->getWireframeController()) {
+        QVector3D pos = controller->getPosition();
+        controller->setPosition(static_cast<float>(value), pos.y(), pos.z());
+        radarSceneView_->update();  // IMPORTANT: Trigger repaint
+    }
+}
+```
+
 ## Known Technical Debt
 
 1. Dual rendering paths (legacy SphereWidget + new component system)
@@ -392,6 +432,7 @@ WireframeTarget::render()
 3. ModelManager intersection testing is placeholder
 4. No unit test coverage
 5. Shadow volume scene rotation has edge cases (see Shadow Volume section)
+6. Excessive qDebug() logging in paintGL() should be reduced for release
 
 ## Coordinate System
 
