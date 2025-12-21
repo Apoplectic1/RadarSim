@@ -4,7 +4,6 @@
 #include "ConicalBeam.h"
 #include "PhasedArrayBeam.h"
 #include <cmath>
-#include <QDebug>
 
 // Constructor
 RadarBeam::RadarBeam(float sphereRadius, float beamWidthDegrees)

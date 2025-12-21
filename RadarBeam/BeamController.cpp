@@ -1,6 +1,5 @@
 // BeamController.cpp
 #include "BeamController.h"
-#include <QDebug>
 
 BeamController::BeamController(QObject* parent)
     : QObject(parent),

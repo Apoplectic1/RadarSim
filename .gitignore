@@ -79,79 +79,31 @@ Thumbs.db
 
 
 # Visual Studio specific files
-.vscode/
-.vs/
-*.opensdf
-*.suo
-*.user
-*.log
-*.sdf
-*.tlog
-*.ipch
-*.idb
-*.opendb
-*.VC.db
-*.VC.opendb
 *.db
-*.dir
-*.ilk
-*.pdb
-*.exp
-*.lib
-*.obj
-*.exe
-*.idb
 
 # Qt Creator specific files (if used alongside Visual Studio)
-*.pro.user
-*.qmake.stash
-*.qmake.cache
 
 # Build directories
-build/
-Build/
-Debug/
-Release/
-x64/Debug/
-x64/Release/
-x86/Debug/
-x86/Release/
 
 # Generated Files (uic, moc, rcc)
 *.moc
 *.o
-*.obj
-moc_*.cpp
-moc_*.h
-ui_*.h
-qrc_*.cpp
 
 # Qt-specific directories
-*.qrc
 *.qmlc
 *.qml
 *.qbs
 *.qbs.user
 
 # CMake specific files (if applicable)
-CMakeLists.txt.user
-CMakeLists.txt.user.*
-CMakeCache.txt
-CMakeFiles/
-CMakeScripts/
-Testing/
-cmake_install.cmake
-CTestTestfile.cmake
 
 # VS CMake specific output locations
 out/
 out/build/
 out/install/
-.vs/
 CMakeSettings.json
 
 # CMake generated files in the source directory 
-CMakeFiles/
 cmake-build-*/
 *_autogen/
 *_artefacts/
@@ -161,9 +113,5 @@ _deps/
 
 # Backup and temporary files
 *~
-*.swp
-*.bak
-*.tmp
-*.log
 *.DS_Store
-Thumbs.db
+/nul

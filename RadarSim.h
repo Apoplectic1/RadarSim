@@ -13,6 +13,8 @@ QT_END_NAMESPACE
 
 class QSlider;
 class QSpinBox;
+class QVBoxLayout;
+class QFrame;
 class RadarSceneWidget;
 
 class RadarSim : public QMainWindow {
@@ -43,6 +45,13 @@ private:
     void setupUI();
     void setupTabs();
     void connectSignals();
+
+    // Tab setup helper functions
+    void setupConfigurationTab();
+    void setupRadarSceneTab();
+    void setupRadarControls(QFrame* controlsFrame, QVBoxLayout* controlsFrameLayout);
+    void setupTargetControls(QFrame* controlsFrame, QVBoxLayout* controlsFrameLayout);
+    void setupPhysicsAnalysisTab();
 
     // New tab management
     QTabWidget* tabWidget_;

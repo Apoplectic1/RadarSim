@@ -1,10 +1,7 @@
 ﻿// ---- main.cpp ----
 
 #include <QApplication>
-#include <QtGlobal>
-#include <QDebug>
 #include "RadarSim.h"
-#include <QSurfaceFormat>
 
 int main(int argc, char** argv) {
     qDebug() << "Qt version:" << QT_VERSION_STR;

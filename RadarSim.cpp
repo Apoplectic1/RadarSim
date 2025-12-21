@@ -76,20 +76,12 @@ void RadarSim::setupUI() {
     // Set the main window title
     setWindowTitle("Radar Simulation System");
 
-    // Set minimum window size
-    setMinimumSize(1024, 900);
+    // Set minimum window size - increased height to accommodate more controls
+    setMinimumSize(1024, 1100);
 }
 
 void RadarSim::setupTabs() {
-/*
-    1. We create frames without parents first, then add them to the splitter later
-    2. We use setStretchFactor() instead of setSizes() for safer sizing
-    3. We set appropriate size policies on the frames to help with proper sizing
-    4. We add frames to the splitter only after all their contents are fully set up
-    5. We maintain a clean hierarchy of ownership by being careful about parent-child relationships
-*/
-
-    qDebug() << "Starting setupTabs() - Full Implementation";
+    qDebug() << "Starting setupTabs()";
 
     // Create tab widgets with proper parent
     configTabWidget_ = new QWidget(tabWidget_);
@@ -101,10 +93,15 @@ void RadarSim::setupTabs() {
     tabWidget_->addTab(radarSceneTabWidget_, "Radar Scene");
     tabWidget_->addTab(physicsTabWidget_, "Physics Analysis");
 
-    // ************************************************************************************************
-    // Setup Configuration Tab
-    // ************************************************************************************************
+    // Setup each tab independently
+    setupConfigurationTab();
+    setupRadarSceneTab();
+    setupPhysicsAnalysisTab();
 
+    qDebug() << "Exiting setupTabs()";
+}
+
+void RadarSim::setupConfigurationTab() {
     QVBoxLayout* configLayout = new QVBoxLayout(configTabWidget_);
 
     // Create a group box for simulation settings
@@ -127,14 +124,12 @@ void RadarSim::setupTabs() {
     enableAdvancedPhysicsCheckBox->setChecked(false);
     simSettingsLayout->addRow("Enable Advanced Physics:", enableAdvancedPhysicsCheckBox);
 
-    // Add group to layout
     configLayout->addWidget(simSettingsGroup);
 
     // Create a group box for beam settings
     QGroupBox* beamSettingsGroup = new QGroupBox("Beam Settings", configTabWidget_);
     QFormLayout* beamSettingsLayout = new QFormLayout(beamSettingsGroup);
 
-    // Add some placeholder settings
     QComboBox* beamTypeComboBox = new QComboBox(beamSettingsGroup);
     beamTypeComboBox->addItem("Conical");
     beamTypeComboBox->addItem("Phased Array");
@@ -145,31 +140,24 @@ void RadarSim::setupTabs() {
     beamWidthSpinBox->setValue(15.0);
     beamSettingsLayout->addRow("Default Beam Width (°):", beamWidthSpinBox);
 
-    // Add group to layout
     configLayout->addWidget(beamSettingsGroup);
-
 
     // Add a group box for component architecture
     QGroupBox* architectureGroup = new QGroupBox("Architecture", configTabWidget_);
     QVBoxLayout* architectureLayout = new QVBoxLayout(architectureGroup);
 
-    // Add switch for component-based rendering
     QCheckBox* useComponentsCheckbox = new QCheckBox("Use Component Architecture", architectureGroup);
     useComponentsCheckbox->setChecked(true);
     useComponentsCheckbox->setToolTip("Switch between old and new rendering architecture. Checked is new.");
     architectureLayout->addWidget(useComponentsCheckbox);
 
-    // Connect checkbox to toggle component rendering
     connect(useComponentsCheckbox, &QCheckBox::toggled, [this](bool checked) {
         if (radarSceneView_) {
             radarSceneView_->enableComponentRendering(checked);
         }
-        });
+    });
 
-    // Add to config layout
     configLayout->addWidget(architectureGroup);
-
-    // Add spacer at the bottom
     configLayout->addStretch();
 
     // Add buttons for loading/saving configuration
@@ -179,11 +167,9 @@ void RadarSim::setupTabs() {
     configButtonsLayout->addWidget(loadConfigButton);
     configButtonsLayout->addWidget(saveConfigButton);
     configLayout->addLayout(configButtonsLayout);
+}
 
-    // ************************************************************************************************
-    // Setup Radar Scene Tab
-    // ************************************************************************************************
-
+void RadarSim::setupRadarSceneTab() {
     QVBoxLayout* radarSceneLayout = new QVBoxLayout(radarSceneTabWidget_);
     radarSceneLayout->setContentsMargins(4, 4, 4, 4);
     radarSceneLayout->setSpacing(0);
@@ -207,17 +193,31 @@ void RadarSim::setupTabs() {
 
     QVBoxLayout* controlsFrameLayout = new QVBoxLayout(controlsFrame);
     controlsFrameLayout->setContentsMargins(4, 4, 4, 4);
+    controlsFrameLayout->setSpacing(0);
 
     // Create RadarSceneWidget
     radarSceneView_ = new RadarSceneWidget(sphereFrame);
-    radarSceneView_->setMinimumSize(800, 500);
+    radarSceneView_->setMinimumSize(800, 400);
     sphereFrameLayout->addWidget(radarSceneView_);
 
-    // Create controls group
+    // Setup control groups
+    setupRadarControls(controlsFrame, controlsFrameLayout);
+    setupTargetControls(controlsFrame, controlsFrameLayout);
+
+    // Add frames to splitter AFTER all setup is done
+    radarSplitter_->addWidget(sphereFrame);
+    radarSplitter_->addWidget(controlsFrame);
+
+    // Adjust stretch factors to give equal visual weight
+    radarSplitter_->setStretchFactor(0, 1);  // RadarScene gets 1 part
+    radarSplitter_->setStretchFactor(0, 1);  // Controls get 1 part (equal space)
+}
+
+void RadarSim::setupRadarControls(QFrame* controlsFrame, QVBoxLayout* controlsFrameLayout) {
     QGroupBox* controlsGroup = new QGroupBox("Radar Controls", controlsFrame);
     QVBoxLayout* controlsLayout = new QVBoxLayout(controlsGroup);
-    controlsLayout->setSpacing(2);
-    controlsLayout->setContentsMargins(6, 6, 6, 6);
+    controlsLayout->setSpacing(0);
+    controlsLayout->setContentsMargins(6, 0, 6, 0);
     controlsFrameLayout->addWidget(controlsGroup);
 
     // Radius controls
@@ -232,6 +232,7 @@ void RadarSim::setupTabs() {
     radiusSpinBox_ = new QSpinBox(controlsGroup);
     radiusSpinBox_->setRange(50, 300);
     radiusSpinBox_->setValue(100);
+    radiusSpinBox_->setMinimumWidth(60);  // Ensure consistent spinbox width
 
     radiusLayout->addWidget(radiusSlider_);
     radiusLayout->addWidget(radiusSpinBox_);
@@ -250,6 +251,7 @@ void RadarSim::setupTabs() {
     thetaSpinBox_ = new QSpinBox(controlsGroup);
     thetaSpinBox_->setRange(0, 359);
     thetaSpinBox_->setValue(initialAzimuth);
+    thetaSpinBox_->setMinimumWidth(60);  // Ensure consistent spinbox width
 
     thetaLayout->addWidget(thetaSlider_);
     thetaLayout->addWidget(thetaSpinBox_);
@@ -267,16 +269,18 @@ void RadarSim::setupTabs() {
     phiSpinBox_ = new QSpinBox(controlsGroup);
     phiSpinBox_->setRange(-90, 90);
     phiSpinBox_->setValue(45);
+    phiSpinBox_->setMinimumWidth(60);  // Ensure consistent spinbox width
 
     phiLayout->addWidget(phiSlider_);
     phiLayout->addWidget(phiSpinBox_);
     controlsLayout->addLayout(phiLayout);
+}
 
-    // Create Target Controls group box
+void RadarSim::setupTargetControls(QFrame* controlsFrame, QVBoxLayout* controlsFrameLayout) {
     QGroupBox* targetControlsGroup = new QGroupBox("Target Controls", controlsFrame);
     QVBoxLayout* targetControlsLayout = new QVBoxLayout(targetControlsGroup);
-    targetControlsLayout->setSpacing(2);
-    targetControlsLayout->setContentsMargins(6, 6, 6, 6);
+    targetControlsLayout->setSpacing(0);  // Match Radar Controls spacing exactly
+    targetControlsLayout->setContentsMargins(6, 0, 6, 0);
     controlsFrameLayout->addWidget(targetControlsGroup);
 
     // Target Position X
@@ -291,6 +295,7 @@ void RadarSim::setupTabs() {
     targetPosXSpinBox_ = new QSpinBox(targetControlsGroup);
     targetPosXSpinBox_->setRange(-100, 100);
     targetPosXSpinBox_->setValue(0);
+    targetPosXSpinBox_->setMinimumWidth(60);  // Match Radar Controls spinbox width
 
     targetPosXLayout->addWidget(targetPosXSlider_);
     targetPosXLayout->addWidget(targetPosXSpinBox_);
@@ -308,6 +313,7 @@ void RadarSim::setupTabs() {
     targetPosYSpinBox_ = new QSpinBox(targetControlsGroup);
     targetPosYSpinBox_->setRange(-100, 100);
     targetPosYSpinBox_->setValue(0);
+    targetPosYSpinBox_->setMinimumWidth(60);  // Match Radar Controls spinbox width
 
     targetPosYLayout->addWidget(targetPosYSlider_);
     targetPosYLayout->addWidget(targetPosYSpinBox_);
@@ -325,6 +331,7 @@ void RadarSim::setupTabs() {
     targetPosZSpinBox_ = new QSpinBox(targetControlsGroup);
     targetPosZSpinBox_->setRange(-100, 100);
     targetPosZSpinBox_->setValue(0);
+    targetPosZSpinBox_->setMinimumWidth(60);  // Match Radar Controls spinbox width
 
     targetPosZLayout->addWidget(targetPosZSlider_);
     targetPosZLayout->addWidget(targetPosZSpinBox_);
@@ -342,6 +349,7 @@ void RadarSim::setupTabs() {
     targetPitchSpinBox_ = new QSpinBox(targetControlsGroup);
     targetPitchSpinBox_->setRange(-180, 180);
     targetPitchSpinBox_->setValue(0);
+    targetPitchSpinBox_->setMinimumWidth(60);  // Match Radar Controls spinbox width
 
     targetPitchLayout->addWidget(targetPitchSlider_);
     targetPitchLayout->addWidget(targetPitchSpinBox_);
@@ -359,6 +367,7 @@ void RadarSim::setupTabs() {
     targetYawSpinBox_ = new QSpinBox(targetControlsGroup);
     targetYawSpinBox_->setRange(-180, 180);
     targetYawSpinBox_->setValue(0);
+    targetYawSpinBox_->setMinimumWidth(60);  // Match Radar Controls spinbox width
 
     targetYawLayout->addWidget(targetYawSlider_);
     targetYawLayout->addWidget(targetYawSpinBox_);
@@ -376,6 +385,7 @@ void RadarSim::setupTabs() {
     targetRollSpinBox_ = new QSpinBox(targetControlsGroup);
     targetRollSpinBox_->setRange(-180, 180);
     targetRollSpinBox_->setValue(0);
+    targetRollSpinBox_->setMinimumWidth(60);  // Match Radar Controls spinbox width
 
     targetRollLayout->addWidget(targetRollSlider_);
     targetRollLayout->addWidget(targetRollSpinBox_);
@@ -393,23 +403,14 @@ void RadarSim::setupTabs() {
     targetScaleSpinBox_ = new QSpinBox(targetControlsGroup);
     targetScaleSpinBox_->setRange(1, 100);
     targetScaleSpinBox_->setValue(20);
+    targetScaleSpinBox_->setMinimumWidth(60);  // Match Radar Controls spinbox width
 
     targetScaleLayout->addWidget(targetScaleSlider_);
     targetScaleLayout->addWidget(targetScaleSpinBox_);
     targetControlsLayout->addLayout(targetScaleLayout);
+}
 
-    // Add frames to splitter AFTER all setup is done
-    radarSplitter_->addWidget(sphereFrame);
-    radarSplitter_->addWidget(controlsFrame);
-
-    // Use stretch factors instead of explicit sizes
-    radarSplitter_->setStretchFactor(0, 3);  // RadarScene gets 3 parts
-    radarSplitter_->setStretchFactor(1, 2);  // Controls get 2 parts (more space for Target Controls)
-
-    // ************************************************************************************************
-    // Setup Physics Analysis Tab
-    // ************************************************************************************************
-
+void RadarSim::setupPhysicsAnalysisTab() {
     QVBoxLayout* physicsLayout = new QVBoxLayout(physicsTabWidget_);
 
     // Add a placeholder for the physics visualization
@@ -442,8 +443,6 @@ void RadarSim::setupTabs() {
 
     QVBoxLayout* signatureLayout = new QVBoxLayout(signatureTab);
     signatureLayout->addWidget(new QLabel("Radar signature analysis tools will go here"));
-
-    qDebug() << "Exiting setupTabs()";
 }
 
 void RadarSim::connectSignals() {
