@@ -2,6 +2,8 @@
 #include "RadarSceneWidget/RadarGLWidget.h"
 #include <QActionGroup>
 #include <QDebug>
+#include <QPainter>
+#include <QFont>
 
 RadarGLWidget::RadarGLWidget(QWidget* parent)
 	: QOpenGLWidget(parent),
@@ -217,6 +219,43 @@ void RadarGLWidget::paintGL() {
 	}
 	catch (...) {
 		qCritical() << "Unknown exception in RadarGLWidget::paintGL";
+	}
+
+	// Render 2D text labels for axes on top of 3D scene
+	if (sphereRenderer_ && sphereRenderer_->areAxesVisible()) {
+		// Calculate axis tip positions (same as in SphereRenderer::createAxesLines)
+		float axisLength = radius_ * 1.2f;
+		QVector3D xTip(axisLength, 0.0f, 0.0f);
+		QVector3D yTip(0.0f, axisLength, 0.0f);
+		QVector3D zTip(0.0f, 0.0f, axisLength);
+
+		// Project 3D positions to screen space
+		QPointF xScreen = projectToScreen(xTip, projectionMatrix, viewMatrix, modelMatrix);
+		QPointF yScreen = projectToScreen(yTip, projectionMatrix, viewMatrix, modelMatrix);
+		QPointF zScreen = projectToScreen(zTip, projectionMatrix, viewMatrix, modelMatrix);
+
+		// Use QPainter to render text
+		QPainter painter(this);
+		painter.setPen(Qt::white);
+		QFont font = painter.font();
+		font.setPointSize(14);
+		font.setBold(true);
+		painter.setFont(font);
+
+		// Offset text slightly from the arrow tip position
+		int textOffset = 15;
+
+		// Draw labels
+		painter.setPen(Qt::red);
+		painter.drawText(QPointF(xScreen.x() + textOffset, xScreen.y()), "X");
+
+		painter.setPen(QColor(0, 255, 0)); // Green
+		painter.drawText(QPointF(yScreen.x() + textOffset, yScreen.y()), "Y");
+
+		painter.setPen(Qt::blue);
+		painter.drawText(QPointF(zScreen.x() + textOffset, zScreen.y()), "Z");
+
+		painter.end();
 	}
 }
 
@@ -484,4 +523,22 @@ void RadarGLWidget::setupContextMenu() {
 			update();
 		}
 		});
+}
+
+QPointF RadarGLWidget::projectToScreen(const QVector3D& worldPos, const QMatrix4x4& projection,
+                                        const QMatrix4x4& view, const QMatrix4x4& model) {
+	// Transform world position through model, view, and projection matrices
+	QVector4D clipSpace = projection * view * model * QVector4D(worldPos, 1.0f);
+
+	// Perform perspective divide to get normalized device coordinates (NDC)
+	if (clipSpace.w() != 0.0f) {
+		clipSpace /= clipSpace.w();
+	}
+
+	// Convert NDC to screen coordinates
+	// NDC range is [-1, 1], screen range is [0, width] and [0, height]
+	float screenX = (clipSpace.x() + 1.0f) * 0.5f * width();
+	float screenY = (1.0f - clipSpace.y()) * 0.5f * height(); // Flip Y axis
+
+	return QPointF(screenX, screenY);
 }

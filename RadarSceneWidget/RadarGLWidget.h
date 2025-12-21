@@ -76,4 +76,6 @@ private:
     QVector3D sphericalToCartesian(float r, float thetaDeg, float phiDeg);
     void setupContextMenu();
     void updateBeamPosition();
+    QPointF projectToScreen(const QVector3D& worldPos, const QMatrix4x4& projection,
+                            const QMatrix4x4& view, const QMatrix4x4& model);
 };
