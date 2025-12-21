@@ -21,18 +21,20 @@ void CylinderWireframe::generateGeometry() {
 
     GLuint baseIdx;
 
-    // === Top cap ===
+    // Z-up convention: height is along Z axis, circle is in X-Y plane
+
+    // === Top cap (z = +halfHeight) ===
     // Center vertex
     GLuint topCenterIdx = getVertexCount();
-    addVertex(QVector3D(0, halfHeight, 0), QVector3D(0, 1, 0));
+    addVertex(QVector3D(0, 0, halfHeight), QVector3D(0, 0, 1));
 
     // Rim vertices for top cap
     GLuint topRimStart = getVertexCount();
     for (int i = 0; i <= segments; i++) {
         float theta = 2.0f * static_cast<float>(M_PI) * static_cast<float>(i) / static_cast<float>(segments);
         float x = radius * cos(theta);
-        float z = radius * sin(theta);
-        addVertex(QVector3D(x, halfHeight, z), QVector3D(0, 1, 0));
+        float y = radius * sin(theta);
+        addVertex(QVector3D(x, y, halfHeight), QVector3D(0, 0, 1));
     }
 
     // Top cap triangles (fan from center)
@@ -40,18 +42,18 @@ void CylinderWireframe::generateGeometry() {
         addTriangle(topCenterIdx, topRimStart + i, topRimStart + i + 1);
     }
 
-    // === Bottom cap ===
+    // === Bottom cap (z = -halfHeight) ===
     // Center vertex
     GLuint bottomCenterIdx = getVertexCount();
-    addVertex(QVector3D(0, -halfHeight, 0), QVector3D(0, -1, 0));
+    addVertex(QVector3D(0, 0, -halfHeight), QVector3D(0, 0, -1));
 
     // Rim vertices for bottom cap
     GLuint bottomRimStart = getVertexCount();
     for (int i = 0; i <= segments; i++) {
         float theta = 2.0f * static_cast<float>(M_PI) * static_cast<float>(i) / static_cast<float>(segments);
         float x = radius * cos(theta);
-        float z = radius * sin(theta);
-        addVertex(QVector3D(x, -halfHeight, z), QVector3D(0, -1, 0));
+        float y = radius * sin(theta);
+        addVertex(QVector3D(x, y, -halfHeight), QVector3D(0, 0, -1));
     }
 
     // Bottom cap triangles (reversed winding for outward normal)
@@ -65,9 +67,9 @@ void CylinderWireframe::generateGeometry() {
     for (int i = 0; i <= segments; i++) {
         float theta = 2.0f * static_cast<float>(M_PI) * static_cast<float>(i) / static_cast<float>(segments);
         float x = radius * cos(theta);
-        float z = radius * sin(theta);
-        QVector3D normal(cos(theta), 0, sin(theta));
-        addVertex(QVector3D(x, halfHeight, z), normal);
+        float y = radius * sin(theta);
+        QVector3D normal(cos(theta), sin(theta), 0);
+        addVertex(QVector3D(x, y, halfHeight), normal);
     }
 
     // Bottom ring vertices with radial normals
@@ -75,9 +77,9 @@ void CylinderWireframe::generateGeometry() {
     for (int i = 0; i <= segments; i++) {
         float theta = 2.0f * static_cast<float>(M_PI) * static_cast<float>(i) / static_cast<float>(segments);
         float x = radius * cos(theta);
-        float z = radius * sin(theta);
-        QVector3D normal(cos(theta), 0, sin(theta));
-        addVertex(QVector3D(x, -halfHeight, z), normal);
+        float y = radius * sin(theta);
+        QVector3D normal(cos(theta), sin(theta), 0);
+        addVertex(QVector3D(x, y, -halfHeight), normal);
     }
 
     // Side surface quads

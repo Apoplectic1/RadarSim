@@ -795,15 +795,15 @@ void SphereWidget::createSphere(int latDivisions, int longDivisions) {
 			float sinTheta = sin(theta);
 			float cosTheta = cos(theta);
 
-			// Position
+			// Position (Z-up convention)
 			float x = radius_ * sinPhi * cosTheta;
-			float y = radius_ * cosPhi;
-			float z = radius_ * sinPhi * sinTheta;
+			float y = radius_ * sinPhi * sinTheta;  // Y is now horizontal
+			float z = radius_ * cosPhi;             // Z is now vertical
 
 			// Normal (normalized position for a sphere)
 			float nx = sinPhi * cosTheta;
-			float ny = cosPhi;
-			float nz = sinPhi * sinTheta;
+			float ny = sinPhi * sinTheta;  // Y is now horizontal
+			float nz = cosPhi;             // Z is now vertical
 
 			// Add vertex data
 			sphereVertices.push_back(x);
@@ -887,14 +887,14 @@ void SphereWidget::createSphereGrid() {
 		}
 
 		float phi = phiDeg * degToRad;
-		float y = gridRadiusOffset * sin(phi);  // Use offset radius
+		float z = gridRadiusOffset * sin(phi);  // Z is now vertical
 		float rLat = gridRadiusOffset * cos(phi);  // Use offset radius
 
 		// Create a complete circle for this latitude
 		for (int i = 0; i <= latitudeSegments; i++) {
 			float theta = 2.0f * M_PI * float(i) / float(latitudeSegments);
 			float x = rLat * cos(theta);
-			float z = rLat * sin(theta);
+			float y = rLat * sin(theta);  // Y is now horizontal
 
 			// Add vertex
 			latLongLines.push_back(x);
@@ -926,9 +926,9 @@ void SphereWidget::createSphereGrid() {
 			// Generate points from south pole to north pole
 			float phi = M_PI * float(i) / float(longitudeSegments) - M_PI / 2.0f;
 			float rLat = gridRadiusOffset * cos(phi);  // Use offset radius
-			float y = gridRadiusOffset * sin(phi);  // Use offset radius
+			float z = gridRadiusOffset * sin(phi);  // Z is now vertical
 			float x = rLat * cos(theta);
-			float z = rLat * sin(theta);
+			float y = rLat * sin(theta);  // Y is now horizontal
 
 			// Add vertex
 			latLongLines.push_back(x);
@@ -1056,8 +1056,8 @@ QVector3D SphereWidget::sphericalToCartesian(float r, float thetaDeg, float phiD
 	float phi = phiDeg * toRad;
 	return QVector3D(
 		r * cos(phi) * cos(theta),
-		r * sin(phi),
-		r * cos(phi) * sin(theta)
+		r * cos(phi) * sin(theta),  // Y is now horizontal
+		r * sin(phi)                // Z is now vertical (elevation)
 	);
 }
 

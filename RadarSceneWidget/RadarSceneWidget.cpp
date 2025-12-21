@@ -189,15 +189,15 @@ void RadarSceneWidget::transferStateToComponents() {
     radarGLWidget_->setAngles(sphereWidget_->getTheta(), sphereWidget_->getPhi());
 }
 
-// Helper function for spherical to cartesian conversion
+// Helper function for spherical to cartesian conversion (Z-up convention)
 QVector3D RadarSceneWidget::sphericalToCartesian(float r, float thetaDeg, float phiDeg) {
     const float toRad = float(M_PI / 180.0);
     float theta = thetaDeg * toRad;
     float phi = phiDeg * toRad;
     return QVector3D(
         r * cos(phi) * cos(theta),
-        r * sin(phi),
-        r * cos(phi) * sin(theta)
+        r * cos(phi) * sin(theta),  // Y is now horizontal
+        r * sin(phi)                // Z is now vertical (elevation)
     );
 }
 

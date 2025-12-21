@@ -239,4 +239,6 @@ void CameraController::updateMatrices() {
     modelMatrix_.scale(zoomFactor_);
     modelMatrix_.translate(translation_);
     modelMatrix_.rotate(rotation_);
+    // Convert from Z-up (mathematical convention) to Y-up (OpenGL display)
+    modelMatrix_.rotate(-90.0f, 1.0f, 0.0f, 0.0f);
 }

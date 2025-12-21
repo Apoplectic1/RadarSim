@@ -56,6 +56,7 @@ SphereRenderer::SphereRenderer(QObject* parent)
         in vec3 FragPos;
 
         uniform vec3 lightPos;
+        uniform float opacity;
 
         out vec4 outColor;
 
@@ -67,7 +68,7 @@ SphereRenderer::SphereRenderer(QObject* parent)
             vec3 diffuse = diff * vec3(1.0, 1.0, 1.0);
             vec3 ambient = vec3(0.3, 0.3, 0.3);
             vec3 result = (ambient + diffuse) * FragColor;
-            outColor = vec4(result, 1.0);
+            outColor = vec4(result, opacity);
         }
     )";
 
@@ -408,7 +409,7 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 	// Track which shader is currently bound
 	QOpenGLShaderProgram* currentShader = nullptr;
 
-	// 1. First, draw the sphere
+	// 1. Draw the sphere with two-pass transparency for 3D effect
 	if (showSphere_) {
 		// Release any currently bound shader that's not the one we need
 		if (currentShader && currentShader != shaderProgram) {
@@ -429,20 +430,34 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 
 		// Set sphere-specific uniforms
 		shaderProgram->setUniformValue("color", QVector3D(0.95f, 0.95f, 0.95f));
-		shaderProgram->setUniformValue("lightPos", QVector3D(500.0f, 500.0f, 500.0f));
+		shaderProgram->setUniformValue("lightPos", QVector3D(500.0f, -500.0f, 500.0f));
 
-		// Enable face culling for solid appearance
-		glEnable(GL_CULL_FACE);
-		glCullFace(GL_BACK);
+		// Enable blending for transparency
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glDepthMask(GL_FALSE);  // Don't write to depth buffer for transparent sphere
 
 		sphereVAO.bind();
 		glEnable(GL_POLYGON_OFFSET_FILL);
 		glPolygonOffset(1.0f, 1.0f);
+
+		// Pass 1: Draw back faces (darker, more transparent for depth effect)
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_FRONT);  // Cull front faces, draw back faces
+		shaderProgram->setUniformValue("opacity", 0.20f);
 		glDrawElements(GL_TRIANGLES, sphereIndices.size(), GL_UNSIGNED_INT, 0);
+
+		// Pass 2: Draw front faces (lighter, less transparent)
+		glCullFace(GL_BACK);  // Cull back faces, draw front faces
+		shaderProgram->setUniformValue("opacity", 0.35f);
+		glDrawElements(GL_TRIANGLES, sphereIndices.size(), GL_UNSIGNED_INT, 0);
+
 		glDisable(GL_POLYGON_OFFSET_FILL);
 		sphereVAO.release();
 
 		glDisable(GL_CULL_FACE);
+		glDepthMask(GL_TRUE);  // Re-enable depth writing
+		glDisable(GL_BLEND);
 	}
 
 	// 2. Draw grid lines if visible
@@ -465,7 +480,7 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 		}
 
 		// Always update light position for grid lines
-		shaderProgram->setUniformValue("lightPos", QVector3D(500.0f, 500.0f, 500.0f));
+		shaderProgram->setUniformValue("lightPos", QVector3D(500.0f, -500.0f, 500.0f));
 
 		linesVAO.bind();
 
@@ -477,8 +492,8 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 		glDepthFunc(GL_LEQUAL);
 
 		// Regular latitude lines
-		glLineWidth(1.5f);
-		shaderProgram->setUniformValue("color", QVector3D(0.25f, 0.25f, 0.25f));
+		glLineWidth(1.0f);
+		shaderProgram->setUniformValue("color", QVector3D(0.4f, 0.4f, 0.4f));
 
 		// Draw latitude lines
 		for (int lat = 0; lat < latitudeLineCount; lat++) {
@@ -594,7 +609,7 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 	dotShaderProgram->setUniformValue("view", view);
 	dotShaderProgram->setUniformValue("model", dotModelMatrix);
 	dotShaderProgram->setUniformValue("color", QVector3D(1.0f, 0.0f, 0.0f));  // Red dot
-	dotShaderProgram->setUniformValue("lightPos", QVector3D(500.0f, 500.0f, 500.0f));
+	dotShaderProgram->setUniformValue("lightPos", QVector3D(500.0f, -500.0f, 500.0f));
 	dotShaderProgram->setUniformValue("opacity", 1.0f);  // Fully opaque
 
 	dotVAO.bind();
@@ -869,15 +884,15 @@ void SphereRenderer::createSphere(int latDivisions, int longDivisions) {
 			float sinTheta = sin(theta);
 			float cosTheta = cos(theta);
 
-			// Position
+			// Position (Z-up convention)
 			float x = radius_ * sinPhi * cosTheta;
-			float y = radius_ * cosPhi;
-			float z = radius_ * sinPhi * sinTheta;
+			float y = radius_ * sinPhi * sinTheta;  // Y is now horizontal
+			float z = radius_ * cosPhi;             // Z is now vertical
 
 			// Normal (normalized position for a sphere)
 			float nx = sinPhi * cosTheta;
-			float ny = cosPhi;
-			float nz = sinPhi * sinTheta;
+			float ny = sinPhi * sinTheta;  // Y is now horizontal
+			float nz = cosPhi;             // Z is now vertical
 
 			// Add vertex data
 			sphereVertices.push_back(x);
@@ -968,14 +983,14 @@ void SphereRenderer::createGridLines() {
 		}
 
 		float phi = phiDeg * degToRad;
-		float y = gridRadiusOffset * sin(phi);  // Use offset radius
+		float z = gridRadiusOffset * sin(phi);  // Z is now vertical
 		float rLat = gridRadiusOffset * cos(phi);  // Use offset radius
 
 		// Create a complete circle for this latitude
 		for (int i = 0; i <= latitudeSegments; i++) {
 			float theta = 2.0f * M_PI * float(i) / float(latitudeSegments);
 			float x = rLat * cos(theta);
-			float z = rLat * sin(theta);
+			float y = rLat * sin(theta);  // Y is now horizontal
 
 			// Add vertex
 			latLongLines.push_back(x);
@@ -1007,9 +1022,9 @@ void SphereRenderer::createGridLines() {
 			// Generate points from south pole to north pole
 			float phi = M_PI * float(i) / float(longitudeSegments) - M_PI / 2.0f;
 			float rLat = gridRadiusOffset * cos(phi);  // Use offset radius
-			float y = gridRadiusOffset * sin(phi);  // Use offset radius
+			float z = gridRadiusOffset * sin(phi);  // Z is now vertical
 			float x = rLat * cos(theta);
-			float z = rLat * sin(theta);
+			float y = rLat * sin(theta);  // Y is now horizontal
 
 			// Add vertex
 			latLongLines.push_back(x);
@@ -1042,15 +1057,15 @@ void SphereRenderer::createGridLines() {
 	linesVAO.release();
 }
 
-// Helper method for spherical to cartesian conversion
+// Helper method for spherical to cartesian conversion (Z-up convention)
 QVector3D SphereRenderer::sphericalToCartesian(float r, float thetaDeg, float phiDeg) const {
 	const float toRad = float(M_PI / 180.0);
 	float theta = thetaDeg * toRad;
 	float phi = phiDeg * toRad;
 	return QVector3D(
 		r * cos(phi) * cos(theta),
-		r * sin(phi),
-		r * cos(phi) * sin(theta)
+		r * cos(phi) * sin(theta),  // Y is now horizontal
+		r * sin(phi)                // Z is now vertical (elevation)
 	);
 }
 

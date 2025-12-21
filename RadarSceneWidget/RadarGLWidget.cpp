@@ -356,8 +356,8 @@ QVector3D RadarGLWidget::sphericalToCartesian(float r, float thetaDeg, float phi
 	float phi = phiDeg * toRad;
 	return QVector3D(
 		r * cos(phi) * cos(theta),
-		r * sin(phi),
-		r * cos(phi) * sin(theta)
+		r * cos(phi) * sin(theta),  // Y is now horizontal
+		r * sin(phi)                // Z is now vertical (elevation)
 	);
 }
 

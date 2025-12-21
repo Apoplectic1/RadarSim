@@ -12,6 +12,7 @@ void AircraftWireframe::generateGeometry() {
 
     // Simple fighter jet - solid surfaces
     // Aircraft is oriented with nose pointing in +X direction
+    // Z-up convention: Z is vertical, Y is horizontal span
     // Scale: roughly fits in a 2x1x1 bounding box centered at origin
 
     // Helper to calculate face normal
@@ -24,14 +25,15 @@ void AircraftWireframe::generateGeometry() {
 
     // === Fuselage as a simple elongated shape ===
     // Define fuselage cross-section points along the length
+    // Z-up convention: y is horizontal (was z), z is vertical (was y)
     QVector3D nose(1.0f, 0.0f, 0.0f);
-    QVector3D midTop(0.0f, 0.12f, 0.0f);
-    QVector3D midLeft(0.0f, 0.0f, fuselageWidth);
-    QVector3D midRight(0.0f, 0.0f, -fuselageWidth);
-    QVector3D midBottom(0.0f, -0.08f, 0.0f);
-    QVector3D tailTop(-0.9f, 0.1f, 0.0f);
-    QVector3D tailLeft(-0.9f, 0.0f, 0.05f);
-    QVector3D tailRight(-0.9f, 0.0f, -0.05f);
+    QVector3D midTop(0.0f, 0.0f, 0.12f);           // was (0, 0.12, 0)
+    QVector3D midLeft(0.0f, fuselageWidth, 0.0f);  // was (0, 0, fuselageWidth)
+    QVector3D midRight(0.0f, -fuselageWidth, 0.0f);// was (0, 0, -fuselageWidth)
+    QVector3D midBottom(0.0f, 0.0f, -0.08f);       // was (0, -0.08, 0)
+    QVector3D tailTop(-0.9f, 0.0f, 0.1f);          // was (-0.9, 0.1, 0)
+    QVector3D tailLeft(-0.9f, 0.05f, 0.0f);        // was (-0.9, 0, 0.05)
+    QVector3D tailRight(-0.9f, -0.05f, 0.0f);      // was (-0.9, 0, -0.05)
     QVector3D tailBottom(-0.9f, 0.0f, 0.0f);
 
     // Nose cone (4 triangles to point)
@@ -64,8 +66,8 @@ void AircraftWireframe::generateGeometry() {
     addTriangle(baseIdx, baseIdx+1, baseIdx+2);
 
     // Fuselage body (quads from mid to tail)
-    // Top face
-    QVector3D bodyTopNormal(0, 1, 0);
+    // Top face (Z-up: normal is (0, 0, 1))
+    QVector3D bodyTopNormal(0, 0, 1);   // was (0, 1, 0)
     baseIdx = getVertexCount();
     addVertex(midLeft, bodyTopNormal);
     addVertex(tailLeft, bodyTopNormal);
@@ -80,8 +82,8 @@ void AircraftWireframe::generateGeometry() {
     addVertex(midRight, bodyTopNormal);
     addQuad(baseIdx, baseIdx+1, baseIdx+2, baseIdx+3);
 
-    // Bottom face
-    QVector3D bodyBottomNormal(0, -1, 0);
+    // Bottom face (Z-up: normal is (0, 0, -1))
+    QVector3D bodyBottomNormal(0, 0, -1);  // was (0, -1, 0)
     baseIdx = getVertexCount();
     addVertex(midRight, bodyBottomNormal);
     addVertex(tailRight, bodyBottomNormal);
@@ -100,91 +102,93 @@ void AircraftWireframe::generateGeometry() {
     const float wingThickness = 0.02f;
     QVector3D wingRootFront(0.2f, 0.0f, 0.0f);
     QVector3D wingRootBack(-0.4f, 0.0f, 0.0f);
-    QVector3D wingTipLeft(-0.1f, 0.0f, 0.6f);
-    QVector3D wingTipRight(-0.1f, 0.0f, -0.6f);
+    QVector3D wingTipLeft(-0.1f, 0.6f, 0.0f);    // was (-.1, 0, 0.6)
+    QVector3D wingTipRight(-0.1f, -0.6f, 0.0f);  // was (-.1, 0, -0.6)
 
-    // Left wing - top surface
-    QVector3D wingTopNormal(0, 1, 0);
+    // Left wing - top surface (Z-up: normal is (0, 0, 1))
+    QVector3D wingTopNormal(0, 0, 1);  // was (0, 1, 0)
     baseIdx = getVertexCount();
-    addVertex(wingRootFront + QVector3D(0, wingThickness/2, 0), wingTopNormal);
-    addVertex(wingTipLeft + QVector3D(0, wingThickness/2, 0), wingTopNormal);
-    addVertex(wingRootBack + QVector3D(0, wingThickness/2, 0), wingTopNormal);
+    addVertex(wingRootFront + QVector3D(0, 0, wingThickness/2), wingTopNormal);
+    addVertex(wingTipLeft + QVector3D(0, 0, wingThickness/2), wingTopNormal);
+    addVertex(wingRootBack + QVector3D(0, 0, wingThickness/2), wingTopNormal);
     addTriangle(baseIdx, baseIdx+1, baseIdx+2);
 
-    // Left wing - bottom surface
-    QVector3D wingBottomNormal(0, -1, 0);
+    // Left wing - bottom surface (Z-up: normal is (0, 0, -1))
+    QVector3D wingBottomNormal(0, 0, -1);  // was (0, -1, 0)
     baseIdx = getVertexCount();
-    addVertex(wingRootFront + QVector3D(0, -wingThickness/2, 0), wingBottomNormal);
-    addVertex(wingRootBack + QVector3D(0, -wingThickness/2, 0), wingBottomNormal);
-    addVertex(wingTipLeft + QVector3D(0, -wingThickness/2, 0), wingBottomNormal);
+    addVertex(wingRootFront + QVector3D(0, 0, -wingThickness/2), wingBottomNormal);
+    addVertex(wingRootBack + QVector3D(0, 0, -wingThickness/2), wingBottomNormal);
+    addVertex(wingTipLeft + QVector3D(0, 0, -wingThickness/2), wingBottomNormal);
     addTriangle(baseIdx, baseIdx+1, baseIdx+2);
 
     // Right wing - top surface
     baseIdx = getVertexCount();
-    addVertex(wingRootFront + QVector3D(0, wingThickness/2, 0), wingTopNormal);
-    addVertex(wingRootBack + QVector3D(0, wingThickness/2, 0), wingTopNormal);
-    addVertex(wingTipRight + QVector3D(0, wingThickness/2, 0), wingTopNormal);
+    addVertex(wingRootFront + QVector3D(0, 0, wingThickness/2), wingTopNormal);
+    addVertex(wingRootBack + QVector3D(0, 0, wingThickness/2), wingTopNormal);
+    addVertex(wingTipRight + QVector3D(0, 0, wingThickness/2), wingTopNormal);
     addTriangle(baseIdx, baseIdx+1, baseIdx+2);
 
     // Right wing - bottom surface
     baseIdx = getVertexCount();
-    addVertex(wingRootFront + QVector3D(0, -wingThickness/2, 0), wingBottomNormal);
-    addVertex(wingTipRight + QVector3D(0, -wingThickness/2, 0), wingBottomNormal);
-    addVertex(wingRootBack + QVector3D(0, -wingThickness/2, 0), wingBottomNormal);
+    addVertex(wingRootFront + QVector3D(0, 0, -wingThickness/2), wingBottomNormal);
+    addVertex(wingTipRight + QVector3D(0, 0, -wingThickness/2), wingBottomNormal);
+    addVertex(wingRootBack + QVector3D(0, 0, -wingThickness/2), wingBottomNormal);
     addTriangle(baseIdx, baseIdx+1, baseIdx+2);
 
     // === Vertical Stabilizer (tail fin) ===
-    QVector3D finBase(-0.7f, 0.1f, 0.0f);
-    QVector3D finTop(-0.75f, 0.45f, 0.0f);
-    QVector3D finTail(-0.9f, 0.35f, 0.0f);
+    // Z-up: fin extends upward in +Z, has left/right faces in Y
+    QVector3D finBase(-0.7f, 0.0f, 0.1f);    // was (-0.7, 0.1, 0)
+    QVector3D finTop(-0.75f, 0.0f, 0.45f);   // was (-0.75, 0.45, 0)
+    QVector3D finTail(-0.9f, 0.0f, 0.35f);   // was (-0.9, 0.35, 0)
 
-    // Left side of fin
-    QVector3D finLeftNormal(0, 0, 1);
+    // Left side of fin (Y+)
+    QVector3D finLeftNormal(0, 1, 0);   // was (0, 0, 1)
     baseIdx = getVertexCount();
-    addVertex(finBase + QVector3D(0, 0, 0.01f), finLeftNormal);
-    addVertex(finTop + QVector3D(0, 0, 0.01f), finLeftNormal);
-    addVertex(finTail + QVector3D(0, 0, 0.01f), finLeftNormal);
+    addVertex(finBase + QVector3D(0, 0.01f, 0), finLeftNormal);
+    addVertex(finTop + QVector3D(0, 0.01f, 0), finLeftNormal);
+    addVertex(finTail + QVector3D(0, 0.01f, 0), finLeftNormal);
     addTriangle(baseIdx, baseIdx+1, baseIdx+2);
 
-    // Right side of fin
-    QVector3D finRightNormal(0, 0, -1);
+    // Right side of fin (Y-)
+    QVector3D finRightNormal(0, -1, 0);  // was (0, 0, -1)
     baseIdx = getVertexCount();
-    addVertex(finBase + QVector3D(0, 0, -0.01f), finRightNormal);
-    addVertex(finTail + QVector3D(0, 0, -0.01f), finRightNormal);
-    addVertex(finTop + QVector3D(0, 0, -0.01f), finRightNormal);
+    addVertex(finBase + QVector3D(0, -0.01f, 0), finRightNormal);
+    addVertex(finTail + QVector3D(0, -0.01f, 0), finRightNormal);
+    addVertex(finTop + QVector3D(0, -0.01f, 0), finRightNormal);
     addTriangle(baseIdx, baseIdx+1, baseIdx+2);
 
     // === Horizontal Stabilizers ===
-    QVector3D hStabRoot(-0.75f, 0.1f, 0.0f);
-    QVector3D hStabTipLeft(-0.85f, 0.08f, 0.25f);
-    QVector3D hStabTipRight(-0.85f, 0.08f, -0.25f);
-    QVector3D hStabBack(-0.9f, 0.1f, 0.0f);
+    // Z-up: these extend in Y direction (horizontal span), slightly above center
+    QVector3D hStabRoot(-0.75f, 0.0f, 0.1f);        // was (-0.75, 0.1, 0)
+    QVector3D hStabTipLeft(-0.85f, 0.25f, 0.08f);   // was (-0.85, 0.08, 0.25)
+    QVector3D hStabTipRight(-0.85f, -0.25f, 0.08f); // was (-0.85, 0.08, -0.25)
+    QVector3D hStabBack(-0.9f, 0.0f, 0.1f);         // was (-0.9, 0.1, 0)
 
     // Left horizontal stabilizer - top
     baseIdx = getVertexCount();
-    addVertex(hStabRoot + QVector3D(0, wingThickness/2, 0), wingTopNormal);
-    addVertex(hStabTipLeft + QVector3D(0, wingThickness/2, 0), wingTopNormal);
-    addVertex(hStabBack + QVector3D(0, wingThickness/2, 0), wingTopNormal);
+    addVertex(hStabRoot + QVector3D(0, 0, wingThickness/2), wingTopNormal);
+    addVertex(hStabTipLeft + QVector3D(0, 0, wingThickness/2), wingTopNormal);
+    addVertex(hStabBack + QVector3D(0, 0, wingThickness/2), wingTopNormal);
     addTriangle(baseIdx, baseIdx+1, baseIdx+2);
 
     // Left horizontal stabilizer - bottom
     baseIdx = getVertexCount();
-    addVertex(hStabRoot + QVector3D(0, -wingThickness/2, 0), wingBottomNormal);
-    addVertex(hStabBack + QVector3D(0, -wingThickness/2, 0), wingBottomNormal);
-    addVertex(hStabTipLeft + QVector3D(0, -wingThickness/2, 0), wingBottomNormal);
+    addVertex(hStabRoot + QVector3D(0, 0, -wingThickness/2), wingBottomNormal);
+    addVertex(hStabBack + QVector3D(0, 0, -wingThickness/2), wingBottomNormal);
+    addVertex(hStabTipLeft + QVector3D(0, 0, -wingThickness/2), wingBottomNormal);
     addTriangle(baseIdx, baseIdx+1, baseIdx+2);
 
     // Right horizontal stabilizer - top
     baseIdx = getVertexCount();
-    addVertex(hStabRoot + QVector3D(0, wingThickness/2, 0), wingTopNormal);
-    addVertex(hStabBack + QVector3D(0, wingThickness/2, 0), wingTopNormal);
-    addVertex(hStabTipRight + QVector3D(0, wingThickness/2, 0), wingTopNormal);
+    addVertex(hStabRoot + QVector3D(0, 0, wingThickness/2), wingTopNormal);
+    addVertex(hStabBack + QVector3D(0, 0, wingThickness/2), wingTopNormal);
+    addVertex(hStabTipRight + QVector3D(0, 0, wingThickness/2), wingTopNormal);
     addTriangle(baseIdx, baseIdx+1, baseIdx+2);
 
     // Right horizontal stabilizer - bottom
     baseIdx = getVertexCount();
-    addVertex(hStabRoot + QVector3D(0, -wingThickness/2, 0), wingBottomNormal);
-    addVertex(hStabTipRight + QVector3D(0, -wingThickness/2, 0), wingBottomNormal);
-    addVertex(hStabBack + QVector3D(0, -wingThickness/2, 0), wingBottomNormal);
+    addVertex(hStabRoot + QVector3D(0, 0, -wingThickness/2), wingBottomNormal);
+    addVertex(hStabTipRight + QVector3D(0, 0, -wingThickness/2), wingBottomNormal);
+    addVertex(hStabBack + QVector3D(0, 0, -wingThickness/2), wingBottomNormal);
     addTriangle(baseIdx, baseIdx+1, baseIdx+2);
 }
