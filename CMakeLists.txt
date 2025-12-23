@@ -48,6 +48,15 @@ set(MODEL_MANAGER_SOURCES
     ModelManager/ModelManager.h
 )
 
+# RCSCompute sources (GPU ray tracing for RCS calculations)
+set(RCS_COMPUTE_SOURCES
+    RCSCompute/RCSTypes.h
+    RCSCompute/BVHBuilder.cpp
+    RCSCompute/BVHBuilder.h
+    RCSCompute/RCSCompute.cpp
+    RCSCompute/RCSCompute.h
+)
+
 # WireframeTarget sources
 set(WIREFRAME_TARGET_SOURCES
     WireframeTarget/WireframeShapes.h
@@ -112,6 +121,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         ${RADAR_SCENE_WIDGET_SOURCES}
         ${MODEL_MANAGER_SOURCES}
         ${WIREFRAME_TARGET_SOURCES}
+        ${RCS_COMPUTE_SOURCES}
     )
 else()
     add_executable(RadarSim
@@ -120,6 +130,7 @@ else()
         ${RADAR_SCENE_WIDGET_SOURCES}
         ${MODEL_MANAGER_SOURCES}
         ${WIREFRAME_TARGET_SOURCES}
+        ${RCS_COMPUTE_SOURCES}
     )
 endif()
 
@@ -130,6 +141,7 @@ target_include_directories(RadarSim PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/RadarSceneWidget
     ${CMAKE_CURRENT_SOURCE_DIR}/ModelManager
     ${CMAKE_CURRENT_SOURCE_DIR}/WireframeTarget
+    ${CMAKE_CURRENT_SOURCE_DIR}/RCSCompute
 )
 
 # Link Qt libraries

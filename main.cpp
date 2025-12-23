@@ -10,7 +10,7 @@ int main(int argc, char** argv) {
     QSurfaceFormat format;
     format.setDepthBufferSize(24);
     format.setStencilBufferSize(8);
-    format.setVersion(3, 3);
+    format.setVersion(4, 3);  // Upgraded for compute shader support
     format.setProfile(QSurfaceFormat::CoreProfile);
     format.setOption(QSurfaceFormat::DebugContext);
     QSurfaceFormat::setDefaultFormat(format);

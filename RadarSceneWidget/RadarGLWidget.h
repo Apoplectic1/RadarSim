@@ -2,7 +2,7 @@
 #pragma once
 
 #include <QOpenGLWidget>
-#include <QOpenGLFunctions_3_3_Core>
+#include <QOpenGLFunctions_4_3_Core>
 #include <QOpenGLContext>
 #include <QMouseEvent>
 #include <QWheelEvent>
@@ -15,8 +15,9 @@
 #include "RadarSceneWidget/CameraController.h"
 #include "ModelManager/ModelManager.h"
 #include "WireframeTargetController.h"
+#include "RCSCompute/RCSCompute.h"
 
-class RadarGLWidget : public QOpenGLWidget, protected QOpenGLFunctions_3_3_Core {
+class RadarGLWidget : public QOpenGLWidget, protected QOpenGLFunctions_4_3_Core {
     Q_OBJECT
 
 public:
@@ -68,6 +69,9 @@ private:
     CameraController* cameraController_ = nullptr;
     ModelManager* modelManager_ = nullptr;
     WireframeTargetController* wireframeController_ = nullptr;
+
+    // RCS computation (owned by this widget)
+    RCS::RCSCompute* rcsCompute_ = nullptr;
 
     // Context menu
     QMenu* contextMenu_ = nullptr;

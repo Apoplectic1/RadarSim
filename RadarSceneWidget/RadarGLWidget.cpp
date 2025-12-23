@@ -31,6 +31,13 @@ RadarGLWidget::RadarGLWidget(QWidget* parent)
 RadarGLWidget::~RadarGLWidget() {
 	qDebug() << "RadarGLWidget destructor called";
 
+	// Clean up RCS compute
+	if (rcsCompute_) {
+		rcsCompute_->cleanup();
+		delete rcsCompute_;
+		rcsCompute_ = nullptr;
+	}
+
 	// Clean up context menu
 	delete contextMenu_;
 }
@@ -101,6 +108,17 @@ void RadarGLWidget::initializeGL() {
 
 		if (wireframeController_) {
 			wireframeController_->initialize();
+		}
+
+		// Initialize RCS compute for GPU ray tracing
+		rcsCompute_ = new RCS::RCSCompute(this);
+		if (!rcsCompute_->initialize()) {
+			qWarning() << "RCSCompute initialization failed - ray tracing disabled";
+			delete rcsCompute_;
+			rcsCompute_ = nullptr;
+		} else {
+			qDebug() << "RCSCompute initialized successfully";
+			rcsCompute_->setSphereRadius(radius_);
 		}
 	}
 	catch (const std::exception& e) {
@@ -205,6 +223,26 @@ void RadarGLWidget::paintGL() {
 			// Pass radar position and sphere radius for shadow volume calculation
 			QVector3D radarPos = sphericalToCartesian(radius_, theta_, phi_);
 			wireframeController_->render(projectionMatrix, viewMatrix, modelMatrix, radarPos, radius_);
+
+			// Run RCS ray tracing if available
+			if (rcsCompute_ && wireframeController_->getTarget()) {
+				auto* target = wireframeController_->getTarget();
+				rcsCompute_->setTargetGeometry(
+					target->getVertices(),
+					target->getIndices(),
+					target->getModelMatrix()
+				);
+				rcsCompute_->setRadarPosition(radarPos);
+				rcsCompute_->setBeamDirection(-radarPos.normalized());  // Toward origin
+				rcsCompute_->compute();
+
+				// Log occlusion ratio occasionally
+				static int frameCount = 0;
+				if (++frameCount % 60 == 0) {
+					qDebug() << "RCS: Hit count =" << rcsCompute_->getHitCount()
+					         << "Occlusion =" << rcsCompute_->getOcclusionRatio();
+				}
+			}
 		}
 
 		if (beamController_) {

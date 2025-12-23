@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cmake --build:*)",
+      "Bash(cmake --preset:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(where:*)",
+      "Bash(dir:*)",
+      "Bash(start:*)"
+    ]
+  }
+}

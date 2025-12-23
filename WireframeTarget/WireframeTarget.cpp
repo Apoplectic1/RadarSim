@@ -292,11 +292,10 @@ void WireframeTarget::render(const QMatrix4x4& projection, const QMatrix4x4& vie
 
     // === Pass 2: Shadow volume using stencil (Z-fail / Carmack's Reverse) ===
     if (!radarPosition.isNull()) {
-        // Generate shadow volume in WORLD space
-        // - Use localModel to transform target vertices from local to world space
-        // - radarPosition is already in world space, use directly
-        // - Extrusion distance is in world units
-        // - Render with sceneModel only (vertices are already in world space)
+        // Generate shadow volume in WORLD space (using localModel only)
+        // - radarPosition is already in world space (from sphericalToCartesian)
+        // - localModel transforms target vertices to world space
+        // - Scene rotation is applied at render time via sceneModel
         generateShadowVolume(radarPosition, localModel, sphereRadius * 2.0f);
 
         if (!shadowIndices_.empty()) {
@@ -312,22 +311,19 @@ void WireframeTarget::render(const QMatrix4x4& projection, const QMatrix4x4& vie
             glStencilFunc(GL_ALWAYS, 0, 0xFF);
 
             // Render shadow volume with two-sided stencil (Z-fail)
-            // Shadow vertices are already in WORLD space, use identity model matrix
-            QMatrix4x4 shadowModel;
-            shadowModel.setToIdentity();
-
+            // Shadow vertices are in WORLD space, apply sceneModel for scene rotation
             // Back faces: increment on depth fail
             glEnable(GL_CULL_FACE);
             glCullFace(GL_FRONT);
             glStencilOp(GL_KEEP, GL_INCR_WRAP, GL_KEEP);
 
-            renderShadowVolume(projection, view, shadowModel);
+            renderShadowVolume(projection, view, sceneModel);
 
             // Front faces: decrement on depth fail
             glCullFace(GL_BACK);
             glStencilOp(GL_KEEP, GL_DECR_WRAP, GL_KEEP);
 
-            renderShadowVolume(projection, view, shadowModel);
+            renderShadowVolume(projection, view, sceneModel);
 
             // Restore state - leave stencil test ON for beam
             glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);

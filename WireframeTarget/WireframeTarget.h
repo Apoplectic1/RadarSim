@@ -47,6 +47,11 @@ public:
     QVector3D getColor() const { return color_; }
     bool isVisible() const { return visible_; }
 
+    // Geometry accessors (for RCS ray tracing)
+    const std::vector<float>& getVertices() const { return vertices_; }
+    const std::vector<GLuint>& getIndices() const { return indices_; }
+    QMatrix4x4 getModelMatrix() const { return buildModelMatrix(); }
+
     // Future: Illumination support
     void setIlluminated(bool illuminated);
     void setLightDirection(const QVector3D& lightDir);

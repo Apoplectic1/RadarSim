@@ -2,10 +2,10 @@
 
 ## Project Overview
 
-RadarSim is a Qt-based 3D radar simulation application written in C++17 with OpenGL 3.3 core rendering. It visualizes radar beams with interactive controls, featuring a tabbed UI interface and a component-based architecture supporting multiple beam types.
+RadarSim is a Qt-based 3D radar simulation application written in C++17 with OpenGL 4.3 core rendering. It visualizes radar beams with interactive controls, featuring a tabbed UI interface and a component-based architecture supporting multiple beam types. Includes GPU-accelerated ray tracing for radar cross-section (RCS) calculations.
 
 - **Qt Version**: 6.10.1 (with Qt5 fallback support)
-- **OpenGL**: 3.3 Core Profile
+- **OpenGL**: 4.3 Core Profile (compute shaders for RCS ray tracing)
 - **Build System**: CMake 3.14+
 - **Platform**: Cross-platform (Windows, Linux, macOS)
 
@@ -20,7 +20,7 @@ cmake --preset Qt-Release    # Release build
 cmake --build out/build/debug
 cmake --build out/build/release
 
-# Or use Visual Studio with CMake integration
+# Visual Studio 2026 with CMake integration
 ```
 
 ## Project Structure
@@ -42,13 +42,17 @@ RadarSim/
 │   └── CameraController.h/.cpp # View/camera controls
 ├── ModelManager/               # 3D model handling
 │   └── ModelManager.h/.cpp     # Model loading component
-└── WireframeTarget/            # Solid target visualization (for RCS calculations)
-    ├── WireframeShapes.h       # WireframeType enum
-    ├── WireframeTarget.h/.cpp  # Base target class (GL_TRIANGULAR solid rendering)
-    ├── WireframeTargetController.h/.cpp  # Component wrapper
-    ├── CubeWireframe.h/.cpp    # Solid cube (6 faces, 12 triangles)
-    ├── CylinderWireframe.h/.cpp# Solid cylinder (caps + sides)
-    └── AircraftWireframe.h/.cpp# Solid fighter jet model
+├── WireframeTarget/            # Solid target visualization (for RCS calculations)
+│   ├── WireframeShapes.h       # WireframeType enum
+│   ├── WireframeTarget.h/.cpp  # Base target class (GL_TRIANGLES solid rendering)
+│   ├── WireframeTargetController.h/.cpp  # Component wrapper
+│   ├── CubeWireframe.h/.cpp    # Solid cube (6 faces, 12 triangles)
+│   ├── CylinderWireframe.h/.cpp# Solid cylinder (caps + sides)
+│   └── AircraftWireframe.h/.cpp# Solid fighter jet model
+└── RCSCompute/                 # GPU ray tracing for RCS calculations
+    ├── RCSTypes.h              # GPU-aligned structs (Ray, BVHNode, Triangle, HitResult)
+    ├── BVHBuilder.h/.cpp       # SAH-based Bounding Volume Hierarchy construction
+    └── RCSCompute.h/.cpp       # OpenGL 4.3 compute shader ray tracer
 ```
 
 ## Architecture
@@ -101,7 +105,42 @@ Factory method for target creation:
 WireframeTarget* WireframeTarget::createTarget(WireframeType type);
 ```
 
-WireframeTarget uses solid surface rendering (GL_TRIANGLES) with indexed drawing (EBO). Vertex format is `[x, y, z, nx, ny, nz]` where the normal vector supports diffuse + ambient lighting. Face culling (`GL_CULL_FACE`) ensures only outside surfaces are drawn. Geometry is designed for future radar cross-section (RCS) calculations.
+WireframeTarget uses solid surface rendering (GL_TRIANGLES) with indexed drawing (EBO). Vertex format is `[x, y, z, nx, ny, nz]` where the normal vector supports diffuse + ambient lighting. Face culling (`GL_CULL_FACE`) ensures only outside surfaces are drawn. Geometry is designed for radar cross-section (RCS) calculations.
+
+### RCSCompute (GPU Ray Tracing)
+
+GPU-accelerated ray tracing module for computing radar cross-section (RCS) via beam-target intersection. Uses OpenGL 4.3 compute shaders.
+
+**Architecture:**
+- **Ray Generation Shader**: Creates cone-distributed rays from radar position toward target
+- **BVH Traversal Shader**: Tests rays against target geometry using Bounding Volume Hierarchy
+
+**Data Structures (GPU-aligned):**
+```cpp
+struct Ray       { vec4 origin, direction; };           // 32 bytes
+struct BVHNode   { vec4 boundsMin, boundsMax; };        // 32 bytes
+struct Triangle  { vec4 v0, v1, v2; };                  // 48 bytes
+struct HitResult { vec4 hitPoint, normal; uint ids; };  // 32 bytes
+```
+
+**BVH Construction:**
+- Surface Area Heuristic (SAH) for optimal tree building
+- 12-bin binning for split finding
+- Max leaf size: 4 triangles
+
+**Integration:**
+```cpp
+// In RadarGLWidget::paintGL()
+rcsCompute_->setTargetGeometry(target->getVertices(), target->getIndices(), modelMatrix);
+rcsCompute_->setRadarPosition(radarPos);
+rcsCompute_->setBeamDirection(-radarPos.normalized());
+rcsCompute_->compute();
+// Results: getHitCount(), getOcclusionRatio()
+```
+
+**Current Output:** Hit count and occlusion ratio logged to debug console every 60 frames.
+
+**Future Work:** Calculate actual RCS values from hit geometry, add UI display, visualize ray hits.
 
 ### Dual Implementation (Transition State)
 
@@ -207,20 +246,23 @@ Without this connection, timer-based animations will appear stuttery because `up
 | Adjust camera | `CameraController.cpp` |
 | Sphere geometry | `SphereRenderer.cpp` |
 | Target transforms | `WireframeTargetController.cpp`, `RadarSim.cpp` (target slots) |
+| RCS ray tracing | `RCSCompute/RCSCompute.cpp`, `RCSCompute/BVHBuilder.cpp` |
 
 ## Rendering Pipeline
 
 ```
 RadarGLWidget::paintGL()
-  ├── Clear buffers (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+  ├── Clear buffers (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
   ├── SphereRenderer::render(projection, view, model)
   ├── ModelManager::render(projection, view, model)
-  ├── WireframeTargetController::render(projection, view, model)  # Solid, opaque
-  ├── BeamController::render(projection, view, model)             # Semi-transparent
+  ├── WireframeTargetController::render(projection, view, model)  # Solid + shadow volume
+  │   └── (leaves stencil test enabled for beam occlusion)
+  ├── RCSCompute::compute()                                       # GPU ray tracing
+  ├── BeamController::render(projection, view, model)             # Semi-transparent, stencil-tested
   └── (implicit buffer swap)
 ```
 
-Note: Solid targets render before beam so they are visible through semi-transparent beam. Target rendering explicitly sets depth test, disables blending, and enables face culling for correct opaque solid rendering.
+Note: Solid targets render before beam so they are visible through semi-transparent beam. Target rendering explicitly sets depth test, disables blending, and enables face culling for correct opaque solid rendering. RCSCompute runs GPU ray tracing to calculate occlusion ratio for RCS calculations.
 
 ## Common Modifications
 
@@ -321,9 +363,18 @@ No external libraries beyond Qt - all math via `QMatrix4x4`, `QVector3D`, `QQuat
 - Use `qDebug()` for logging (output formatted per pattern)
 - Check `initializeOpenGLFunctions()` return value for GL issues
 
-## Shadow Volume / Beam Occlusion (Work in Progress)
+## Shadow Systems
 
-The system implements shadow volumes using the Z-fail (Carmack's Reverse) stencil algorithm to occlude the radar beam behind solid targets. This is foundational work for future radar cross-section (RCS) calculations.
+The project has two distinct shadow/occlusion systems:
+
+| System | Purpose | Technology | Output |
+|--------|---------|------------|--------|
+| **Stencil Shadow Volumes** | Visual beam occlusion | Z-fail stencil algorithm | Beam hidden behind target |
+| **RCS Ray Tracing** | Numerical RCS computation | GPU compute shaders + BVH | Hit count, occlusion ratio |
+
+### Stencil Shadow Volumes (Visual Occlusion)
+
+Uses the Z-fail (Carmack's Reverse) stencil algorithm to visually occlude the radar beam behind solid targets.
 
 ### Current Status
 
@@ -377,13 +428,20 @@ WireframeTarget::render()
 | `RadarBeam.cpp` | Stencil test in `render()` method |
 | `RadarGLWidget.cpp` | Clears stencil buffer, passes radar position and sphere radius |
 
-### Future Work
+### Future Work (Stencil Shadows)
 
 1. **Fix scene rotation tracking** - Investigate why shadow doesn't follow mouse-drag scene rotation
 2. **Fix depth cap** - Resolve visibility issues so Z-fail algorithm works correctly
 3. **Consider Z-pass alternative** - Z-pass algorithm doesn't need depth cap but fails when camera is inside shadow
+
+### RCS Ray Tracing Future Work
+
+See [RCSCompute (GPU Ray Tracing)](#rcscompute-gpu-ray-tracing) section for implementation details. Remaining work:
+
+1. **Calculate actual RCS values** - Use hit geometry and material properties
+2. **Add UI display** - Show hit count and occlusion ratio in application
+3. **Visualize ray hits** - Debug rendering of traced rays and hit points
 4. **Implement diffraction effects** - For realistic radar simulation
-5. **Use shadow geometry for RCS calculations** - Leverage shadow volume for radar cross-section
 
 ## UI Layout
 
@@ -431,8 +489,12 @@ void RadarSim::onTargetPosXChanged(int value) {
 2. Mixed memory management (raw `new`/`delete` and `std::shared_ptr`)
 3. ModelManager intersection testing is placeholder
 4. No unit test coverage
-5. Shadow volume scene rotation has edge cases (see Shadow Volume section)
+5. Shadow volume scene rotation has edge cases (see Shadow Systems section)
 6. Excessive qDebug() logging in paintGL() should be reduced for release
+7. RCS ray tracing only outputs to debug console (no UI display)
+8. RCS contribution calculation not yet implemented (placeholder in HitResult)
+9. Ray visualization for debugging not implemented
+10. OpenGL 4.3 required - no fallback for older hardware
 
 ## Coordinate System
 
