@@ -56,6 +56,13 @@ public:
     void setVisible(bool visible);
     void setBeamLength(float length);  // Length as fraction of sphere diameter
 
+    // GPU shadow map (from RCS compute)
+    void setGPUShadowMap(GLuint textureId);
+    void setGPUShadowEnabled(bool enabled);
+    void setBeamAxis(const QVector3D& axis);
+    void setBeamWidthRadians(float radians);
+    void setNumRings(int numRings);
+
     // Property getters
     float getBeamWidth() const { return beamWidthDegrees_; }
     float getSphereRadius() const { return sphereRadius_; }
@@ -65,6 +72,7 @@ public:
     float getOpacity() const { return opacity_; }
     bool isVisible() const { return visible_; }
     float getBeamLength() const { return beamLengthFactor_; }
+    const std::vector<float>& getVertices() const { return vertices_; }
 
     // Factory method to create different beam types
     static RadarBeam* createBeam(BeamType type, float sphereRadius, float beamWidthDegrees = 15.0f);
@@ -90,6 +98,13 @@ protected:
     BeamDirection beamDirection_;
     QVector3D customDirection_;
     QVector3D currentRadarPosition_;
+
+    // GPU shadow map for ray-traced shadows
+    GLuint gpuShadowMapTexture_ = 0;
+    bool gpuShadowEnabled_ = false;
+    QVector3D beamAxis_;
+    float beamWidthRadians_ = 0.2618f;  // ~15 degrees default
+    int numRings_ = 157;  // Default for 10000 rays / 64 per ring
 
     // Geometry data
     std::vector<float> vertices_;

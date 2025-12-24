@@ -221,6 +221,52 @@ void main() {
 }
 )";
 
+// Compute shader source: Shadow Map Generation
+static const char* shadowMapShaderSource = R"(
+#version 430 core
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+struct HitResult {
+    vec4 hitPoint;   // xyz = position, w = distance (-1 = miss)
+    vec4 normal;     // xyz = normal, w = material
+    uint triangleId;
+    uint rayId;
+    float rcsContribution;
+    float pad;
+};
+
+layout(std430, binding = 3) readonly buffer HitBuffer { HitResult hits[]; };
+layout(r32f, binding = 0) uniform image2D shadowMap;
+
+uniform int numRays;
+uniform int raysPerRing;
+uniform int numRings;
+
+void main() {
+    uint rayId = gl_GlobalInvocationID.x;
+    if (rayId >= numRays) return;
+
+    HitResult hit = hits[rayId];
+
+    // Calculate texel coordinates directly from ray index
+    // Shadow map is raysPerRing x numRings, so ray (ring, posInRing) -> texel (posInRing, ring)
+    uint ring = rayId / uint(raysPerRing);
+    uint posInRing = rayId % uint(raysPerRing);
+
+    // Direct 1:1 mapping to texels
+    ivec2 texCoord = ivec2(int(posInRing), int(ring));
+
+    // Bounds check
+    ivec2 texSize = imageSize(shadowMap);
+    if (texCoord.x >= texSize.x || texCoord.y >= texSize.y) return;
+
+    // Store hit distance (positive = hit at that distance, negative = no hit)
+    // Fragment shader will compare its distance to determine if it's in shadow
+    float hitDistance = hit.hitPoint.w;  // -1 for miss, positive for hit distance
+    imageStore(shadowMap, texCoord, vec4(hitDistance, 0.0, 0.0, 1.0));
+}
+)";
+
 
 RCSCompute::RCSCompute(QObject* parent)
     : QObject(parent)
@@ -274,8 +320,11 @@ void RCSCompute::cleanup() {
     if (hitBuffer_) { glDeleteBuffers(1, &hitBuffer_); hitBuffer_ = 0; }
     if (counterBuffer_) { glDeleteBuffers(1, &counterBuffer_); counterBuffer_ = 0; }
 
+    if (shadowMapTexture_) { glDeleteTextures(1, &shadowMapTexture_); shadowMapTexture_ = 0; }
+
     rayGenShader_.reset();
     traceShader_.reset();
+    shadowMapShader_.reset();
 
     initialized_ = false;
 }
@@ -300,6 +349,17 @@ bool RCSCompute::compileShaders() {
     }
     if (!traceShader_->link()) {
         qWarning() << "Failed to link trace shader:" << traceShader_->log();
+        return false;
+    }
+
+    // Shadow map generation shader
+    shadowMapShader_ = std::make_unique<QOpenGLShaderProgram>();
+    if (!shadowMapShader_->addShaderFromSourceCode(QOpenGLShader::Compute, shadowMapShaderSource)) {
+        qWarning() << "Failed to compile shadow map shader:" << shadowMapShader_->log();
+        return false;
+    }
+    if (!shadowMapShader_->link()) {
+        qWarning() << "Failed to link shadow map shader:" << shadowMapShader_->log();
         return false;
     }
 
@@ -330,6 +390,32 @@ void RCSCompute::createBuffers() {
     glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(GLuint), nullptr, GL_DYNAMIC_DRAW);
 
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+    // Shadow map texture for beam visualization
+    // Match resolution exactly to ray distribution for 1:1 texel mapping:
+    // - X = raysPerRing = 64
+    // - Y = numRings = numRays / raysPerRing = 10000 / 64 ≈ 157
+    int raysPerRing = 64;
+    int numRings = (numRays_ + raysPerRing - 1) / raysPerRing;
+    shadowMapResolution_ = raysPerRing;  // Store for getShadowMapResolution()
+
+    // Initialize shadow map with -1 (no hit = all visible) to avoid undefined content
+    std::vector<float> initialData(raysPerRing * numRings, -1.0f);
+
+    glGenTextures(1, &shadowMapTexture_);
+    glBindTexture(GL_TEXTURE_2D, shadowMapTexture_);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, raysPerRing, numRings,
+                 0, GL_RED, GL_FLOAT, initialData.data());
+    // Use NEAREST filtering for exact texel lookup
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);      // Azimuth wraps
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);  // Elevation clamps
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    qDebug() << "RCSCompute: Shadow map" << raysPerRing << "x" << numRings << "for" << numRays_ << "rays";
+
+    qDebug() << "RCSCompute: Created shadow map texture" << shadowMapResolution_ << "x" << shadowMapResolution_;
 }
 
 void RCSCompute::setTargetGeometry(const std::vector<float>& vertices,
@@ -463,6 +549,58 @@ void RCSCompute::readResults() {
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
 
+void RCSCompute::clearShadowMap() {
+    if (!shadowMapTexture_) return;
+
+    // Get texture dimensions
+    int raysPerRing = 64;
+    int numRings = (numRays_ + raysPerRing - 1) / raysPerRing;
+    int texWidth = raysPerRing;
+    int texHeight = numRings;
+
+    // Clear shadow map to -1 (no hit = all visible)
+    // This is more reliable than glClearTexImage which may not be available
+    std::vector<float> clearData(texWidth * texHeight, -1.0f);
+    glBindTexture(GL_TEXTURE_2D, shadowMapTexture_);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texWidth, texHeight, GL_RED, GL_FLOAT, clearData.data());
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void RCSCompute::dispatchShadowMapGeneration() {
+    if (!shadowMapShader_ || !shadowMapTexture_) return;
+
+    shadowMapShader_->bind();
+
+    // Set uniforms
+    shadowMapShader_->setUniformValue("numRays", numRays_);
+
+    // Calculate ring parameters (same as ray generation)
+    int raysPerRing = 64;
+    int numRings = (numRays_ + raysPerRing - 1) / raysPerRing;
+    shadowMapShader_->setUniformValue("raysPerRing", raysPerRing);
+    shadowMapShader_->setUniformValue("numRings", numRings);
+
+    // Bind hit buffer (read) and shadow map (write)
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, hitBuffer_);
+    glBindImageTexture(0, shadowMapTexture_, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R32F);
+
+    // Dispatch
+    int numGroups = (numRays_ + 63) / 64;
+    glDispatchCompute(numGroups, 1, 1);
+
+    // Memory barrier for texture writes - include TEXTURE_FETCH for sampling in fragment shader
+    glMemoryBarrier(GL_TEXTURE_UPDATE_BARRIER_BIT | GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT);
+
+    // Unbind image to allow texture sampling
+    glBindImageTexture(0, 0, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R32F);
+
+    shadowMapShader_->release();
+}
+
+float RCSCompute::getBeamWidthRadians() const {
+    return static_cast<float>(beamWidthDegrees_ * M_PI / 180.0);
+}
+
 void RCSCompute::compute() {
     if (!initialized_) {
         qWarning() << "RCSCompute::compute - Not initialized";
@@ -472,14 +610,41 @@ void RCSCompute::compute() {
     // Upload BVH if needed
     uploadBVH();
 
+    // Debug: Log ray generation parameters occasionally
+    static int computeFrame = 0;
+    computeFrame++;
+    bool shouldLog = (computeFrame <= 3) || (computeFrame % 300 == 0);
+    if (shouldLog) {
+        qDebug() << "=== RCSCompute::compute() frame" << computeFrame << "===";
+        qDebug() << "  Radar position:" << radarPosition_;
+        qDebug() << "  Beam direction:" << beamDirection_;
+        qDebug() << "  Beam width (deg):" << beamWidthDegrees_;
+        qDebug() << "  Num rays:" << numRays_;
+        qDebug() << "  BVH nodes:" << bvhBuilder_.getNodeCount();
+        qDebug() << "  BVH triangles:" << bvhBuilder_.getTriangleCount();
+    }
+
+    // Clear shadow map before tracing
+    clearShadowMap();
+
     // Generate rays
     dispatchRayGeneration();
 
     // Trace rays
     dispatchTracing();
 
+    // Generate shadow map from hit results
+    dispatchShadowMapGeneration();
+
     // Read results
     readResults();
+
+    if (shouldLog) {
+        qDebug() << "  >>> Hit count:" << hitCount_ << "/ " << numRays_ << "Occlusion:" << getOcclusionRatio();
+    }
+
+    // Mark shadow map as ready for beam rendering
+    shadowMapReady_ = true;
 
     emit computeComplete(hitCount_, getOcclusionRatio());
 }

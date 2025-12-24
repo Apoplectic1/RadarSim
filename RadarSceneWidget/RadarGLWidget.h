@@ -2,7 +2,7 @@
 #pragma once
 
 #include <QOpenGLWidget>
-#include <QOpenGLFunctions_4_3_Core>
+#include <QOpenGLFunctions_4_5_Core>
 #include <QOpenGLContext>
 #include <QMouseEvent>
 #include <QWheelEvent>
@@ -17,7 +17,7 @@
 #include "WireframeTargetController.h"
 #include "RCSCompute/RCSCompute.h"
 
-class RadarGLWidget : public QOpenGLWidget, protected QOpenGLFunctions_4_3_Core {
+class RadarGLWidget : public QOpenGLWidget, protected QOpenGLFunctions_4_5_Core {
     Q_OBJECT
 
 public:

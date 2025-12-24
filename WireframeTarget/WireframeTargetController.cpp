@@ -120,6 +120,12 @@ float WireframeTargetController::getScale() const {
     return scale_;
 }
 
+float WireframeTargetController::getBoundingRadius() const {
+    // Approximate bounding sphere radius based on scale
+    // For most shapes, scale is a reasonable approximation
+    return scale_ * 1.0f;
+}
+
 void WireframeTargetController::setColor(const QVector3D& color) {
     color_ = color;
     if (target_) {

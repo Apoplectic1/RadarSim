@@ -2,6 +2,7 @@
 #include "BVHBuilder.h"
 #include <algorithm>
 #include <limits>
+#include <QDebug>
 
 namespace RCS {
 
@@ -68,6 +69,26 @@ void BVHBuilder::build(const std::vector<float>& vertices,
 
     // Build recursively
     buildRecursive(triIndices, 0, numTriangles, 0);
+
+    // IMPORTANT: Reorder triangles to match the BVH's sorted order
+    // The BVH leaf nodes store indices into triIndices (which got partitioned/sorted)
+    // The GPU shader expects triangles in this sorted order
+    std::vector<Triangle> sortedTriangles(numTriangles);
+    std::vector<AABB> sortedBounds(numTriangles);
+    for (int i = 0; i < numTriangles; i++) {
+        sortedTriangles[i] = triangles_[triIndices[i]];
+        sortedBounds[i] = triangleBounds_[triIndices[i]];
+    }
+    triangles_ = std::move(sortedTriangles);
+    triangleBounds_ = std::move(sortedBounds);
+
+    // Debug: Log BVH bounds
+    if (!nodes_.empty()) {
+        const auto& root = nodes_[0];
+        qDebug() << "BVH built:" << nodes_.size() << "nodes," << triangles_.size() << "triangles";
+        qDebug() << "  Root bounds min:" << QVector3D(root.boundsMin.x(), root.boundsMin.y(), root.boundsMin.z());
+        qDebug() << "  Root bounds max:" << QVector3D(root.boundsMax.x(), root.boundsMax.y(), root.boundsMax.z());
+    }
 }
 
 int BVHBuilder::buildRecursive(std::vector<int>& triIndices, int start, int end, int depth) {

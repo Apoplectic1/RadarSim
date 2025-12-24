@@ -120,6 +120,13 @@ void RadarGLWidget::initializeGL() {
 			qDebug() << "RCSCompute initialized successfully";
 			rcsCompute_->setSphereRadius(radius_);
 		}
+
+		// Force beam geometry creation with initial position
+		if (beamController_) {
+			QVector3D initialPos = sphericalToCartesian(radius_, theta_, phi_);
+			beamController_->updateBeamPosition(initialPos);
+			beamController_->rebuildBeamGeometry();
+		}
 	}
 	catch (const std::exception& e) {
 		qCritical() << "Exception during component initialization:" << e.what();
@@ -138,14 +145,11 @@ void RadarGLWidget::resizeGL(int w, int h) {
 void RadarGLWidget::paintGL() {
 	qDebug() << "RadarGLWidget::paintGL starting";
 
-	// Re‐generate beam geometry now that we have a current context
-	if (beamDirty_) {
-		updateBeamPosition();
-		beamDirty_ = false;
-
-		// GPU: re-upload the new geometry into your VAO/VBO/EBO
-		beamController_->rebuildBeamGeometry();
-	}
+	// Always update beam position and geometry every frame
+	// This ensures the beam is always in sync with current state
+	updateBeamPosition();
+	beamController_->rebuildBeamGeometry();
+	beamDirty_ = false;
 
 	// Rebuild wireframe geometry if type changed
 	if (wireframeController_) {
@@ -247,6 +251,19 @@ void RadarGLWidget::paintGL() {
 
 		if (beamController_) {
 			qDebug() << "  Rendering beam...";
+
+			// Pass GPU shadow map from RCS compute to beam for ray-traced shadow
+			if (rcsCompute_ && rcsCompute_->hasShadowMap() && wireframeController_ && wireframeController_->isVisible()) {
+				QVector3D radarPos = sphericalToCartesian(radius_, theta_, phi_);
+				beamController_->setGPUShadowMap(rcsCompute_->getShadowMapTexture());
+				beamController_->setGPUShadowEnabled(true);
+				beamController_->setBeamAxis(-radarPos.normalized());  // Toward origin
+				beamController_->setBeamWidthRadians(rcsCompute_->getBeamWidthRadians());
+				beamController_->setNumRings(rcsCompute_->getNumRings());
+			} else {
+				beamController_->setGPUShadowEnabled(false);
+			}
+
 			beamController_->render(projectionMatrix, viewMatrix, modelMatrix);
 		}
 

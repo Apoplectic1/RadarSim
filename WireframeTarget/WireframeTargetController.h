@@ -36,6 +36,7 @@ public:
 
     void setScale(float scale);
     float getScale() const;
+    float getBoundingRadius() const;  // Approximate bounding sphere radius
 
     // Appearance
     void setColor(const QVector3D& color);

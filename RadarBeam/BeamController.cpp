@@ -41,7 +41,11 @@ void BeamController::initialize() {
 }
 
 void BeamController::render(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model) {
-    if (radarBeam_) {
+    if (radarBeam_ && showBeam_) {
+        // Ensure geometry exists before rendering
+        if (!currentPosition_.isNull() && radarBeam_->getVertices().empty()) {
+            radarBeam_->update(currentPosition_);
+        }
         radarBeam_->render(nullptr, projection, view, model);
     }
 }
@@ -119,29 +123,13 @@ void BeamController::setSphereRadius(float radius) {
 }
 
 void BeamController::setBeamVisible(bool visible) {
-    qDebug() << "=== BeamController::setBeamVisible called ===";
-    qDebug() << "  Requested visible:" << visible;
-    qDebug() << "  Current showBeam_:" << showBeam_;
-
     if (showBeam_ != visible) {
         showBeam_ = visible;
-        qDebug() << "  Changed showBeam_ to:" << showBeam_;
-
         if (radarBeam_) {
             radarBeam_->setVisible(visible);
-            qDebug() << "  Called radarBeam_->setVisible(" << visible << ")";
-            qDebug() << "  radarBeam_->isVisible() now returns:" << radarBeam_->isVisible();
         }
-        else {
-            qDebug() << "  ERROR: radarBeam_ is nullptr!";
-        }
-
         emit beamVisibilityChanged(visible);
     }
-    else {
-        qDebug() << "  No change - already at" << visible;
-    }
-    qDebug() << "===========================================";
 }
 
 bool BeamController::isBeamVisible() const {
@@ -152,6 +140,36 @@ void BeamController::updateBeamPosition(const QVector3D& position) {
     currentPosition_ = position;  // Store position for beam recreation
     if (radarBeam_) {
         radarBeam_->update(position);
+    }
+}
+
+void BeamController::setGPUShadowMap(GLuint textureId) {
+    if (radarBeam_) {
+        radarBeam_->setGPUShadowMap(textureId);
+    }
+}
+
+void BeamController::setGPUShadowEnabled(bool enabled) {
+    if (radarBeam_) {
+        radarBeam_->setGPUShadowEnabled(enabled);
+    }
+}
+
+void BeamController::setBeamAxis(const QVector3D& axis) {
+    if (radarBeam_) {
+        radarBeam_->setBeamAxis(axis);
+    }
+}
+
+void BeamController::setBeamWidthRadians(float radians) {
+    if (radarBeam_) {
+        radarBeam_->setBeamWidthRadians(radians);
+    }
+}
+
+void BeamController::setNumRings(int numRings) {
+    if (radarBeam_) {
+        radarBeam_->setNumRings(numRings);
     }
 }
 

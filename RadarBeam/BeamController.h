@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QVector3D>
+#include <QOpenGLFunctions>
 #include "RadarBeam.h"
 
 class BeamController : public QObject {
@@ -41,6 +42,13 @@ public:
     void updateBeamPosition(const QVector3D& position);
     void setSphereRadius(float radius);
     float getSphereRadius() const { return sphereRadius_; }
+
+    // GPU shadow map (from RCS compute)
+    void setGPUShadowMap(GLuint textureId);
+    void setGPUShadowEnabled(bool enabled);
+    void setBeamAxis(const QVector3D& axis);
+    void setBeamWidthRadians(float radians);
+    void setNumRings(int numRings);
 
     // Access beam
     RadarBeam* getBeam() const { return radarBeam_; }

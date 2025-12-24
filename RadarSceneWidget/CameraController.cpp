@@ -1,14 +1,19 @@
-//// CameraController.cpp
+// CameraController.cpp
 #include "CameraController.h"
 #include <QDebug>
+#include <cmath>
 
 CameraController::CameraController(QObject* parent)
     : QObject(parent),
+    distance_(300.0f),
+    azimuth_(0.0f),
+    elevation_(0.4f),  // ~23 degrees - slight overhead view
+    focusPoint_(0.0f, 0.0f, 0.0f),
     inertiaTimer_(new QTimer(this)),
     inertiaEnabled_(false)
 {
-    // Initialize matrices
-    updateMatrices();
+    // Initialize view matrix
+    updateViewMatrix();
 
     // Connect inertia timer
     connect(inertiaTimer_, &QTimer::timeout, this, &CameraController::onInertiaTimerTimeout);
@@ -27,35 +32,39 @@ QMatrix4x4 CameraController::getViewMatrix() const {
     return viewMatrix_;
 }
 
-QMatrix4x4 CameraController::getModelMatrix() const {
-    return modelMatrix_;
-}
-
 void CameraController::resetView() {
     // Stop inertia
     stopInertia();
 
-    // Reset transform parameters
-    rotation_ = QQuaternion();
-    translation_ = QVector3D(0, 0, 0);
-    zoomFactor_ = 1.0f;
+    // Reset orbit camera to default position
+    distance_ = 300.0f;
+    azimuth_ = 0.0f;
+    elevation_ = 0.4f;  // ~23 degrees
+    focusPoint_ = QVector3D(0.0f, 0.0f, 0.0f);
 
-    // Update matrices
-    updateMatrices();
+    // Update view matrix
+    updateViewMatrix();
 
     emit viewChanged();
 }
 
 void CameraController::pan(const QPoint& delta) {
-    // Scale factor for panning (adjust as needed)
-    float panScale = 0.5f / zoomFactor_;
+    // Scale factor for panning based on distance (further = faster pan)
+    float panScale = distance_ * 0.002f;
 
-    // Update translation (invert Y for natural panning)
-    translation_.setX(translation_.x() + delta.x() * panScale);
-    translation_.setY(translation_.y() - delta.y() * panScale);
+    // Calculate camera right and up vectors for panning in screen space
+    // Camera looks from cameraPosition_ toward focusPoint_
+    QVector3D forward = (focusPoint_ - cameraPosition_).normalized();
+    QVector3D worldUp(0.0f, 0.0f, 1.0f);  // Z-up
+    QVector3D right = QVector3D::crossProduct(forward, worldUp).normalized();
+    QVector3D up = QVector3D::crossProduct(right, forward).normalized();
 
-    // Update matrices
-    updateMatrices();
+    // Move focus point in screen space
+    focusPoint_ -= right * delta.x() * panScale;
+    focusPoint_ += up * delta.y() * panScale;
+
+    // Update view matrix
+    updateViewMatrix();
 
     emit viewChanged();
 }
@@ -75,6 +84,7 @@ void CameraController::setInertiaEnabled(bool enabled) {
 
 void CameraController::mousePressEvent(QMouseEvent* event) {
     if (event->button() == Qt::LeftButton) {
+        // Left button for scene rotation (orbit camera)
         // Stop any ongoing inertia
         stopInertia();
 
@@ -84,14 +94,13 @@ void CameraController::mousePressEvent(QMouseEvent* event) {
         // Reset frame timer for velocity calculation
         frameTimer_.restart();
     }
-    else if (event->button() == Qt::RightButton) {
-        // Right button for panning
+    else if (event->button() == Qt::MiddleButton) {
+        // Middle button for panning (drag scene left/right/up/down)
         isPanning_ = true;
         panStartPos_ = event->pos();
     }
-    else if (event->button() == Qt::MiddleButton) {
-        // Middle button to reset view
-        resetView();
+    else if (event->button() == Qt::RightButton) {
+        // Right button reserved for context menu (handled by widget)
     }
 }
 
@@ -112,31 +121,28 @@ void CameraController::mouseMoveEvent(QMouseEvent* event) {
             return;
         }
 
-        // Convert to rotation (scale down the rotation speed)
-        float rotationSpeed = 0.3f;
-        float angleX = delta.x() * rotationSpeed;
-        float angleY = delta.y() * rotationSpeed;
+        // Convert mouse delta to orbit angle changes (radians per pixel)
+        float rotationSpeed = 0.005f;
+        float dAzimuth = -delta.x() * rotationSpeed;    // Horizontal drag = orbit left/right
+        float dElevation = delta.y() * rotationSpeed;   // Vertical drag = orbit up/down
 
-        // Create combined rotation axis and angle
-        QVector3D axis(angleY, angleX, 0.0f);
-        float angle = axis.length();
-        axis.normalize();
+        // Update orbit angles
+        azimuth_ += dAzimuth;
+        elevation_ += dElevation;
 
-        // Store axis and velocity for inertia calculation
-        rotationAxis_ = axis;
-        rotationVelocity_ = angle / dt * 0.1f; // Scale down for smoother inertia
+        // Clamp elevation to avoid gimbal lock at poles
+        const float maxElevation = 1.5f;  // ~85 degrees
+        elevation_ = qBound(-maxElevation, elevation_, maxElevation);
 
-        // Create quaternion from axis and angle
-        QQuaternion newRotation = QQuaternion::fromAxisAndAngle(axis, angle);
-
-        // Update rotation
-        rotation_ = newRotation * rotation_;
+        // Store velocities for inertia calculation
+        azimuthVelocity_ = dAzimuth / dt * 0.3f;    // Scale down for smoother inertia
+        elevationVelocity_ = dElevation / dt * 0.3f;
 
         // Store current mouse position for next frame
         lastMousePos_ = event->pos();
 
-        // Update matrices
-        updateMatrices();
+        // Update view matrix
+        updateViewMatrix();
 
         emit viewChanged();
     }
@@ -153,33 +159,37 @@ void CameraController::mouseMoveEvent(QMouseEvent* event) {
 }
 
 void CameraController::mouseReleaseEvent(QMouseEvent* event) {
-    if (event->button() == Qt::LeftButton && isDragging_) {
-        isDragging_ = false;
+    if (event->button() == Qt::LeftButton) {
+        if (isDragging_) {
+            isDragging_ = false;
 
-        // Only start inertia if it's enabled and velocity is significant
-        if (inertiaEnabled_ && rotationVelocity_ > 0.2f) {
-            startInertia(rotationAxis_, rotationVelocity_);
+            // Only start inertia if it's enabled and velocity is significant
+            float totalVelocity = std::sqrt(azimuthVelocity_ * azimuthVelocity_ +
+                                             elevationVelocity_ * elevationVelocity_);
+            if (inertiaEnabled_ && totalVelocity > 0.001f) {
+                startInertia(azimuthVelocity_, elevationVelocity_);
+            }
         }
     }
-    else if (event->button() == Qt::RightButton) {
+    else if (event->button() == Qt::MiddleButton) {
         isPanning_ = false;
     }
 }
 
 void CameraController::wheelEvent(QWheelEvent* event) {
-    // Calculate zoom change based on wheel delta
-    float zoomSpeed = 0.001f;
-    float zoomChange = event->angleDelta().y() * zoomSpeed;
+    // Zoom changes camera distance (scroll up = zoom in = closer)
+    float zoomSpeed = 0.5f;
+    float distanceChange = -event->angleDelta().y() * zoomSpeed;
 
-    // Update zoom factor with limits
-    float minZoom = 0.5f;
-    float maxZoom = 2.0f;
+    // Update distance with limits
+    float minDistance = 50.0f;
+    float maxDistance = 1000.0f;
 
-    zoomFactor_ += zoomChange;
-    zoomFactor_ = qBound(minZoom, zoomFactor_, maxZoom);
+    distance_ += distanceChange;
+    distance_ = qBound(minDistance, distance_, maxDistance);
 
-    // Update matrices
-    updateMatrices();
+    // Update view matrix
+    updateViewMatrix();
 
     emit viewChanged();
 }
@@ -191,20 +201,24 @@ void CameraController::mouseDoubleClickEvent(QMouseEvent* event) {
 }
 
 void CameraController::onInertiaTimerTimeout() {
-    // Apply rotation based on velocity and time
-    if (rotationVelocity_ > 0.05f) {
-        // Apply rotation based on current velocity
-        QQuaternion inertiaRotation = QQuaternion::fromAxisAndAngle(
-            rotationAxis_, rotationVelocity_);
+    // Check if velocities are still significant
+    float totalVelocity = std::sqrt(azimuthVelocity_ * azimuthVelocity_ +
+                                     elevationVelocity_ * elevationVelocity_);
+    if (totalVelocity > 0.0001f) {
+        // Apply orbit velocity
+        azimuth_ += azimuthVelocity_;
+        elevation_ += elevationVelocity_;
 
-        // Update the rotation
-        rotation_ = inertiaRotation * rotation_;
+        // Clamp elevation to avoid gimbal lock
+        const float maxElevation = 1.5f;
+        elevation_ = qBound(-maxElevation, elevation_, maxElevation);
 
-        // Decay the velocity
-        rotationVelocity_ *= rotationDecay_;
+        // Decay the velocities
+        azimuthVelocity_ *= velocityDecay_;
+        elevationVelocity_ *= velocityDecay_;
 
-        // Update matrices
-        updateMatrices();
+        // Update view matrix
+        updateViewMatrix();
 
         emit viewChanged();
     }
@@ -214,9 +228,9 @@ void CameraController::onInertiaTimerTimeout() {
     }
 }
 
-void CameraController::startInertia(QVector3D axis, float velocity) {
-    rotationAxis_ = axis.normalized();
-    rotationVelocity_ = velocity;
+void CameraController::startInertia(float azimuthVel, float elevationVel) {
+    azimuthVelocity_ = azimuthVel;
+    elevationVelocity_ = elevationVel;
 
     // Start timer if not already running
     if (!inertiaTimer_->isActive()) {
@@ -226,19 +240,23 @@ void CameraController::startInertia(QVector3D axis, float velocity) {
 
 void CameraController::stopInertia() {
     inertiaTimer_->stop();
-    rotationVelocity_ = 0.0f;
+    azimuthVelocity_ = 0.0f;
+    elevationVelocity_ = 0.0f;
 }
 
-void CameraController::updateMatrices() {
-    // Update view matrix
-    viewMatrix_.setToIdentity();
-    viewMatrix_.translate(0, 0, -300.0f); // Fixed distance camera
+void CameraController::updateViewMatrix() {
+    // Compute camera position from spherical coordinates
+    // Using Z-up convention (mathematical standard)
+    float x = distance_ * std::cos(elevation_) * std::cos(azimuth_);
+    float y = distance_ * std::cos(elevation_) * std::sin(azimuth_);
+    float z = distance_ * std::sin(elevation_);
+    cameraPosition_ = QVector3D(x, y, z) + focusPoint_;
 
-    // Update model matrix
+    // Build view matrix using lookAt
+    // Camera looks at focus point with Z-up
+    viewMatrix_.setToIdentity();
+    viewMatrix_.lookAt(cameraPosition_, focusPoint_, QVector3D(0.0f, 0.0f, 1.0f));
+
+    // Model matrix is always identity - all scene rotation is in view matrix
     modelMatrix_.setToIdentity();
-    modelMatrix_.scale(zoomFactor_);
-    modelMatrix_.translate(translation_);
-    modelMatrix_.rotate(rotation_);
-    // Convert from Z-up (mathematical convention) to Y-up (OpenGL display)
-    modelMatrix_.rotate(-90.0f, 1.0f, 0.0f, 0.0f);
 }

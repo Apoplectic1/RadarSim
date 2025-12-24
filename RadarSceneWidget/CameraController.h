@@ -3,7 +3,6 @@
 
 #include <QObject>
 #include <QMatrix4x4>
-#include <QQuaternion>
 #include <QVector3D>
 #include <QMouseEvent>
 #include <QWheelEvent>
@@ -19,7 +18,7 @@ public:
 
     // View/model transformation
     QMatrix4x4 getViewMatrix() const;
-    QMatrix4x4 getModelMatrix() const;
+    QMatrix4x4 getModelMatrix() const { return modelMatrix_; }  // Always identity
 
     // Camera control
     void resetView();
@@ -44,14 +43,16 @@ private slots:
     void onInertiaTimerTimeout();
 
 private:
-    // View parameters
-    QQuaternion rotation_ = QQuaternion();
-    QVector3D translation_ = QVector3D(0, 0, 0);
-    float zoomFactor_ = 1.0f;
+    // Spherical orbit camera parameters
+    float distance_ = 300.0f;           // Distance from focus point
+    float azimuth_ = 0.0f;              // Horizontal angle (radians)
+    float elevation_ = 0.4f;            // Vertical angle (radians), ~23 degrees
+    QVector3D focusPoint_ = QVector3D(0.0f, 0.0f, 0.0f);
+    QVector3D cameraPosition_;          // Computed from spherical coords
 
     // View matrices
     QMatrix4x4 viewMatrix_;
-    QMatrix4x4 modelMatrix_;
+    QMatrix4x4 modelMatrix_;            // Always identity
 
     // Mouse tracking
     QPoint lastMousePos_;
@@ -59,16 +60,16 @@ private:
     bool isPanning_ = false;
     QPoint panStartPos_;
 
-    // Inertia
+    // Inertia for spherical coordinates
     QTimer* inertiaTimer_ = nullptr;
     QElapsedTimer frameTimer_;
-    QVector3D rotationAxis_;
-    float rotationVelocity_ = 0.0f;
-    float rotationDecay_ = 0.95f;
+    float azimuthVelocity_ = 0.0f;
+    float elevationVelocity_ = 0.0f;
+    float velocityDecay_ = 0.95f;
     bool inertiaEnabled_ = false;
 
     // Helper methods
-    void startInertia(QVector3D axis, float velocity);
+    void startInertia(float azimuthVel, float elevationVel);
     void stopInertia();
-    void updateMatrices();
+    void updateViewMatrix();
 };

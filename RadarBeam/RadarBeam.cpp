@@ -30,45 +30,112 @@ RadarBeam::RadarBeam(float sphereRadius, float beamWidthDegrees)
 
         out vec3 FragPos;
         out vec3 Normal;
+        out vec3 LocalPos;  // Untransformed position for shadow lookup
 
         void main() {
+            LocalPos = aPos;  // Pass untransformed position
             FragPos = vec3(model * vec4(aPos, 1.0));
             Normal = mat3(transpose(inverse(model))) * aNormal;
             gl_Position = projection * view * model * vec4(aPos, 1.0);
         }
     )";
 
-	// Fragment shader for beam
+	// Fragment shader for beam with GPU shadow map lookup
 	beamFragmentShaderSource = R"(
 		#version 330 core
 		in vec3 FragPos;
 		in vec3 Normal;
+		in vec3 LocalPos;  // Untransformed position for shadow lookup
 
 		uniform vec3 beamColor;
 		uniform float opacity;
 		uniform vec3 viewPos; // Camera position
 
+		// GPU shadow map parameters
+		uniform sampler2D shadowMap;
+		uniform bool gpuShadowEnabled;
+		uniform vec3 radarPos;
+		uniform vec3 beamAxis;
+		uniform float beamWidthRad;
+		uniform int numRings;  // For correct UV mapping
+
 		out vec4 FragColor;
 
+		// Convert LOCAL position to shadow map UV coordinates
+		// Uses untransformed positions to match ray tracing coordinate system
+		vec2 worldToShadowMapUV(vec3 localPos) {
+			vec3 toFrag = normalize(localPos - radarPos);
+
+			// Elevation from beam axis (0 = on axis, beamWidthRad = at edge)
+			float cosElev = dot(toFrag, beamAxis);
+			float elevation = acos(clamp(cosElev, -1.0, 1.0));
+			float elevNorm = elevation / beamWidthRad;  // [0, 1] within beam
+
+			// Azimuth around beam axis
+			vec3 perpComponent = toFrag - beamAxis * cosElev;
+			float perpLen = length(perpComponent);
+
+			if (perpLen < 0.001) return vec2(0.0, elevNorm);
+			perpComponent /= perpLen;
+
+			// Build coordinate frame (same as ray generation)
+			vec3 up = abs(beamAxis.z) < 0.99 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
+			vec3 right = normalize(cross(beamAxis, up));
+			up = normalize(cross(right, beamAxis));
+
+			float azimuth = atan(dot(perpComponent, up), dot(perpComponent, right));
+			// atan returns [-π, π], but ray gen uses [0, 2π)
+			if (azimuth < 0.0) azimuth += 2.0 * 3.14159265;
+			float azNorm = azimuth / (2.0 * 3.14159265);  // [0, 1)
+
+			// Ray ring r has elevation = beamWidthRad * (r + 1) / numRings
+			// So elevNorm = (r + 1) / numRings, and texel Y = r
+			// To map elevNorm to texel Y correctly:
+			// texel Y = elevNorm * numRings - 1
+			// UV.y should give texel Y when multiplied by texture height (numRings)
+			// UV.y = (elevNorm * numRings - 1 + 0.5) / numRings = elevNorm - 0.5/numRings
+			float uvY = elevNorm - 0.5 / float(numRings);
+
+			return vec2(azNorm, uvY);
+		}
+
 		void main() {
+			// GPU shadow map lookup - discard fragments where target blocks the beam
+			// Use LocalPos (untransformed) to match ray tracing coordinate system
+			if (gpuShadowEnabled) {
+				vec2 uv = worldToShadowMapUV(LocalPos);
+				if (uv.y >= 0.0 && uv.y <= 1.0) {
+					float hitDistance = texture(shadowMap, uv).r;
+					// hitDistance < 0 means no hit (ray missed target)
+					// hitDistance > 0 means ray hit target at that distance
+					if (hitDistance > 0.0) {
+						// Calculate fragment's distance from radar
+						float fragDistance = length(LocalPos - radarPos);
+						// Only discard if fragment is behind the hit point
+						if (fragDistance > hitDistance) {
+							discard;
+						}
+					}
+				}
+			}
+
 			// Improved lighting calculation
 			vec3 norm = normalize(Normal);
 			vec3 viewDir = normalize(viewPos - FragPos);
-        
+
 			// Improved Fresnel effect that's more consistent during rotation
-			// Using absolute value of dot product to handle any viewing angle
 			float fresnel = 0.3 + 0.7 * pow(1.0 - abs(dot(norm, viewDir)), 2.0);
-        
+
 			// Add rim lighting for better edge definition
 			float rim = 1.0 - max(dot(norm, viewDir), 0.0);
 			rim = smoothstep(0.4, 0.8, rim);
-        
+
 			// Final color with opacity
 			vec4 finalColor = vec4(beamColor, opacity * (fresnel + rim * 0.3));
-        
+
 			// Ensure a minimum opacity to prevent the beam from disappearing
 			finalColor.a = clamp(finalColor.a, 0.1, 1.0);
-        
+
 			FragColor = finalColor;
 		}
 	)";
@@ -172,9 +239,8 @@ void RadarBeam::initialize() {
 	beamVAO.bind();
 	beamVAO.release();
 
-	// Now create the initial geometry and upload to GPU
-	createBeamGeometry();
-	uploadGeometryToGPU();
+	// Mark geometry as dirty - actual geometry will be created when position is set
+	geometryDirty_ = true;
 }
 
 
@@ -215,25 +281,36 @@ void RadarBeam::update(const QVector3D& radarPosition) {
 
 void RadarBeam::render(QOpenGLShaderProgram* program, const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model) {
 	static int frameCount = 0;
-	bool shouldLog = (++frameCount % 60 == 0); // Log every 60 frames
+	frameCount++;
+	bool shouldLog = (frameCount <= 10) || (frameCount % 60 == 0); // Log first 10 frames and every 60th after
 
 	if (shouldLog) {
-		qDebug() << "RadarBeam::render() called:";
+		qDebug() << "=== RadarBeam::render() frame" << frameCount << "===";
 		qDebug() << "  visible_:" << visible_;
-		qDebug() << "  vertices_.empty():" << vertices_.empty();
+		qDebug() << "  currentRadarPosition_:" << currentRadarPosition_;
+		qDebug() << "  vertices_.size():" << vertices_.size();
 		qDebug() << "  indices_.size():" << indices_.size();
+		qDebug() << "  vboId_:" << vboId_;
+		qDebug() << "  eboId_:" << eboId_;
+		qDebug() << "  beamVAO.isCreated():" << beamVAO.isCreated();
+		qDebug() << "  geometryDirty_:" << geometryDirty_;
+		qDebug() << "  gpuShadowEnabled_:" << gpuShadowEnabled_;
+		qDebug() << "  beamAxis_:" << beamAxis_;
+		qDebug() << "  beamWidthRadians_:" << beamWidthRadians_;
+		qDebug() << "  numRings_:" << numRings_;
+		qDebug() << "  gpuShadowMapTexture_:" << gpuShadowMapTexture_;
 	}
 
 	// Early exit checks
 	if (!visible_ || vertices_.empty()) {
 		if (shouldLog) {
-			qDebug() << "  EARLY EXIT - not rendering";
+			qDebug() << "  >>> EARLY EXIT - visible_:" << visible_ << "vertices_.empty():" << vertices_.empty();
 		}
 		return;
 	}
 
 	if (shouldLog) {
-		qDebug() << "  RENDERING beam";
+		qDebug() << "  >>> WILL RENDER";
 	}
 
 	// Check if OpenGL resources are valid
@@ -277,12 +354,8 @@ void RadarBeam::render(QOpenGLShaderProgram* program, const QMatrix4x4& projecti
 	glDepthFunc(GL_LESS);
 	glDepthMask(GL_FALSE);
 
-	// Use stencil test for shadow volume occlusion
-	// Target render sets stencil > 0 in shadow regions
-	// Only draw beam where stencil == 0 (not in shadow)
-	glEnable(GL_STENCIL_TEST);
-	glStencilFunc(GL_EQUAL, 0, 0xFF);  // Pass only where stencil == 0
-	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);  // Don't modify stencil
+	// No stencil test - shadow occlusion handled via fragment shader cone test
+	glDisable(GL_STENCIL_TEST);
 
 	// Enable face culling - only render front faces of beam cone
 	glEnable(GL_CULL_FACE);
@@ -302,6 +375,20 @@ void RadarBeam::render(QOpenGLShaderProgram* program, const QMatrix4x4& projecti
 	QMatrix4x4 inverseView = view.inverted();
 	QVector3D cameraPos = inverseView.column(3).toVector3D();
 	beamShaderProgram->setUniformValue("viewPos", cameraPos);
+
+	// Set GPU shadow map uniforms
+	beamShaderProgram->setUniformValue("radarPos", currentRadarPosition_);
+	beamShaderProgram->setUniformValue("gpuShadowEnabled", gpuShadowEnabled_);
+	beamShaderProgram->setUniformValue("beamAxis", beamAxis_);
+	beamShaderProgram->setUniformValue("beamWidthRad", beamWidthRadians_);
+	beamShaderProgram->setUniformValue("numRings", numRings_);
+
+	// Bind shadow map texture if enabled
+	if (gpuShadowEnabled_ && gpuShadowMapTexture_ != 0) {
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, gpuShadowMapTexture_);
+		beamShaderProgram->setUniformValue("shadowMap", 0);
+	}
 
 	// Bind VAO and draw
 	beamVAO.bind();
@@ -431,6 +518,26 @@ void RadarBeam::setBeamLength(float length) {
 	beamLengthFactor_ = length;
 	createBeamGeometry();
 	uploadGeometryToGPU();
+}
+
+void RadarBeam::setGPUShadowMap(GLuint textureId) {
+	gpuShadowMapTexture_ = textureId;
+}
+
+void RadarBeam::setGPUShadowEnabled(bool enabled) {
+	gpuShadowEnabled_ = enabled;
+}
+
+void RadarBeam::setBeamAxis(const QVector3D& axis) {
+	beamAxis_ = axis.normalized();
+}
+
+void RadarBeam::setBeamWidthRadians(float radians) {
+	beamWidthRadians_ = radians;
+}
+
+void RadarBeam::setNumRings(int numRings) {
+	numRings_ = numRings;
 }
 
 QVector3D RadarBeam::calculateBeamDirection(const QVector3D& radarPosition) {

@@ -252,17 +252,18 @@ Without this connection, timer-based animations will appear stuttery because `up
 
 ```
 RadarGLWidget::paintGL()
-  ├── Clear buffers (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
+  ├── Clear buffers (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
   ├── SphereRenderer::render(projection, view, model)
   ├── ModelManager::render(projection, view, model)
-  ├── WireframeTargetController::render(projection, view, model)  # Solid + shadow volume
-  │   └── (leaves stencil test enabled for beam occlusion)
-  ├── RCSCompute::compute()                                       # GPU ray tracing
-  ├── BeamController::render(projection, view, model)             # Semi-transparent, stencil-tested
+  ├── WireframeTargetController::render(projection, view, model)  # Solid target
+  ├── RCSCompute::compute()                                       # GPU ray tracing + shadow map
+  │   └── Generates shadow map texture from ray hit distances
+  ├── BeamController::render(projection, view, model)             # Semi-transparent, GPU shadow
+  │   └── Fragment shader samples shadow map, discards behind hits
   └── (implicit buffer swap)
 ```
 
-Note: Solid targets render before beam so they are visible through semi-transparent beam. Target rendering explicitly sets depth test, disables blending, and enables face culling for correct opaque solid rendering. RCSCompute runs GPU ray tracing to calculate occlusion ratio for RCS calculations.
+Note: Solid targets render before beam so they are visible through semi-transparent beam. Target rendering explicitly sets depth test, disables blending, and enables face culling for correct opaque solid rendering. RCSCompute generates both RCS data and shadow map texture which BeamController uses for accurate beam occlusion.
 
 ## Common Modifications
 
@@ -365,74 +366,68 @@ No external libraries beyond Qt - all math via `QMatrix4x4`, `QVector3D`, `QQuat
 
 ## Shadow Systems
 
-The project has two distinct shadow/occlusion systems:
+### GPU Ray-Traced Shadow (Primary - Working)
 
-| System | Purpose | Technology | Output |
-|--------|---------|------------|--------|
-| **Stencil Shadow Volumes** | Visual beam occlusion | Z-fail stencil algorithm | Beam hidden behind target |
-| **RCS Ray Tracing** | Numerical RCS computation | GPU compute shaders + BVH | Hit count, occlusion ratio |
+The beam uses GPU ray-traced shadows from the RCSCompute module. This provides accurate shadow visualization that matches the RCS calculation since both use the same rays.
 
-### Stencil Shadow Volumes (Visual Occlusion)
+**How It Works:**
+1. RCSCompute generates 10,000 rays in a cone pattern from radar toward target
+2. BVH traversal finds ray-triangle intersections
+3. Shadow map texture (64x157) stores hit distances for each ray
+4. Beam fragment shader samples shadow map and discards fragments behind hit points
 
-Uses the Z-fail (Carmack's Reverse) stencil algorithm to visually occlude the radar beam behind solid targets.
+**Shadow Map Format:**
+- Dimensions: 64 (azimuth) × 157 (elevation rings)
+- Value: Hit distance (positive = hit at distance, -1.0 = miss/no shadow)
+- Fragment shader compares its distance to hit distance to determine visibility
 
-### Current Status
+**Key Implementation Details:**
 
-**Working:**
-- Shadow volume generation from target geometry
-- Beam occlusion through solid targets (beam not visible inside target)
-- Shadow follows radar position changes (azimuth, elevation, radius sliders)
+```cpp
+// In RCSCompute::dispatchShadowMapGeneration()
+// Store hit distance in shadow map
+float hitDistance = hit.hitPoint.w;  // -1 for miss, positive for hit
+imageStore(shadowMap, texCoord, vec4(hitDistance, 0.0, 0.0, 1.0));
 
-**Not Working:**
-- Shadow does NOT follow whole-scene rotations (mouse drag rotation)
-- Depth cap disabled due to visibility issues
-
-### Implementation Details
-
-**Components:**
-- **Shadow Volume Generation** (`WireframeTarget::generateShadowVolume`): For each front-facing triangle of the target, extrudes vertices away from the radar position to create a closed shadow volume (front cap, back cap, side walls).
-- **Depth Cap** (DISABLED): Was intended to provide far-plane depth values for Z-fail algorithm, but caused target/beam to become invisible. Code remains but is commented out.
-- **Stencil Rendering** (`renderShadowVolume`): Two-pass rendering with face culling to increment/decrement stencil buffer.
-
-**Render Flow:**
-```
-WireframeTarget::render()
-  ├── Pass 1: Render solid target (color + depth)
-  ├── Pass 2: Shadow volume (stencil operations)
-  │   ├── Generate shadow volume in VIEW space
-  │   ├── Render back faces (stencil increment on depth fail)
-  │   ├── Render front faces (stencil decrement on depth fail)
-  │   └── Leave stencil test enabled for beam
-  └── Beam renders with stencil test (GL_EQUAL, 0)
+// IMPORTANT: Unbind image after compute to allow texture sampling
+glBindImageTexture(0, 0, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R32F);
 ```
 
-**Coordinate Space:**
-- Shadow volume generated in VIEW space (`view * combinedModel` applied to vertices)
-- Radar position also transformed to view space
-- Rendered with projection only (view/model identity since already in view space)
+```glsl
+// In RadarBeam fragment shader
+if (gpuShadowEnabled) {
+    vec2 uv = worldToShadowMapUV(LocalPos);
+    if (uv.y >= 0.0 && uv.y <= 1.0) {
+        float hitDistance = texture(shadowMap, uv).r;
+        if (hitDistance > 0.0) {
+            float fragDistance = length(LocalPos - radarPos);
+            if (fragDistance > hitDistance) {
+                discard;  // Fragment is behind hit point
+            }
+        }
+    }
+}
+```
 
-### Known Issues
-
-1. **Scene Rotation**: Shadow does not follow when the whole scene is rotated via mouse drag. The coordinate space transformation between radar position and shadow volume is not correctly accounting for scene rotation in all cases.
-
-2. **Depth Cap Disabled**: The depth cap sphere (needed for proper Z-fail algorithm) causes the target and beam to become invisible. Multiple approaches tried (different culling modes, render order) but none worked correctly. Without the depth cap, the Z-fail algorithm may not work correctly for all viewing angles.
-
-3. **Z-Fail Limitations**: The Z-fail algorithm requires proper far-plane geometry (depth cap) to work correctly. Without it, shadow may disappear or behave incorrectly when camera is inside the shadow volume.
-
-### Files Involved
+**Files Involved:**
 
 | File | Shadow-Related Code |
 |------|---------------------|
-| `WireframeTarget.h` | Shadow VAO/VBO/EBO, depth cap resources, method declarations |
-| `WireframeTarget.cpp` | `generateShadowVolume()`, `renderShadowVolume()`, `generateDepthCap()`, `renderDepthCap()` (disabled), `setupShadowShaders()` |
-| `RadarBeam.cpp` | Stencil test in `render()` method |
-| `RadarGLWidget.cpp` | Clears stencil buffer, passes radar position and sphere radius |
+| `RCSCompute/RCSCompute.cpp` | Shadow map texture, compute shader, `dispatchShadowMapGeneration()` |
+| `RCSCompute/RCSCompute.h` | `getShadowMapTexture()`, `hasShadowMap()`, `shadowMapReady_` flag |
+| `RadarBeam/RadarBeam.cpp` | Fragment shader UV calculation, distance comparison |
+| `RadarBeam/BeamController.cpp` | Pass-through methods for shadow map parameters |
+| `RadarSceneWidget/RadarGLWidget.cpp` | Connects RCSCompute shadow map to BeamController |
 
-### Future Work (Stencil Shadows)
+**Critical Notes:**
+- Must unbind image texture after compute shader writes, before fragment shader samples
+- Shadow map initialized to -1.0 (no hit) to show beam before first compute
+- `shadowMapReady_` flag prevents using shadow before first compute completes
+- Uses `LocalPos` (untransformed vertex position) for UV calculation to match ray coordinates
 
-1. **Fix scene rotation tracking** - Investigate why shadow doesn't follow mouse-drag scene rotation
-2. **Fix depth cap** - Resolve visibility issues so Z-fail algorithm works correctly
-3. **Consider Z-pass alternative** - Z-pass algorithm doesn't need depth cap but fails when camera is inside shadow
+### Stencil Shadow Volumes (Legacy - Disabled)
+
+The old stencil-based shadow volume system is still in the codebase but not actively used. It had issues with scene rotation and depth cap rendering.
 
 ### RCS Ray Tracing Future Work
 
@@ -489,15 +484,33 @@ void RadarSim::onTargetPosXChanged(int value) {
 2. Mixed memory management (raw `new`/`delete` and `std::shared_ptr`)
 3. ModelManager intersection testing is placeholder
 4. No unit test coverage
-5. Shadow volume scene rotation has edge cases (see Shadow Systems section)
-6. Excessive qDebug() logging in paintGL() should be reduced for release
-7. RCS ray tracing only outputs to debug console (no UI display)
-8. RCS contribution calculation not yet implemented (placeholder in HitResult)
-9. Ray visualization for debugging not implemented
-10. OpenGL 4.3 required - no fallback for older hardware
+5. Excessive qDebug() logging in paintGL() should be reduced for release
+6. RCS ray tracing only outputs to debug console (no UI display)
+7. RCS contribution calculation not yet implemented (placeholder in HitResult)
+8. Ray visualization for debugging not implemented
+9. OpenGL 4.3 required - no fallback for older hardware
+10. Legacy stencil shadow volume code remains in WireframeTarget (disabled, could be removed)
+
+## Mouse Controls
+
+The 3D scene uses orbit camera controls via `CameraController`:
+
+| Button | Action |
+|--------|--------|
+| **Left Mouse** | Rotate/orbit the scene (drag to rotate view around focus point) |
+| **Middle Mouse** | Pan the scene (drag to move view left/right/up/down) |
+| **Scroll Wheel** | Zoom in/out (changes camera distance) |
+| **Left Double-Click** | Reset view to default position |
+
+**Implementation Details** (`CameraController.cpp`):
+- Orbit uses spherical coordinates (azimuth, elevation) around focus point
+- Pan moves the focus point in screen-space aligned directions
+- Inertia can be enabled for smooth rotation continuation after mouse release
+- Elevation clamped to ±85° to avoid gimbal lock
 
 ## Coordinate System
 
+- **World Coordinates**: Z-up (mathematical convention)
 - Spherical coordinates: (radius, theta, phi)
   - `theta`: azimuth angle (horizontal rotation)
   - `phi`: elevation angle (vertical rotation)

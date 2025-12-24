@@ -245,6 +245,8 @@ void WireframeTarget::render(const QMatrix4x4& projection, const QMatrix4x4& vie
     QMatrix4x4 combinedModel = sceneModel * localModel;
 
     // === Pass 0: Depth cap for Z-fail algorithm ===
+    // DISABLED: Replaced by fragment shader shadow cone test in RadarBeam
+#if 0
     // Renders a sphere at the scene boundary to depth buffer only.
     // This provides depth values where the visible sphere would be, even when hidden.
     // The depth cap MUST be at the SAME radius as the scene sphere - if it's larger,
@@ -265,6 +267,7 @@ void WireframeTarget::render(const QMatrix4x4& projection, const QMatrix4x4& vie
         QMatrix4x4 viewSceneModel = view * sceneModel;
         renderDepthCap(projection, viewSceneModel);
     }
+#endif
 
     // === Pass 1: Render visible surface with color ===
     glEnable(GL_DEPTH_TEST);
@@ -291,6 +294,8 @@ void WireframeTarget::render(const QMatrix4x4& projection, const QMatrix4x4& vie
     shaderProgram_->release();
 
     // === Pass 2: Shadow volume using stencil (Z-fail / Carmack's Reverse) ===
+    // DISABLED: Replaced by fragment shader shadow cone test in RadarBeam
+#if 0
     if (!radarPosition.isNull()) {
         // Generate shadow volume in WORLD space (using localModel only)
         // - radarPosition is already in world space (from sphericalToCartesian)
@@ -332,8 +337,13 @@ void WireframeTarget::render(const QMatrix4x4& projection, const QMatrix4x4& vie
             glStencilFunc(GL_EQUAL, 0, 0xFF);  // Only draw where stencil == 0
         }
     }
+#endif
 
     glDisable(GL_CULL_FACE);
+
+    // Mark radarPosition and sphereRadius as unused (shadow now handled in beam fragment shader)
+    (void)radarPosition;
+    (void)sphereRadius;
 }
 
 QMatrix4x4 WireframeTarget::buildModelMatrix() const {

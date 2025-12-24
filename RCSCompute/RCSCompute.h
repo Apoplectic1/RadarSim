@@ -2,7 +2,7 @@
 #pragma once
 
 #include <QObject>
-#include <QOpenGLFunctions_4_3_Core>
+#include <QOpenGLFunctions_4_5_Core>
 #include <QOpenGLShaderProgram>
 #include <QVector3D>
 #include <QMatrix4x4>
@@ -14,7 +14,7 @@
 
 namespace RCS {
 
-class RCSCompute : public QObject, protected QOpenGLFunctions_4_3_Core {
+class RCSCompute : public QObject, protected QOpenGLFunctions_4_5_Core {
     Q_OBJECT
 
 public:
@@ -44,9 +44,16 @@ public:
     int getHitCount() const { return hitCount_; }
     float getOcclusionRatio() const;
 
+    // Shadow map for beam visualization
+    GLuint getShadowMapTexture() const { return shadowMapTexture_; }
+    bool hasShadowMap() const { return shadowMapTexture_ != 0 && shadowMapReady_; }
+    int getShadowMapResolution() const { return shadowMapResolution_; }
+    float getBeamWidthRadians() const;
+
     // Debug
     void setNumRays(int numRays);
     int getNumRays() const { return numRays_; }
+    int getNumRings() const { return (numRays_ + 63) / 64; }  // 64 rays per ring
 
 signals:
     void computeComplete(int hitCount, float occlusionRatio);
@@ -61,9 +68,15 @@ private:
     GLuint hitBuffer_ = 0;       // SSBO for hit results
     GLuint counterBuffer_ = 0;   // Atomic counter for hit count
 
+    // Shadow map for beam visualization
+    GLuint shadowMapTexture_ = 0;
+    int shadowMapResolution_ = 128;
+    bool shadowMapReady_ = false;  // Set true after first compute() completes
+
     // Compute shaders
     std::unique_ptr<QOpenGLShaderProgram> rayGenShader_;
     std::unique_ptr<QOpenGLShaderProgram> traceShader_;
+    std::unique_ptr<QOpenGLShaderProgram> shadowMapShader_;
 
     // BVH
     BVHBuilder bvhBuilder_;
@@ -85,6 +98,8 @@ private:
     void uploadBVH();
     void dispatchRayGeneration();
     void dispatchTracing();
+    void dispatchShadowMapGeneration();
+    void clearShadowMap();
     void readResults();
 };
 
