@@ -66,6 +66,9 @@ private:
     void setupTargetControls(QFrame* controlsFrame, QVBoxLayout* controlsFrameLayout);
     void setupPhysicsAnalysisTab();
 
+    // UI helper functions
+    void syncSliderSpinBox(QSlider* slider, QSpinBox* spinBox, int value);
+
     // New tab management
     QTabWidget* tabWidget_;
 

@@ -36,9 +36,9 @@ protected:
     // Additional geometry for side lobes
     std::vector<float> sideLobeVertices_;
     std::vector<unsigned int> sideLobeIndices_;
-    QOpenGLVertexArrayObject sideLobeVAO;
-    QOpenGLBuffer sideLobeVBO;
-    QOpenGLBuffer sideLobeEBO;
+    QOpenGLVertexArrayObject sideLobeVAO_;
+    QOpenGLBuffer sideLobeVBO_;
+    QOpenGLBuffer sideLobeEBO_;
 
     virtual void createBeamGeometry() override;
     void createSideLobes();

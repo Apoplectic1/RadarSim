@@ -65,29 +65,29 @@ private:
     bool initialized_ = false;  // Track initialization state
 
     // OpenGL objects
-    QOpenGLShaderProgram* shaderProgram = nullptr;
-    QOpenGLShaderProgram* axesShaderProgram = nullptr;
+    QOpenGLShaderProgram* shaderProgram_ = nullptr;
+    QOpenGLShaderProgram* axesShaderProgram_ = nullptr;
 
     // Sphere geometry
-    QOpenGLVertexArrayObject sphereVAO;
-    QOpenGLBuffer sphereVBO;
-    QOpenGLBuffer sphereEBO;
-    std::vector<float> sphereVertices;
-    std::vector<unsigned int> sphereIndices;
+    QOpenGLVertexArrayObject sphereVAO_;
+    QOpenGLBuffer sphereVBO_;
+    QOpenGLBuffer sphereEBO_;
+    std::vector<float> sphereVertices_;
+    std::vector<unsigned int> sphereIndices_;
 
     // Grid lines geometry
-    QOpenGLVertexArrayObject linesVAO;
-    QOpenGLBuffer linesVBO;
-    std::vector<float> latLongLines;
-    int equatorStartIndex = 0;
-    int primeMeridianStartIndex = 0;
-    int latitudeLineCount = 0;
-    int longitudeLineCount = 0;
+    QOpenGLVertexArrayObject linesVAO_;
+    QOpenGLBuffer linesVBO_;
+    std::vector<float> latLongLines_;
+    int equatorStartIndex_ = 0;
+    int primeMeridianStartIndex_ = 0;
+    int latitudeLineCount_ = 0;
+    int longitudeLineCount_ = 0;
 
     // Axes geometry
-    QOpenGLVertexArrayObject axesVAO;
-    QOpenGLBuffer axesVBO;
-    std::vector<float> axesVertices;
+    QOpenGLVertexArrayObject axesVAO_;
+    QOpenGLBuffer axesVBO_;
+    std::vector<float> axesVertices_;
 
     // Properties
     float radius_ = 100.0f;
@@ -96,12 +96,12 @@ private:
     bool showAxes_ = true;
 
     // Shader sources
-    const char* vertexShaderSource;
-    const char* fragmentShaderSource;
-    const char* axesVertexShaderSource;
-    const char* axesFragmentShaderSource;
-    const char* dotVertexShaderSource;
-    const char* dotFragmentShaderSource;
+    const char* vertexShaderSource_;
+    const char* fragmentShaderSource_;
+    const char* axesVertexShaderSource_;
+    const char* axesFragmentShaderSource_;
+    const char* dotVertexShaderSource_;
+    const char* dotFragmentShaderSource_;
 
     // Helper methods
     void createSphere(int latDivisions = 64, int longDivisions = 64);
@@ -109,10 +109,10 @@ private:
     void createAxesLines();
 
     // Radar dot geometry and properties
-    QOpenGLVertexArrayObject dotVAO;
-    QOpenGLBuffer dotVBO;
-    std::vector<float> dotVertices;
-    QOpenGLShaderProgram* dotShaderProgram = nullptr;
+    QOpenGLVertexArrayObject dotVAO_;
+    QOpenGLBuffer dotVBO_;
+    std::vector<float> dotVertices_;
+    QOpenGLShaderProgram* dotShaderProgram_ = nullptr;
     float theta_ = 45.0f;  // Spherical coordinate theta (longitude)
     float phi_ = 45.0f;    // Spherical coordinate phi (latitude)
 

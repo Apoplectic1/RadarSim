@@ -14,11 +14,11 @@ SphereRenderer::SphereRenderer(QObject* parent)
 	theta_(45.0f),
 	phi_(45.0f),
 	// Initialize OpenGL buffer types
-	sphereVBO(QOpenGLBuffer::VertexBuffer),
-	sphereEBO(QOpenGLBuffer::IndexBuffer),
-	linesVBO(QOpenGLBuffer::VertexBuffer),
-	dotVBO(QOpenGLBuffer::VertexBuffer),
-	axesVBO(QOpenGLBuffer::VertexBuffer),
+	sphereVBO_(QOpenGLBuffer::VertexBuffer),
+	sphereEBO_(QOpenGLBuffer::IndexBuffer),
+	linesVBO_(QOpenGLBuffer::VertexBuffer),
+	dotVBO_(QOpenGLBuffer::VertexBuffer),
+	axesVBO_(QOpenGLBuffer::VertexBuffer),
 	// Initialize inertia-related members
 	inertiaTimer_(new QTimer(this)),
 	rotationAxis_(0, 1, 0),
@@ -28,7 +28,7 @@ SphereRenderer::SphereRenderer(QObject* parent)
 	rotation_(QQuaternion())
 {
 	// Initialize main shader sources
-	vertexShaderSource = R"(
+	vertexShaderSource_ = R"(
 		#version 330 core
 		layout (location = 0) in vec3 aPos;
 		layout (location = 1) in vec3 aNormal;
@@ -50,7 +50,7 @@ SphereRenderer::SphereRenderer(QObject* parent)
 		}
 	)";
 
-	fragmentShaderSource = R"(
+	fragmentShaderSource_ = R"(
         #version 330 core
         in vec3 FragColor;
         in vec3 Normal;
@@ -74,7 +74,7 @@ SphereRenderer::SphereRenderer(QObject* parent)
     )";
 
 	// Initialize axes shader sources
-	axesVertexShaderSource = R"(
+	axesVertexShaderSource_ = R"(
         #version 330 core
         layout (location = 0) in vec3 aPos;
         layout (location = 1) in vec3 aColor;
@@ -91,7 +91,7 @@ SphereRenderer::SphereRenderer(QObject* parent)
         }
     )";
 
-	axesFragmentShaderSource = R"(
+	axesFragmentShaderSource_ = R"(
         #version 330 core
         in vec3 ourColor;
         out vec4 FragColor;
@@ -101,7 +101,7 @@ SphereRenderer::SphereRenderer(QObject* parent)
         }
     )";
 
-	dotVertexShaderSource = R"(
+	dotVertexShaderSource_ = R"(
         #version 330 core
         layout (location = 0) in vec3 aPos;
         layout (location = 1) in vec3 aNormal;
@@ -120,7 +120,7 @@ SphereRenderer::SphereRenderer(QObject* parent)
         }
     )";
 
-	dotFragmentShaderSource = R"(
+	dotFragmentShaderSource_ = R"(
         #version 330 core
         in vec3 Normal;
         in vec3 FragPos;
@@ -163,59 +163,59 @@ void SphereRenderer::cleanup() {
 	if (!ctx) {
 		qWarning() << "SphereRenderer::cleanup() - no current context, skipping GL cleanup";
 		// Still clean up shader programs (safe without context)
-		delete shaderProgram;
-		shaderProgram = nullptr;
-		delete axesShaderProgram;
-		axesShaderProgram = nullptr;
-		delete dotShaderProgram;
-		dotShaderProgram = nullptr;
+		delete shaderProgram_;
+		shaderProgram_ = nullptr;
+		delete axesShaderProgram_;
+		axesShaderProgram_ = nullptr;
+		delete dotShaderProgram_;
+		dotShaderProgram_ = nullptr;
 		return;
 	}
 
 	qDebug() << "SphereRenderer::cleanup() - cleaning up OpenGL resources";
 
 	// Clean up sphere resources
-	if (sphereVAO.isCreated()) {
-		sphereVAO.destroy();
+	if (sphereVAO_.isCreated()) {
+		sphereVAO_.destroy();
 	}
-	if (sphereVBO.isCreated()) {
-		sphereVBO.destroy();
+	if (sphereVBO_.isCreated()) {
+		sphereVBO_.destroy();
 	}
-	if (sphereEBO.isCreated()) {
-		sphereEBO.destroy();
+	if (sphereEBO_.isCreated()) {
+		sphereEBO_.destroy();
 	}
 
 	// Clean up grid lines resources
-	if (linesVAO.isCreated()) {
-		linesVAO.destroy();
+	if (linesVAO_.isCreated()) {
+		linesVAO_.destroy();
 	}
-	if (linesVBO.isCreated()) {
-		linesVBO.destroy();
+	if (linesVBO_.isCreated()) {
+		linesVBO_.destroy();
 	}
 
 	// Clean up axes resources
-	if (axesVAO.isCreated()) {
-		axesVAO.destroy();
+	if (axesVAO_.isCreated()) {
+		axesVAO_.destroy();
 	}
-	if (axesVBO.isCreated()) {
-		axesVBO.destroy();
+	if (axesVBO_.isCreated()) {
+		axesVBO_.destroy();
 	}
 
 	// Clean up dot resources
-	if (dotVAO.isCreated()) {
-		dotVAO.destroy();
+	if (dotVAO_.isCreated()) {
+		dotVAO_.destroy();
 	}
-	if (dotVBO.isCreated()) {
-		dotVBO.destroy();
+	if (dotVBO_.isCreated()) {
+		dotVBO_.destroy();
 	}
 
 	// Clean up shader programs
-	delete shaderProgram;
-	shaderProgram = nullptr;
-	delete axesShaderProgram;
-	axesShaderProgram = nullptr;
-	delete dotShaderProgram;
-	dotShaderProgram = nullptr;
+	delete shaderProgram_;
+	shaderProgram_ = nullptr;
+	delete axesShaderProgram_;
+	axesShaderProgram_ = nullptr;
+	delete dotShaderProgram_;
+	dotShaderProgram_ = nullptr;
 
 	initialized_ = false;
 	qDebug() << "SphereRenderer::cleanup() complete";
@@ -234,17 +234,17 @@ SphereRenderer::~SphereRenderer() {
 	// Only clean up non-GL resources here.
 
 	// If shader programs still exist, delete them (safe without GL context)
-	if (shaderProgram) {
-		delete shaderProgram;
-		shaderProgram = nullptr;
+	if (shaderProgram_) {
+		delete shaderProgram_;
+		shaderProgram_ = nullptr;
 	}
-	if (axesShaderProgram) {
-		delete axesShaderProgram;
-		axesShaderProgram = nullptr;
+	if (axesShaderProgram_) {
+		delete axesShaderProgram_;
+		axesShaderProgram_ = nullptr;
 	}
-	if (dotShaderProgram) {
-		delete dotShaderProgram;
-		dotShaderProgram = nullptr;
+	if (dotShaderProgram_) {
+		delete dotShaderProgram_;
+		dotShaderProgram_ = nullptr;
 	}
 
 	qDebug() << "SphereRenderer destructor called";
@@ -289,79 +289,79 @@ bool SphereRenderer::initialize() {
 
 bool SphereRenderer::initializeShaders() {
 	// Clean up existing shader programs to prevent memory leaks
-	if (shaderProgram) {
-		delete shaderProgram;
-		shaderProgram = nullptr;
+	if (shaderProgram_) {
+		delete shaderProgram_;
+		shaderProgram_ = nullptr;
 	}
 
-	if (axesShaderProgram) {
-		delete axesShaderProgram;
-		axesShaderProgram = nullptr;
+	if (axesShaderProgram_) {
+		delete axesShaderProgram_;
+		axesShaderProgram_ = nullptr;
 	}
 
-	if (dotShaderProgram) {
-		delete dotShaderProgram;
-		dotShaderProgram = nullptr;
+	if (dotShaderProgram_) {
+		delete dotShaderProgram_;
+		dotShaderProgram_ = nullptr;
 	}
 
 	// Create main shader program
-	shaderProgram = new QOpenGLShaderProgram();
+	shaderProgram_ = new QOpenGLShaderProgram();
 	// (existing shader code)
 
 	// Create the dot shader program
-	dotShaderProgram = new QOpenGLShaderProgram();
+	dotShaderProgram_ = new QOpenGLShaderProgram();
 
-	if (!dotShaderProgram->addShaderFromSourceCode(QOpenGLShader::Vertex, dotVertexShaderSource)) {
-		qWarning() << "Failed to compile dot vertex shader:" << dotShaderProgram->log();
+	if (!dotShaderProgram_->addShaderFromSourceCode(QOpenGLShader::Vertex, dotVertexShaderSource_)) {
+		qWarning() << "Failed to compile dot vertex shader:" << dotShaderProgram_->log();
 		return false;
 	}
 
-	if (!dotShaderProgram->addShaderFromSourceCode(QOpenGLShader::Fragment, dotFragmentShaderSource)) {
-		qWarning() << "Failed to compile dot fragment shader:" << dotShaderProgram->log();
+	if (!dotShaderProgram_->addShaderFromSourceCode(QOpenGLShader::Fragment, dotFragmentShaderSource_)) {
+		qWarning() << "Failed to compile dot fragment shader:" << dotShaderProgram_->log();
 		return false;
 	}
 
-	if (!dotShaderProgram->link()) {
-		qWarning() << "Failed to link dot shader program:" << dotShaderProgram->log();
+	if (!dotShaderProgram_->link()) {
+		qWarning() << "Failed to link dot shader program:" << dotShaderProgram_->log();
 		return false;
 	}
 
 	// Load and compile vertex shader
-	if (!shaderProgram->addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShaderSource)) {
-		qWarning() << "Failed to compile vertex shader:" << shaderProgram->log();
+	if (!shaderProgram_->addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShaderSource_)) {
+		qWarning() << "Failed to compile vertex shader:" << shaderProgram_->log();
 		return false;
 	}
 
 	// Load and compile fragment shader
-	if (!shaderProgram->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource)) {
-		qWarning() << "Failed to compile fragment shader:" << shaderProgram->log();
+	if (!shaderProgram_->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource_)) {
+		qWarning() << "Failed to compile fragment shader:" << shaderProgram_->log();
 		return false;
 	}
 
 	// Link shader program
-	if (!shaderProgram->link()) {
-		qWarning() << "Failed to link main shader program:" << shaderProgram->log();
+	if (!shaderProgram_->link()) {
+		qWarning() << "Failed to link main shader program:" << shaderProgram_->log();
 		return false;
 	}
 
 	// Create axes shader program
-	axesShaderProgram = new QOpenGLShaderProgram();
+	axesShaderProgram_ = new QOpenGLShaderProgram();
 
 	// Load and compile axes vertex shader
-	if (!axesShaderProgram->addShaderFromSourceCode(QOpenGLShader::Vertex, axesVertexShaderSource)) {
-		qWarning() << "Failed to compile axes vertex shader:" << axesShaderProgram->log();
+	if (!axesShaderProgram_->addShaderFromSourceCode(QOpenGLShader::Vertex, axesVertexShaderSource_)) {
+		qWarning() << "Failed to compile axes vertex shader:" << axesShaderProgram_->log();
 		return false;
 	}
 
 	// Load and compile axes fragment shader
-	if (!axesShaderProgram->addShaderFromSourceCode(QOpenGLShader::Fragment, axesFragmentShaderSource)) {
-		qWarning() << "Failed to compile axes fragment shader:" << axesShaderProgram->log();
+	if (!axesShaderProgram_->addShaderFromSourceCode(QOpenGLShader::Fragment, axesFragmentShaderSource_)) {
+		qWarning() << "Failed to compile axes fragment shader:" << axesShaderProgram_->log();
 		return false;
 	}
 
 	// Link axes shader program
-	if (!axesShaderProgram->link()) {
-		qWarning() << "Failed to link axes shader program:" << axesShaderProgram->log();
+	if (!axesShaderProgram_->link()) {
+		qWarning() << "Failed to link axes shader program:" << axesShaderProgram_->log();
 		return false;
 	}
 
@@ -370,7 +370,7 @@ bool SphereRenderer::initializeShaders() {
 
 void SphereRenderer::createDot() {
 	// Create a small sphere for the dot
-	dotVertices.clear();
+	dotVertices_.clear();
 
 	float dotRadius = 5.0f;
 	int segments = 16;
@@ -411,22 +411,22 @@ void SphereRenderer::createDot() {
 			QVector3D pos = positions[idx];
 			QVector3D normal = pos.normalized();
 
-			dotVertices.push_back(pos.x());
-			dotVertices.push_back(pos.y());
-			dotVertices.push_back(pos.z());
-			dotVertices.push_back(normal.x());
-			dotVertices.push_back(normal.y());
-			dotVertices.push_back(normal.z());
+			dotVertices_.push_back(pos.x());
+			dotVertices_.push_back(pos.y());
+			dotVertices_.push_back(pos.z());
+			dotVertices_.push_back(normal.x());
+			dotVertices_.push_back(normal.y());
+			dotVertices_.push_back(normal.z());
 		}
 	}
 
 	// Set up VAO and VBO for dot
-	dotVAO.create();
-	dotVAO.bind();
+	dotVAO_.create();
+	dotVAO_.bind();
 
-	dotVBO.create();
-	dotVBO.bind();
-	dotVBO.allocate(dotVertices.data(), dotVertices.size() * sizeof(float));
+	dotVBO_.create();
+	dotVBO_.bind();
+	dotVBO_.allocate(dotVertices_.data(), dotVertices_.size() * sizeof(float));
 
 	// Position attribute
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
@@ -436,7 +436,7 @@ void SphereRenderer::createDot() {
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
 	glEnableVertexAttribArray(1);
 
-	dotVAO.release();
+	dotVAO_.release();
 }
 
 void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model) {
@@ -448,8 +448,8 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 
 #ifdef QT_DEBUG
 	// Single shader validation check
-	if (!shaderProgram || !axesShaderProgram || !dotShaderProgram ||
-		!shaderProgram->isLinked() || !axesShaderProgram->isLinked() || !dotShaderProgram->isLinked()) {
+	if (!shaderProgram_ || !axesShaderProgram_ || !dotShaderProgram_ ||
+		!shaderProgram_->isLinked() || !axesShaderProgram_->isLinked() || !dotShaderProgram_->isLinked()) {
 		qCritical() << "ERROR: render called with invalid shaders";
 	}
 #endif
@@ -465,48 +465,48 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 	// 1. Draw the sphere with two-pass transparency for 3D effect
 	if (showSphere_) {
 		// Release any currently bound shader that's not the one we need
-		if (currentShader && currentShader != shaderProgram) {
+		if (currentShader && currentShader != shaderProgram_) {
 			currentShader->release();
 			currentShader = nullptr;
 		}
 
 		// Bind shader if not already bound
-		if (currentShader != shaderProgram) {
-			shaderProgram->bind();
-			currentShader = shaderProgram;
+		if (currentShader != shaderProgram_) {
+			shaderProgram_->bind();
+			currentShader = shaderProgram_;
 
 			// Set common uniforms only when binding
-			shaderProgram->setUniformValue("projection", projection);
-			shaderProgram->setUniformValue("view", view);
-			shaderProgram->setUniformValue("model", localModel);  // Use the rotated model
+			shaderProgram_->setUniformValue("projection", projection);
+			shaderProgram_->setUniformValue("view", view);
+			shaderProgram_->setUniformValue("model", localModel);  // Use the rotated model
 		}
 
 		// Set sphere-specific uniforms
-		shaderProgram->setUniformValue("color", QVector3D(0.95f, 0.95f, 0.95f));
-		shaderProgram->setUniformValue("lightPos", QVector3D(500.0f, -500.0f, 500.0f));
+		shaderProgram_->setUniformValue("color", QVector3D(0.95f, 0.95f, 0.95f));
+		shaderProgram_->setUniformValue("lightPos", QVector3D(500.0f, -500.0f, 500.0f));
 
 		// Enable blending for transparency
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glDepthMask(GL_FALSE);  // Don't write to depth buffer for transparent sphere
 
-		sphereVAO.bind();
+		sphereVAO_.bind();
 		glEnable(GL_POLYGON_OFFSET_FILL);
 		glPolygonOffset(1.0f, 1.0f);
 
 		// Pass 1: Draw back faces (darker, more transparent for depth effect)
 		glEnable(GL_CULL_FACE);
 		glCullFace(GL_FRONT);  // Cull front faces, draw back faces
-		shaderProgram->setUniformValue("opacity", 0.20f);
-		glDrawElements(GL_TRIANGLES, sphereIndices.size(), GL_UNSIGNED_INT, 0);
+		shaderProgram_->setUniformValue("opacity", 0.20f);
+		glDrawElements(GL_TRIANGLES, sphereIndices_.size(), GL_UNSIGNED_INT, 0);
 
 		// Pass 2: Draw front faces (lighter, less transparent)
 		glCullFace(GL_BACK);  // Cull back faces, draw front faces
-		shaderProgram->setUniformValue("opacity", 0.35f);
-		glDrawElements(GL_TRIANGLES, sphereIndices.size(), GL_UNSIGNED_INT, 0);
+		shaderProgram_->setUniformValue("opacity", 0.35f);
+		glDrawElements(GL_TRIANGLES, sphereIndices_.size(), GL_UNSIGNED_INT, 0);
 
 		glDisable(GL_POLYGON_OFFSET_FILL);
-		sphereVAO.release();
+		sphereVAO_.release();
 
 		glDisable(GL_CULL_FACE);
 		glDepthMask(GL_TRUE);  // Re-enable depth writing
@@ -516,26 +516,26 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 	// 2. Draw grid lines if visible
 	if (showGridLines_) {
 		// Release any currently bound shader that's not the one we need
-		if (currentShader && currentShader != shaderProgram) {
+		if (currentShader && currentShader != shaderProgram_) {
 			currentShader->release();
 			currentShader = nullptr;
 		}
 
 		// Bind shader if not already bound
-		if (currentShader != shaderProgram) {
-			shaderProgram->bind();
-			currentShader = shaderProgram;
+		if (currentShader != shaderProgram_) {
+			shaderProgram_->bind();
+			currentShader = shaderProgram_;
 
 			// Set common uniforms only when binding
-			shaderProgram->setUniformValue("projection", projection);
-			shaderProgram->setUniformValue("view", view);
-			shaderProgram->setUniformValue("model", localModel);  // Use the rotated model
+			shaderProgram_->setUniformValue("projection", projection);
+			shaderProgram_->setUniformValue("view", view);
+			shaderProgram_->setUniformValue("model", localModel);  // Use the rotated model
 		}
 
 		// Always update light position for grid lines
-		shaderProgram->setUniformValue("lightPos", QVector3D(500.0f, -500.0f, 500.0f));
+		shaderProgram_->setUniformValue("lightPos", QVector3D(500.0f, -500.0f, 500.0f));
 
-		linesVAO.bind();
+		linesVAO_.bind();
 
 		// Enable line smoothing for better appearance
 		glEnable(GL_LINE_SMOOTH);
@@ -546,22 +546,22 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 
 		// Regular latitude lines
 		glLineWidth(1.0f);
-		shaderProgram->setUniformValue("color", QVector3D(0.4f, 0.4f, 0.4f));
+		shaderProgram_->setUniformValue("color", QVector3D(0.4f, 0.4f, 0.4f));
 
 		// Draw latitude lines
-		for (int lat = 0; lat < latitudeLineCount; lat++) {
+		for (int lat = 0; lat < latitudeLineCount_; lat++) {
 			int startIdx = lat * (72 + 1);
-			if (startIdx == equatorStartIndex) {
+			if (startIdx == equatorStartIndex_) {
 				continue; // Skip equator, drawn separately
 			}
 			glDrawArrays(GL_LINE_STRIP, startIdx, 72 + 1);
 		}
 
 		// Draw longitude lines
-		int longitudeStartOffset = latitudeLineCount * (72 + 1);
-		for (int lon = 0; lon < longitudeLineCount; lon++) {
+		int longitudeStartOffset = latitudeLineCount_ * (72 + 1);
+		for (int lon = 0; lon < longitudeLineCount_; lon++) {
 			int startIdx = longitudeStartOffset + lon * (50 + 1);
-			if (startIdx == primeMeridianStartIndex) {
+			if (startIdx == primeMeridianStartIndex_) {
 				continue; // Skip prime meridian, drawn separately
 			}
 			glDrawArrays(GL_LINE_STRIP, startIdx, 50 + 1);
@@ -571,38 +571,38 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 		glLineWidth(3.5f);
 
 		// Equator (green) - match SphereWidget
-		shaderProgram->setUniformValue("color", QVector3D(0.0f, 0.9f, 0.0f));
-		glDrawArrays(GL_LINE_STRIP, equatorStartIndex, 72 + 1);
+		shaderProgram_->setUniformValue("color", QVector3D(0.0f, 0.9f, 0.0f));
+		glDrawArrays(GL_LINE_STRIP, equatorStartIndex_, 72 + 1);
 
 		// Prime Meridian (blue) - match SphereWidget
-		shaderProgram->setUniformValue("color", QVector3D(0.0f, 0.0f, 0.9f));
-		glDrawArrays(GL_LINE_STRIP, primeMeridianStartIndex, 50 + 1);
+		shaderProgram_->setUniformValue("color", QVector3D(0.0f, 0.0f, 0.9f));
+		glDrawArrays(GL_LINE_STRIP, primeMeridianStartIndex_, 50 + 1);
 
 		// Restore default depth function
 		glDepthFunc(GL_LESS);
 		glDisable(GL_LINE_SMOOTH);
-		linesVAO.release();
+		linesVAO_.release();
 	}
 
 	// 3. Draw coordinate axes if visible
 	if (showAxes_) {
 		// Release any currently bound shader that's not the one we need
-		if (currentShader && currentShader != axesShaderProgram) {
+		if (currentShader && currentShader != axesShaderProgram_) {
 			currentShader->release();
 			currentShader = nullptr;
 		}
 
 		// Bind shader if not already bound
-		if (currentShader != axesShaderProgram) {
-			axesShaderProgram->bind();
-			currentShader = axesShaderProgram;
+		if (currentShader != axesShaderProgram_) {
+			axesShaderProgram_->bind();
+			currentShader = axesShaderProgram_;
 		}
 
-		axesShaderProgram->setUniformValue("projection", projection);
-		axesShaderProgram->setUniformValue("view", view);
-		axesShaderProgram->setUniformValue("model", localModel);  // Use the rotated model
+		axesShaderProgram_->setUniformValue("projection", projection);
+		axesShaderProgram_->setUniformValue("view", view);
+		axesShaderProgram_->setUniformValue("model", localModel);  // Use the rotated model
 
-		axesVAO.bind();
+		axesVAO_.bind();
 
 		// Enable line smoothing
 		glEnable(GL_LINE_SMOOTH);
@@ -625,10 +625,10 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 		glDisable(GL_POLYGON_OFFSET_FILL);
 		glDisable(GL_LINE_SMOOTH);
 
-		axesVAO.release();
+		axesVAO_.release();
 
-		// Release axesShaderProgram before switching to another shader
-		if (currentShader == axesShaderProgram) {
+		// Release axesShaderProgram_ before switching to another shader
+		if (currentShader == axesShaderProgram_) {
 			currentShader->release();
 			currentShader = nullptr;
 		}
@@ -644,13 +644,13 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 
 	// 4.1. First, draw opaque parts of the dot (front-facing parts)
 	// Switch to dot shader program
-	if (currentShader && currentShader != dotShaderProgram) {
+	if (currentShader && currentShader != dotShaderProgram_) {
 		currentShader->release();
 		currentShader = nullptr;
 	}
 
-	dotShaderProgram->bind();
-	currentShader = dotShaderProgram;
+	dotShaderProgram_->bind();
+	currentShader = dotShaderProgram_;
 
 	// Ensure proper depth testing for opaque rendering
 	glDisable(GL_BLEND);
@@ -658,44 +658,44 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 	glDepthFunc(GL_LESS);
 	glDepthMask(GL_TRUE);
 
-	dotShaderProgram->setUniformValue("projection", projection);
-	dotShaderProgram->setUniformValue("view", view);
-	dotShaderProgram->setUniformValue("model", dotModelMatrix);
-	dotShaderProgram->setUniformValue("color", QVector3D(1.0f, 0.0f, 0.0f));  // Red dot
-	dotShaderProgram->setUniformValue("lightPos", QVector3D(500.0f, -500.0f, 500.0f));
-	dotShaderProgram->setUniformValue("opacity", 1.0f);  // Fully opaque
+	dotShaderProgram_->setUniformValue("projection", projection);
+	dotShaderProgram_->setUniformValue("view", view);
+	dotShaderProgram_->setUniformValue("model", dotModelMatrix);
+	dotShaderProgram_->setUniformValue("color", QVector3D(1.0f, 0.0f, 0.0f));  // Red dot
+	dotShaderProgram_->setUniformValue("lightPos", QVector3D(500.0f, -500.0f, 500.0f));
+	dotShaderProgram_->setUniformValue("opacity", 1.0f);  // Fully opaque
 
-	dotVAO.bind();
+	dotVAO_.bind();
 
 	// Only draw front-facing polygons in this pass
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
-	glDrawArrays(GL_TRIANGLES, 0, dotVertices.size() / 6);
+	glDrawArrays(GL_TRIANGLES, 0, dotVertices_.size() / 6);
 	glDisable(GL_CULL_FACE);
 
-	dotVAO.release();
+	dotVAO_.release();
 
 	// 4.2. Then, draw transparent parts of the dot (back-facing parts)
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glDepthMask(GL_FALSE);  // Don't write to depth buffer for transparent parts
 
-	dotShaderProgram->setUniformValue("opacity", 0.2f);  // Partially transparent
+	dotShaderProgram_->setUniformValue("opacity", 0.2f);  // Partially transparent
 
-	dotVAO.bind();
+	dotVAO_.bind();
 
 	// Draw with special depth test for transparency
 	glDepthFunc(GL_GREATER);  // Only draw if behind other objects
 
-	glDrawArrays(GL_TRIANGLES, 0, dotVertices.size() / 6);
+	glDrawArrays(GL_TRIANGLES, 0, dotVertices_.size() / 6);
 
 	// Restore default depth function and settings
 	glDepthFunc(GL_LESS);
 	glDepthMask(GL_TRUE);
 
-	dotVAO.release();
+	dotVAO_.release();
 
-	if (currentShader == dotShaderProgram) {
+	if (currentShader == dotShaderProgram_) {
 		currentShader->release();
 		currentShader = nullptr;
 	}
@@ -893,15 +893,15 @@ void SphereRenderer::createAxesLines() {
 	createCone(zTip, QVector3D(0.0f, 0.0f, 1.0f), zBasePoints);
 
 	// Now copy the local vertices to the member variable
-	axesVertices = vertices;
+	axesVertices_ = vertices;
 
 	// Set up VAO and VBO for axes
-	axesVAO.create();
-	axesVAO.bind();
+	axesVAO_.create();
+	axesVAO_.bind();
 
-	axesVBO.create();
-	axesVBO.bind();
-	axesVBO.allocate(axesVertices.data(), axesVertices.size() * sizeof(float));
+	axesVBO_.create();
+	axesVBO_.bind();
+	axesVBO_.allocate(axesVertices_.data(), axesVertices_.size() * sizeof(float));
 
 	// Position attribute
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
@@ -911,7 +911,7 @@ void SphereRenderer::createAxesLines() {
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
 	glEnableVertexAttribArray(1);
 
-	axesVAO.release();
+	axesVAO_.release();
 }
 
 void SphereRenderer::setAxesVisible(bool visible) {
@@ -923,8 +923,8 @@ void SphereRenderer::setAxesVisible(bool visible) {
 
 void SphereRenderer::createSphere(int latDivisions, int longDivisions) {
 	// Clear previous data
-	sphereVertices.clear();
-	sphereIndices.clear();
+	sphereVertices_.clear();
+	sphereIndices_.clear();
 
 	// Generate vertices
 	for (int lat = 0; lat <= latDivisions; lat++) {
@@ -948,12 +948,12 @@ void SphereRenderer::createSphere(int latDivisions, int longDivisions) {
 			float nz = cosPhi;             // Z is now vertical
 
 			// Add vertex data
-			sphereVertices.push_back(x);
-			sphereVertices.push_back(y);
-			sphereVertices.push_back(z);
-			sphereVertices.push_back(nx);
-			sphereVertices.push_back(ny);
-			sphereVertices.push_back(nz);
+			sphereVertices_.push_back(x);
+			sphereVertices_.push_back(y);
+			sphereVertices_.push_back(z);
+			sphereVertices_.push_back(nx);
+			sphereVertices_.push_back(ny);
+			sphereVertices_.push_back(nz);
 		}
 	}
 
@@ -964,34 +964,34 @@ void SphereRenderer::createSphere(int latDivisions, int longDivisions) {
 			int second = first + longDivisions + 1;
 
 			// First triangle
-			sphereIndices.push_back(first);
-			sphereIndices.push_back(second);
-			sphereIndices.push_back(first + 1);
+			sphereIndices_.push_back(first);
+			sphereIndices_.push_back(second);
+			sphereIndices_.push_back(first + 1);
 
 			// Second triangle
-			sphereIndices.push_back(second);
-			sphereIndices.push_back(second + 1);
-			sphereIndices.push_back(first + 1);
+			sphereIndices_.push_back(second);
+			sphereIndices_.push_back(second + 1);
+			sphereIndices_.push_back(first + 1);
 		}
 	}
 
 	// Set up VAO and VBO for sphere
-	if (!sphereVAO.isCreated()) {
-		sphereVAO.create();
+	if (!sphereVAO_.isCreated()) {
+		sphereVAO_.create();
 	}
-	sphereVAO.bind();
+	sphereVAO_.bind();
 
-	if (!sphereVBO.isCreated()) {
-		sphereVBO.create();
+	if (!sphereVBO_.isCreated()) {
+		sphereVBO_.create();
 	}
-	sphereVBO.bind();
-	sphereVBO.allocate(sphereVertices.data(), sphereVertices.size() * sizeof(float));
+	sphereVBO_.bind();
+	sphereVBO_.allocate(sphereVertices_.data(), sphereVertices_.size() * sizeof(float));
 
-	if (!sphereEBO.isCreated()) {
-		sphereEBO.create();
+	if (!sphereEBO_.isCreated()) {
+		sphereEBO_.create();
 	}
-	sphereEBO.bind();
-	sphereEBO.allocate(sphereIndices.data(), sphereIndices.size() * sizeof(unsigned int));
+	sphereEBO_.bind();
+	sphereEBO_.allocate(sphereIndices_.data(), sphereIndices_.size() * sizeof(unsigned int));
 
 
 	// Position attribute
@@ -1002,12 +1002,12 @@ void SphereRenderer::createSphere(int latDivisions, int longDivisions) {
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
 	glEnableVertexAttribArray(1);
 
-	sphereVAO.release();
+	sphereVAO_.release();
 }
 
 void SphereRenderer::createGridLines() {
 	// Similar to before, but with a small offset to the grid lines
-	latLongLines.clear();
+	latLongLines_.clear();
 
 	// Constants for grid generation
 	const float degToRad = float(M_PI / 180.0f);
@@ -1023,16 +1023,16 @@ void SphereRenderer::createGridLines() {
 
 	// -------------------- LATITUDE LINES --------------------
 	// Reset counter for debugging
-	latitudeLineCount = 0;
+	latitudeLineCount_ = 0;
 
 	// Generate latitude lines one by one
 	for (int phiDeg = -75; phiDeg <= 75; phiDeg += 15) {
 		// Increment counter
-		latitudeLineCount++;
+		latitudeLineCount_++;
 
 		// Mark equator for special rendering
 		if (phiDeg == 0) {
-			equatorStartIndex = vertexOffset / 3;
+			equatorStartIndex_ = vertexOffset / 3;
 		}
 
 		float phi = phiDeg * degToRad;
@@ -1046,9 +1046,9 @@ void SphereRenderer::createGridLines() {
 			float y = rLat * sin(theta);  // Y is now horizontal
 
 			// Add vertex
-			latLongLines.push_back(x);
-			latLongLines.push_back(y);
-			latLongLines.push_back(z);
+			latLongLines_.push_back(x);
+			latLongLines_.push_back(y);
+			latLongLines_.push_back(z);
 
 			vertexOffset += 3;
 		}
@@ -1056,16 +1056,16 @@ void SphereRenderer::createGridLines() {
 
 	// -------------------- LONGITUDE LINES --------------------
 	// Reset counter for debugging
-	longitudeLineCount = 0;
+	longitudeLineCount_ = 0;
 
 	// Generate longitude lines one by one
 	for (int thetaDeg = 0; thetaDeg <= 345; thetaDeg += 15) {
 		// Increment counter
-		longitudeLineCount++;
+		longitudeLineCount_++;
 
 		// Mark prime meridian for special rendering
 		if (thetaDeg == 0) {
-			primeMeridianStartIndex = vertexOffset / 3;
+			primeMeridianStartIndex_ = vertexOffset / 3;
 		}
 
 		float theta = thetaDeg * degToRad;
@@ -1080,34 +1080,34 @@ void SphereRenderer::createGridLines() {
 			float y = rLat * sin(theta);  // Y is now horizontal
 
 			// Add vertex
-			latLongLines.push_back(x);
-			latLongLines.push_back(y);
-			latLongLines.push_back(z);
+			latLongLines_.push_back(x);
+			latLongLines_.push_back(y);
+			latLongLines_.push_back(z);
 
 			vertexOffset += 3;
 		}
 	}
 
 	// Print debug info to console
-	qDebug() << "Created" << latitudeLineCount << "latitude lines";
-	qDebug() << "Created" << longitudeLineCount << "longitude lines";
-	qDebug() << "Equator index:" << equatorStartIndex;
-	qDebug() << "Prime Meridian index:" << primeMeridianStartIndex;
-	qDebug() << "Total vertices:" << latLongLines.size() / 3;
+	qDebug() << "Created" << latitudeLineCount_ << "latitude lines";
+	qDebug() << "Created" << longitudeLineCount_ << "longitude lines";
+	qDebug() << "Equator index:" << equatorStartIndex_;
+	qDebug() << "Prime Meridian index:" << primeMeridianStartIndex_;
+	qDebug() << "Total vertices:" << latLongLines_.size() / 3;
 
 	// Set up VAO and VBO for lines
-	linesVAO.create();
-	linesVAO.bind();
+	linesVAO_.create();
+	linesVAO_.bind();
 
-	linesVBO.create();
-	linesVBO.bind();
-	linesVBO.allocate(latLongLines.data(), latLongLines.size() * sizeof(float));
+	linesVBO_.create();
+	linesVBO_.bind();
+	linesVBO_.allocate(latLongLines_.data(), latLongLines_.size() * sizeof(float));
 
 	// Position attribute
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
 
-	linesVAO.release();
+	linesVAO_.release();
 }
 
 // Helper method for spherical to cartesian conversion (Z-up convention)

@@ -25,14 +25,14 @@ PhasedArrayBeam::PhasedArrayBeam(float sphereRadius, float mainLobeWidthDegrees)
 }
 
 PhasedArrayBeam::~PhasedArrayBeam() {
-    if (sideLobeVAO.isCreated()) {
-        sideLobeVAO.destroy();
+    if (sideLobeVAO_.isCreated()) {
+        sideLobeVAO_.destroy();
     }
-    if (sideLobeVBO.isCreated()) {
-        sideLobeVBO.destroy();
+    if (sideLobeVBO_.isCreated()) {
+        sideLobeVBO_.destroy();
     }
-    if (sideLobeEBO.isCreated()) {
-        sideLobeEBO.destroy();
+    if (sideLobeEBO_.isCreated()) {
+        sideLobeEBO_.destroy();
     }
 }
 

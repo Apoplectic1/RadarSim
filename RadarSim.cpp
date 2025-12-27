@@ -608,17 +608,19 @@ void RadarSim::onPhiSpinBoxValueChanged(int value) {
     radarSceneView_->setAngles(radarSceneView_->getTheta(), value);
 }
 
+// Helper to sync slider and spinbox values without triggering signals
+void RadarSim::syncSliderSpinBox(QSlider* slider, QSpinBox* spinBox, int value) {
+    slider->blockSignals(true);
+    spinBox->blockSignals(true);
+    slider->setValue(value);
+    spinBox->setValue(value);
+    slider->blockSignals(false);
+    spinBox->blockSignals(false);
+}
+
 // Target control slot implementations
 void RadarSim::onTargetPosXChanged(int value) {
-    // Sync slider and spinbox
-    targetPosXSlider_->blockSignals(true);
-    targetPosXSpinBox_->blockSignals(true);
-    targetPosXSlider_->setValue(value);
-    targetPosXSpinBox_->setValue(value);
-    targetPosXSlider_->blockSignals(false);
-    targetPosXSpinBox_->blockSignals(false);
-
-    // Update the wireframe target position
+    syncSliderSpinBox(targetPosXSlider_, targetPosXSpinBox_, value);
     if (auto* controller = radarSceneView_->getWireframeController()) {
         QVector3D pos = controller->getPosition();
         controller->setPosition(static_cast<float>(value), pos.y(), pos.z());
@@ -627,15 +629,7 @@ void RadarSim::onTargetPosXChanged(int value) {
 }
 
 void RadarSim::onTargetPosYChanged(int value) {
-    // Sync slider and spinbox
-    targetPosYSlider_->blockSignals(true);
-    targetPosYSpinBox_->blockSignals(true);
-    targetPosYSlider_->setValue(value);
-    targetPosYSpinBox_->setValue(value);
-    targetPosYSlider_->blockSignals(false);
-    targetPosYSpinBox_->blockSignals(false);
-
-    // Update the wireframe target position
+    syncSliderSpinBox(targetPosYSlider_, targetPosYSpinBox_, value);
     if (auto* controller = radarSceneView_->getWireframeController()) {
         QVector3D pos = controller->getPosition();
         controller->setPosition(pos.x(), static_cast<float>(value), pos.z());
@@ -644,15 +638,7 @@ void RadarSim::onTargetPosYChanged(int value) {
 }
 
 void RadarSim::onTargetPosZChanged(int value) {
-    // Sync slider and spinbox
-    targetPosZSlider_->blockSignals(true);
-    targetPosZSpinBox_->blockSignals(true);
-    targetPosZSlider_->setValue(value);
-    targetPosZSpinBox_->setValue(value);
-    targetPosZSlider_->blockSignals(false);
-    targetPosZSpinBox_->blockSignals(false);
-
-    // Update the wireframe target position
+    syncSliderSpinBox(targetPosZSlider_, targetPosZSpinBox_, value);
     if (auto* controller = radarSceneView_->getWireframeController()) {
         QVector3D pos = controller->getPosition();
         controller->setPosition(pos.x(), pos.y(), static_cast<float>(value));
@@ -661,15 +647,7 @@ void RadarSim::onTargetPosZChanged(int value) {
 }
 
 void RadarSim::onTargetPitchChanged(int value) {
-    // Sync slider and spinbox
-    targetPitchSlider_->blockSignals(true);
-    targetPitchSpinBox_->blockSignals(true);
-    targetPitchSlider_->setValue(value);
-    targetPitchSpinBox_->setValue(value);
-    targetPitchSlider_->blockSignals(false);
-    targetPitchSpinBox_->blockSignals(false);
-
-    // Update the wireframe target rotation
+    syncSliderSpinBox(targetPitchSlider_, targetPitchSpinBox_, value);
     if (auto* controller = radarSceneView_->getWireframeController()) {
         QVector3D rot = controller->getRotation();
         controller->setRotation(static_cast<float>(value), rot.y(), rot.z());
@@ -678,15 +656,7 @@ void RadarSim::onTargetPitchChanged(int value) {
 }
 
 void RadarSim::onTargetYawChanged(int value) {
-    // Sync slider and spinbox
-    targetYawSlider_->blockSignals(true);
-    targetYawSpinBox_->blockSignals(true);
-    targetYawSlider_->setValue(value);
-    targetYawSpinBox_->setValue(value);
-    targetYawSlider_->blockSignals(false);
-    targetYawSpinBox_->blockSignals(false);
-
-    // Update the wireframe target rotation
+    syncSliderSpinBox(targetYawSlider_, targetYawSpinBox_, value);
     if (auto* controller = radarSceneView_->getWireframeController()) {
         QVector3D rot = controller->getRotation();
         controller->setRotation(rot.x(), static_cast<float>(value), rot.z());
@@ -695,15 +665,7 @@ void RadarSim::onTargetYawChanged(int value) {
 }
 
 void RadarSim::onTargetRollChanged(int value) {
-    // Sync slider and spinbox
-    targetRollSlider_->blockSignals(true);
-    targetRollSpinBox_->blockSignals(true);
-    targetRollSlider_->setValue(value);
-    targetRollSpinBox_->setValue(value);
-    targetRollSlider_->blockSignals(false);
-    targetRollSpinBox_->blockSignals(false);
-
-    // Update the wireframe target rotation
+    syncSliderSpinBox(targetRollSlider_, targetRollSpinBox_, value);
     if (auto* controller = radarSceneView_->getWireframeController()) {
         QVector3D rot = controller->getRotation();
         controller->setRotation(rot.x(), rot.y(), static_cast<float>(value));
@@ -712,15 +674,7 @@ void RadarSim::onTargetRollChanged(int value) {
 }
 
 void RadarSim::onTargetScaleChanged(int value) {
-    // Sync slider and spinbox
-    targetScaleSlider_->blockSignals(true);
-    targetScaleSpinBox_->blockSignals(true);
-    targetScaleSlider_->setValue(value);
-    targetScaleSpinBox_->setValue(value);
-    targetScaleSlider_->blockSignals(false);
-    targetScaleSpinBox_->blockSignals(false);
-
-    // Update the wireframe target scale
+    syncSliderSpinBox(targetScaleSlider_, targetScaleSpinBox_, value);
     if (auto* controller = radarSceneView_->getWireframeController()) {
         controller->setScale(static_cast<float>(value));
         radarSceneView_->updateScene();
