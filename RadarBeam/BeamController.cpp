@@ -14,6 +14,13 @@ BeamController::~BeamController() {
     delete radarBeam_;
 }
 
+void BeamController::cleanup() {
+    if (radarBeam_) {
+        radarBeam_->cleanup();
+    }
+    qDebug() << "BeamController::cleanup() - cleaned up OpenGL resources";
+}
+
 void BeamController::rebuildBeamGeometry() {
     // Handle deferred beam type change (requires GL context for proper cleanup)
     if (beamTypeChangePending_) {

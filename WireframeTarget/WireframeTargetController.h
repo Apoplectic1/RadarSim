@@ -15,6 +15,9 @@ public:
     explicit WireframeTargetController(QObject* parent = nullptr);
     ~WireframeTargetController();
 
+    // Clean up OpenGL resources (call before context is destroyed)
+    void cleanup();
+
     // Lifecycle
     void initialize();
     void render(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model,

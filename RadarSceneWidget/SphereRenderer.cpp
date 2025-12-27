@@ -150,15 +150,30 @@ SphereRenderer::SphereRenderer(QObject* parent)
 	frameTimer_.start();
 }
 
-SphereRenderer::~SphereRenderer() {
-	// Clean up inertia timer
-	if (inertiaTimer_) {
-		inertiaTimer_->stop();
-		delete inertiaTimer_;
-		inertiaTimer_ = nullptr;
+// Clean up OpenGL resources - must be called with valid GL context
+void SphereRenderer::cleanup() {
+	// Check if we were ever initialized
+	if (!initialized_) {
+		return;
 	}
 
-	// Clean up OpenGL resources
+	// Check for valid OpenGL context
+	QOpenGLContext* ctx = QOpenGLContext::currentContext();
+	if (!ctx) {
+		qWarning() << "SphereRenderer::cleanup() - no current context, skipping GL cleanup";
+		// Still clean up shader programs (safe without context)
+		delete shaderProgram;
+		shaderProgram = nullptr;
+		delete axesShaderProgram;
+		axesShaderProgram = nullptr;
+		delete dotShaderProgram;
+		dotShaderProgram = nullptr;
+		return;
+	}
+
+	qDebug() << "SphereRenderer::cleanup() - cleaning up OpenGL resources";
+
+	// Clean up sphere resources
 	if (sphereVAO.isCreated()) {
 		sphereVAO.destroy();
 	}
@@ -169,6 +184,7 @@ SphereRenderer::~SphereRenderer() {
 		sphereEBO.destroy();
 	}
 
+	// Clean up grid lines resources
 	if (linesVAO.isCreated()) {
 		linesVAO.destroy();
 	}
@@ -176,6 +192,7 @@ SphereRenderer::~SphereRenderer() {
 		linesVBO.destroy();
 	}
 
+	// Clean up axes resources
 	if (axesVAO.isCreated()) {
 		axesVAO.destroy();
 	}
@@ -183,16 +200,7 @@ SphereRenderer::~SphereRenderer() {
 		axesVBO.destroy();
 	}
 
-	if (shaderProgram) {
-		delete shaderProgram;
-		shaderProgram = nullptr;
-	}
-
-	if (axesShaderProgram) {
-		delete axesShaderProgram;
-		axesShaderProgram = nullptr;
-	}
-
+	// Clean up dot resources
 	if (dotVAO.isCreated()) {
 		dotVAO.destroy();
 	}
@@ -200,10 +208,45 @@ SphereRenderer::~SphereRenderer() {
 		dotVBO.destroy();
 	}
 
+	// Clean up shader programs
+	delete shaderProgram;
+	shaderProgram = nullptr;
+	delete axesShaderProgram;
+	axesShaderProgram = nullptr;
+	delete dotShaderProgram;
+	dotShaderProgram = nullptr;
+
+	initialized_ = false;
+	qDebug() << "SphereRenderer::cleanup() complete";
+}
+
+SphereRenderer::~SphereRenderer() {
+	// Clean up inertia timer
+	if (inertiaTimer_) {
+		inertiaTimer_->stop();
+		delete inertiaTimer_;
+		inertiaTimer_ = nullptr;
+	}
+
+	// OpenGL resources should already be cleaned up via cleanup() called from
+	// RadarGLWidget::cleanupGL() before context destruction.
+	// Only clean up non-GL resources here.
+
+	// If shader programs still exist, delete them (safe without GL context)
+	if (shaderProgram) {
+		delete shaderProgram;
+		shaderProgram = nullptr;
+	}
+	if (axesShaderProgram) {
+		delete axesShaderProgram;
+		axesShaderProgram = nullptr;
+	}
 	if (dotShaderProgram) {
 		delete dotShaderProgram;
 		dotShaderProgram = nullptr;
 	}
+
+	qDebug() << "SphereRenderer destructor called";
 }
 
 bool SphereRenderer::initialize() {

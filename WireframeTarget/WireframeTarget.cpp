@@ -66,12 +66,20 @@ WireframeTarget::WireframeTarget()
     )";
 }
 
-WireframeTarget::~WireframeTarget() {
-    QOpenGLContext* currentContext = QOpenGLContext::currentContext();
-    if (!currentContext) {
-        qWarning() << "No OpenGL context in WireframeTarget destructor, resources may leak";
+// Clean up OpenGL resources - must be called with valid GL context
+void WireframeTarget::cleanup() {
+    // Check for valid OpenGL context
+    QOpenGLContext* ctx = QOpenGLContext::currentContext();
+    if (!ctx) {
+        qWarning() << "WireframeTarget::cleanup() - no current context, skipping GL cleanup";
+        delete shaderProgram_;
+        shaderProgram_ = nullptr;
+        delete shadowShaderProgram_;
+        shadowShaderProgram_ = nullptr;
         return;
     }
+
+    qDebug() << "WireframeTarget::cleanup() - cleaning up OpenGL resources";
 
     // Clean up main geometry resources
     if (vao_.isCreated()) {
@@ -85,10 +93,8 @@ WireframeTarget::~WireframeTarget() {
         glDeleteBuffers(1, &eboId_);
         eboId_ = 0;
     }
-    if (shaderProgram_) {
-        delete shaderProgram_;
-        shaderProgram_ = nullptr;
-    }
+    delete shaderProgram_;
+    shaderProgram_ = nullptr;
 
     // Clean up shadow volume resources
     if (shadowVao_.isCreated()) {
@@ -102,10 +108,8 @@ WireframeTarget::~WireframeTarget() {
         glDeleteBuffers(1, &shadowEboId_);
         shadowEboId_ = 0;
     }
-    if (shadowShaderProgram_) {
-        delete shadowShaderProgram_;
-        shadowShaderProgram_ = nullptr;
-    }
+    delete shadowShaderProgram_;
+    shadowShaderProgram_ = nullptr;
 
     // Clean up depth cap resources
     if (depthCapVao_.isCreated()) {
@@ -120,7 +124,25 @@ WireframeTarget::~WireframeTarget() {
         depthCapEboId_ = 0;
     }
 
-    qDebug() << "WireframeTarget destructor - cleaned up OpenGL resources";
+    qDebug() << "WireframeTarget::cleanup() complete";
+}
+
+WireframeTarget::~WireframeTarget() {
+    // OpenGL resources should already be cleaned up via cleanup() called from
+    // RadarGLWidget::cleanupGL() before context destruction.
+    // Only clean up non-GL resources here.
+
+    // If shader programs still exist, delete them (safe without GL context)
+    if (shaderProgram_) {
+        delete shaderProgram_;
+        shaderProgram_ = nullptr;
+    }
+    if (shadowShaderProgram_) {
+        delete shadowShaderProgram_;
+        shadowShaderProgram_ = nullptr;
+    }
+
+    qDebug() << "WireframeTarget destructor called";
 }
 
 void WireframeTarget::initialize() {

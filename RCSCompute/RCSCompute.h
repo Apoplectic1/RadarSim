@@ -83,6 +83,7 @@ private:
     bool bvhDirty_ = true;
 
     // Configuration
+
     QVector3D radarPosition_;
     QVector3D beamDirection_{0, 0, -1};
     float beamWidthDegrees_ = 15.0f;

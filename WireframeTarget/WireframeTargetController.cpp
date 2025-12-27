@@ -23,6 +23,13 @@ WireframeTargetController::~WireframeTargetController() {
     delete target_;
 }
 
+void WireframeTargetController::cleanup() {
+    if (target_) {
+        target_->cleanup();
+    }
+    qDebug() << "WireframeTargetController::cleanup() - cleaned up OpenGL resources";
+}
+
 void WireframeTargetController::initialize() {
     qDebug() << "Initializing WireframeTargetController";
 

@@ -19,6 +19,9 @@ public:
     explicit SphereRenderer(QObject* parent = nullptr);
     ~SphereRenderer();
 
+    // Clean up OpenGL resources (call before context is destroyed)
+    void cleanup();
+
     // Initialization
     bool initialize();
     bool initializeShaders();

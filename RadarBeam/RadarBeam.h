@@ -36,6 +36,9 @@ public:
     // Destructor
     virtual ~RadarBeam();
 
+    // Clean up OpenGL resources (call before context is destroyed)
+    virtual void cleanup();
+
     void uploadGeometryToGPU();
 
     // Core methods

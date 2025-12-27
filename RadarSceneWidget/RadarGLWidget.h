@@ -56,12 +56,17 @@ protected:
     void resizeGL(int w, int h) override;
     void paintGL() override;
 
+private slots:
+    // Clean up OpenGL resources before context is destroyed
+    void cleanupGL();
+
 private:
     // Radar position
     float radius_ = 100.0f;
     float theta_ = 45.0f;
     float phi_ = 45.0f;
     bool beamDirty_ = true;
+    bool glCleanedUp_ = false;  // Prevent double cleanup
 
     // Component references (owned by RadarSceneWidget)
     SphereRenderer* sphereRenderer_ = nullptr;

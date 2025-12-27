@@ -13,6 +13,9 @@ public:
     explicit BeamController(QObject* parent = nullptr);
     ~BeamController();
 
+    // Clean up OpenGL resources (call before context is destroyed)
+    void cleanup();
+
     // Initialization
     void initialize();
 

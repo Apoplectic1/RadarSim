@@ -16,6 +16,9 @@ public:
     WireframeTarget();
     virtual ~WireframeTarget();
 
+    // Clean up OpenGL resources (call before context is destroyed)
+    virtual void cleanup();
+
     // Core lifecycle
     virtual void initialize();
     virtual void render(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& sceneModel,

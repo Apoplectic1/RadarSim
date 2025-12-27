@@ -31,15 +31,65 @@ RadarGLWidget::RadarGLWidget(QWidget* parent)
 RadarGLWidget::~RadarGLWidget() {
 	qDebug() << "RadarGLWidget destructor called";
 
-	// Clean up RCS compute
-	if (rcsCompute_) {
-		rcsCompute_->cleanup();
-		delete rcsCompute_;
-		rcsCompute_ = nullptr;
+	// Note: We intentionally do NOT call cleanupGL() here.
+	// OpenGL resources are automatically cleaned up when the context is destroyed.
+	// Trying to manually clean them up during widget destruction can cause crashes
+	// because Qt may have already started destroying the context infrastructure.
+
+	// Delete owned objects
+	delete rcsCompute_;
+	rcsCompute_ = nullptr;
+
+	delete contextMenu_;
+	contextMenu_ = nullptr;
+}
+
+void RadarGLWidget::cleanupGL() {
+	// Prevent double cleanup
+	if (glCleanedUp_) {
+		return;
+	}
+	glCleanedUp_ = true;
+
+	qDebug() << "RadarGLWidget::cleanupGL() - cleaning up all OpenGL resources";
+
+	// Try to make context current for cleanup
+	// This may fail if the context is already being destroyed
+	bool contextMadeCurrent = false;
+	if (context() && context()->isValid()) {
+		makeCurrent();
+		contextMadeCurrent = QOpenGLContext::currentContext() != nullptr;
 	}
 
-	// Clean up context menu
-	delete contextMenu_;
+	if (!contextMadeCurrent) {
+		qWarning() << "RadarGLWidget::cleanupGL() - could not make context current";
+	}
+
+	// Clean up RCS compute resources
+	if (rcsCompute_) {
+		rcsCompute_->cleanup();
+	}
+
+	// Clean up component resources
+	if (sphereRenderer_) {
+		sphereRenderer_->cleanup();
+	}
+
+	if (beamController_) {
+		beamController_->cleanup();
+	}
+
+	if (wireframeController_) {
+		wireframeController_->cleanup();
+	}
+
+	// Note: modelManager cleanup would go here if it has OpenGL resources
+
+	if (contextMadeCurrent) {
+		doneCurrent();
+	}
+
+	qDebug() << "RadarGLWidget::cleanupGL() complete";
 }
 
 void RadarGLWidget::initialize(SphereRenderer* sphereRenderer, BeamController* beamController, CameraController* cameraController, ModelManager* modelManager, WireframeTargetController* wireframeController) {

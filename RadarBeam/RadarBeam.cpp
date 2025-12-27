@@ -141,14 +141,18 @@ RadarBeam::RadarBeam(float sphereRadius, float beamWidthDegrees)
 	)";
 }
 
-// Destructor
-RadarBeam::~RadarBeam() {
-	// Make sure we're in a valid context before destroying resources
-	QOpenGLContext* currentContext = QOpenGLContext::currentContext();
-	if (!currentContext) {
-		qWarning() << "No OpenGL context in RadarBeam destructor, resources may leak";
+// Clean up OpenGL resources - must be called with valid GL context
+void RadarBeam::cleanup() {
+	// Check for valid OpenGL context
+	QOpenGLContext* ctx = QOpenGLContext::currentContext();
+	if (!ctx) {
+		qWarning() << "RadarBeam::cleanup() - no current context, skipping GL cleanup";
+		delete beamShaderProgram;
+		beamShaderProgram = nullptr;
 		return;
 	}
+
+	qDebug() << "RadarBeam::cleanup() - cleaning up OpenGL resources";
 
 	// Clean up OpenGL resources
 	if (beamVAO.isCreated()) {
@@ -162,12 +166,25 @@ RadarBeam::~RadarBeam() {
 		glDeleteBuffers(1, &eboId_);
 		eboId_ = 0;
 	}
+	delete beamShaderProgram;
+	beamShaderProgram = nullptr;
+
+	qDebug() << "RadarBeam::cleanup() complete";
+}
+
+// Destructor
+RadarBeam::~RadarBeam() {
+	// OpenGL resources should already be cleaned up via cleanup() called from
+	// RadarGLWidget::cleanupGL() before context destruction.
+	// Only clean up non-GL resources here.
+
+	// If shader program still exists, delete it (safe without GL context)
 	if (beamShaderProgram) {
 		delete beamShaderProgram;
 		beamShaderProgram = nullptr;
 	}
 
-	qDebug() << "RadarBeam destructor called - cleaned up OpenGL resources";
+	qDebug() << "RadarBeam destructor called";
 }
 
 void RadarBeam::uploadGeometryToGPU() {
