@@ -1,18 +1,20 @@
 #include "SphereRenderer.h"
 #include "GLUtils.h"
+#include "Constants.h"
 #include <QtMath>
 #include <qtimer.h>
 
+using namespace RadarSim::Constants;
 
 SphereRenderer::SphereRenderer(QObject* parent)
 	: QObject(parent),
-	radius_(100.0f),
+	radius_(Defaults::kSphereRadius),
 	showSphere_(true),
 	showGridLines_(true),
 	showAxes_(true),
 	initialized_(false),
-	theta_(45.0f),
-	phi_(45.0f),
+	theta_(Defaults::kRadarTheta),
+	phi_(Defaults::kRadarPhi),
 	// Initialize OpenGL buffer types
 	sphereVBO_(QOpenGLBuffer::VertexBuffer),
 	sphereEBO_(QOpenGLBuffer::IndexBuffer),
@@ -363,8 +365,8 @@ void SphereRenderer::createDot() {
 	// Create a small sphere for the dot
 	dotVertices_.clear();
 
-	float dotRadius = 5.0f;
-	int segments = 16;
+	float dotRadius = kRadarDotRadius;
+	int segments = kRadarDotVertices;
 
 	// Generate icosphere vertices for the dot (more efficient than full sphere)
 	// This is a simplified version - a proper icosphere would be better
@@ -477,8 +479,8 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 		}
 
 		// Set sphere-specific uniforms
-		shaderProgram_->setUniformValue("color", QVector3D(0.95f, 0.95f, 0.95f));
-		shaderProgram_->setUniformValue("lightPos", QVector3D(500.0f, -500.0f, 500.0f));
+		shaderProgram_->setUniformValue("color", QVector3D(Colors::kSphereOffWhite[0], Colors::kSphereOffWhite[1], Colors::kSphereOffWhite[2]));
+		shaderProgram_->setUniformValue("lightPos", QVector3D(Lighting::kLightPosition[0], Lighting::kLightPosition[1], Lighting::kLightPosition[2]));
 
 		// Enable blending for transparency
 		glEnable(GL_BLEND);
@@ -528,7 +530,7 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 		}
 
 		// Always update light position for grid lines
-		shaderProgram_->setUniformValue("lightPos", QVector3D(500.0f, -500.0f, 500.0f));
+		shaderProgram_->setUniformValue("lightPos", QVector3D(Lighting::kLightPosition[0], Lighting::kLightPosition[1], Lighting::kLightPosition[2]));
 
 		linesVAO_.bind();
 
@@ -540,38 +542,38 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 		glDepthFunc(GL_LEQUAL);
 
 		// Regular latitude lines
-		glLineWidth(1.0f);
-		shaderProgram_->setUniformValue("color", QVector3D(0.4f, 0.4f, 0.4f));
+		glLineWidth(kGridLineWidthNormal);
+		shaderProgram_->setUniformValue("color", QVector3D(Colors::kGridLineGrey[0], Colors::kGridLineGrey[1], Colors::kGridLineGrey[2]));
 
 		// Draw latitude lines
 		for (int lat = 0; lat < latitudeLineCount_; lat++) {
-			int startIdx = lat * (72 + 1);
+			int startIdx = lat * (kSphereLatSegments + 1);
 			if (startIdx == equatorStartIndex_) {
 				continue; // Skip equator, drawn separately
 			}
-			glDrawArrays(GL_LINE_STRIP, startIdx, 72 + 1);
+			glDrawArrays(GL_LINE_STRIP, startIdx, kSphereLatSegments + 1);
 		}
 
 		// Draw longitude lines
-		int longitudeStartOffset = latitudeLineCount_ * (72 + 1);
+		int longitudeStartOffset = latitudeLineCount_ * (kSphereLatSegments + 1);
 		for (int lon = 0; lon < longitudeLineCount_; lon++) {
-			int startIdx = longitudeStartOffset + lon * (50 + 1);
+			int startIdx = longitudeStartOffset + lon * (kSphereLongSegments + 1);
 			if (startIdx == primeMeridianStartIndex_) {
 				continue; // Skip prime meridian, drawn separately
 			}
-			glDrawArrays(GL_LINE_STRIP, startIdx, 50 + 1);
+			glDrawArrays(GL_LINE_STRIP, startIdx, kSphereLongSegments + 1);
 		}
 
 		// Special lines (equator and prime meridian)
-		glLineWidth(3.5f);
+		glLineWidth(kGridLineWidthSpecial);
 
-		// Equator (green) - match SphereWidget
-		shaderProgram_->setUniformValue("color", QVector3D(0.0f, 0.9f, 0.0f));
-		glDrawArrays(GL_LINE_STRIP, equatorStartIndex_, 72 + 1);
+		// Equator (green)
+		shaderProgram_->setUniformValue("color", QVector3D(Colors::kEquatorGreen[0], Colors::kEquatorGreen[1], Colors::kEquatorGreen[2]));
+		glDrawArrays(GL_LINE_STRIP, equatorStartIndex_, kSphereLatSegments + 1);
 
-		// Prime Meridian (blue) - match SphereWidget
-		shaderProgram_->setUniformValue("color", QVector3D(0.0f, 0.0f, 0.9f));
-		glDrawArrays(GL_LINE_STRIP, primeMeridianStartIndex_, 50 + 1);
+		// Prime Meridian (blue)
+		shaderProgram_->setUniformValue("color", QVector3D(Colors::kPrimeMeridianBlue[0], Colors::kPrimeMeridianBlue[1], Colors::kPrimeMeridianBlue[2]));
+		glDrawArrays(GL_LINE_STRIP, primeMeridianStartIndex_, kSphereLongSegments + 1);
 
 		// Restore default depth function
 		glDepthFunc(GL_LESS);
@@ -656,8 +658,8 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 	dotShaderProgram_->setUniformValue("projection", projection);
 	dotShaderProgram_->setUniformValue("view", view);
 	dotShaderProgram_->setUniformValue("model", dotModelMatrix);
-	dotShaderProgram_->setUniformValue("color", QVector3D(1.0f, 0.0f, 0.0f));  // Red dot
-	dotShaderProgram_->setUniformValue("lightPos", QVector3D(500.0f, -500.0f, 500.0f));
+	dotShaderProgram_->setUniformValue("color", QVector3D(Colors::kAxisRed[0], Colors::kAxisRed[1], Colors::kAxisRed[2]));  // Red dot
+	dotShaderProgram_->setUniformValue("lightPos", QVector3D(Lighting::kLightPosition[0], Lighting::kLightPosition[1], Lighting::kLightPosition[2]));
 	dotShaderProgram_->setUniformValue("opacity", 1.0f);  // Fully opaque
 
 	dotVAO_.bind();
@@ -747,10 +749,10 @@ void SphereRenderer::createAxesLines() {
 	// Create a local vector to collect all vertices
 	std::vector<float> vertices;
 
-	float axisLength = radius_ * 1.2f;   // Make axes slightly longer than radius
+	float axisLength = radius_ * View::kAxisLengthMultiplier;   // Make axes slightly longer than radius
 	float arrowLength = radius_ * 0.06f; // Length of the conical arrowhead
 	float arrowRadius = radius_ * 0.02f; // Radius of the conical arrowhead base
-	int segments = 12;                   // Number of segments for the cone
+	int segments = kAxisArrowSegments;   // Number of segments for the cone
 
 	// First, create the axis lines
 	// X-axis (red)
@@ -1010,12 +1012,11 @@ void SphereRenderer::createGridLines() {
 
 	// Constants for grid generation
 	const float degToRad = float(M_PI / 180.0f);
-	const int latitudeSegments = 72;  // Higher number for smoother circles
-	const int longitudeSegments = 50; // Higher number for smoother arcs
+	const int latitudeSegments = kSphereLatSegments;  // Higher number for smoother circles
+	const int longitudeSegments = kSphereLongSegments; // Higher number for smoother arcs
 
 	// Add a small radius offset to ensure grid lines render above the sphere surface
-	// Typically 0.1% to 1% larger is sufficient
-	const float gridRadiusOffset = radius_ * 1.005f; // 0.5% larger than sphere radius
+	const float gridRadiusOffset = radius_ * kGridRadiusOffset;
 
 	// Track our progress in the vertex array
 	int vertexOffset = 0;
@@ -1127,7 +1128,7 @@ void SphereRenderer::startInertia(const QVector3D& axis, float velocity) {
 
 	// Start timer if not already running
 	if (!inertiaTimer_->isActive()) {
-		inertiaTimer_->start(16); // ~60 FPS
+		inertiaTimer_->start(kCameraInertiaTimerMs);
 	}
 }
 

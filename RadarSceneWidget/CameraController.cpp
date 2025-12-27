@@ -1,13 +1,15 @@
 // CameraController.cpp
 #include "CameraController.h"
-#include <QDebug>
+#include "Constants.h"
 #include <cmath>
+
+using namespace RadarSim::Constants;
 
 CameraController::CameraController(QObject* parent)
     : QObject(parent),
-    distance_(300.0f),
-    azimuth_(0.0f),
-    elevation_(0.4f),  // ~23 degrees - slight overhead view
+    distance_(Defaults::kCameraDistance),
+    azimuth_(Defaults::kCameraAzimuth),
+    elevation_(Defaults::kCameraElevation),
     focusPoint_(0.0f, 0.0f, 0.0f),
     inertiaTimer_(new QTimer(this)),
     inertiaEnabled_(false)
@@ -37,9 +39,9 @@ void CameraController::resetView() {
     stopInertia();
 
     // Reset orbit camera to default position
-    distance_ = 300.0f;
-    azimuth_ = 0.0f;
-    elevation_ = 0.4f;  // ~23 degrees
+    distance_ = Defaults::kCameraDistance;
+    azimuth_ = Defaults::kCameraAzimuth;
+    elevation_ = Defaults::kCameraElevation;
     focusPoint_ = QVector3D(0.0f, 0.0f, 0.0f);
 
     // Update view matrix
@@ -83,9 +85,7 @@ void CameraController::setInertiaEnabled(bool enabled) {
 }
 
 void CameraController::setDistance(float d) {
-    const float minDistance = 50.0f;
-    const float maxDistance = 1000.0f;
-    distance_ = qBound(minDistance, d, maxDistance);
+    distance_ = qBound(kCameraMinDistance, d, kCameraMaxDistance);
     updateViewMatrix();
     emit viewChanged();
 }
@@ -97,8 +97,7 @@ void CameraController::setAzimuth(float a) {
 }
 
 void CameraController::setElevation(float e) {
-    const float maxElevation = 1.5f;
-    elevation_ = qBound(-maxElevation, e, maxElevation);
+    elevation_ = qBound(-kCameraMaxElevation, e, kCameraMaxElevation);
     updateViewMatrix();
     emit viewChanged();
 }
@@ -149,17 +148,15 @@ void CameraController::mouseMoveEvent(QMouseEvent* event) {
         }
 
         // Convert mouse delta to orbit angle changes (radians per pixel)
-        float rotationSpeed = 0.005f;
-        float dAzimuth = -delta.x() * rotationSpeed;    // Horizontal drag = orbit left/right
-        float dElevation = delta.y() * rotationSpeed;   // Vertical drag = orbit up/down
+        float dAzimuth = -delta.x() * kCameraRotationSpeed;    // Horizontal drag = orbit left/right
+        float dElevation = delta.y() * kCameraRotationSpeed;   // Vertical drag = orbit up/down
 
         // Update orbit angles
         azimuth_ += dAzimuth;
         elevation_ += dElevation;
 
-        // Clamp elevation to avoid gimbal lock at poles
-        const float maxElevation = 1.5f;  // ~85 degrees
-        elevation_ = qBound(-maxElevation, elevation_, maxElevation);
+        // Clamp elevation to avoid gimbal lock at poles (~85 degrees)
+        elevation_ = qBound(-kCameraMaxElevation, elevation_, kCameraMaxElevation);
 
         // Store velocities for inertia calculation
         azimuthVelocity_ = dAzimuth / dt * 0.3f;    // Scale down for smoother inertia
@@ -205,15 +202,11 @@ void CameraController::mouseReleaseEvent(QMouseEvent* event) {
 
 void CameraController::wheelEvent(QWheelEvent* event) {
     // Zoom changes camera distance (scroll up = zoom in = closer)
-    float zoomSpeed = 0.5f;
-    float distanceChange = -event->angleDelta().y() * zoomSpeed;
+    float distanceChange = -event->angleDelta().y() * kCameraZoomSpeed;
 
     // Update distance with limits
-    float minDistance = 50.0f;
-    float maxDistance = 1000.0f;
-
     distance_ += distanceChange;
-    distance_ = qBound(minDistance, distance_, maxDistance);
+    distance_ = qBound(kCameraMinDistance, distance_, kCameraMaxDistance);
 
     // Update view matrix
     updateViewMatrix();
@@ -237,8 +230,7 @@ void CameraController::onInertiaTimerTimeout() {
         elevation_ += elevationVelocity_;
 
         // Clamp elevation to avoid gimbal lock
-        const float maxElevation = 1.5f;
-        elevation_ = qBound(-maxElevation, elevation_, maxElevation);
+        elevation_ = qBound(-kCameraMaxElevation, elevation_, kCameraMaxElevation);
 
         // Decay the velocities
         azimuthVelocity_ *= velocityDecay_;
@@ -261,7 +253,7 @@ void CameraController::startInertia(float azimuthVel, float elevationVel) {
 
     // Start timer if not already running
     if (!inertiaTimer_->isActive()) {
-        inertiaTimer_->start(16); // ~60 FPS
+        inertiaTimer_->start(kCameraInertiaTimerMs);
     }
 }
 

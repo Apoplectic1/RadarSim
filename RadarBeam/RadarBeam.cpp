@@ -4,14 +4,17 @@
 #include "GLUtils.h"
 #include "ConicalBeam.h"
 #include "PhasedArrayBeam.h"
+#include "Constants.h"
 #include <cmath>
+
+using namespace RadarSim::Constants;
 
 // Constructor
 RadarBeam::RadarBeam(float sphereRadius, float beamWidthDegrees)
 	: sphereRadius_(sphereRadius),
 	beamWidthDegrees_(beamWidthDegrees),
-	color_(1.0f, 0.5f, 0.0f), // Default to orange-red
-	opacity_(0.3f), // Default semi-transparent
+	color_(Colors::kBeamOrange[0], Colors::kBeamOrange[1], Colors::kBeamOrange[2]),
+	opacity_(Defaults::kBeamOpacity),
 	visible_(true),
 	beamLengthFactor_(1.0f), // Default to full sphere diameter
 	beamDirection_(BeamDirection::ToOrigin),
@@ -562,8 +565,8 @@ void RadarBeam::calculateBeamVertices(const QVector3D& apex, const QVector3D& di
 	}
 
 	// Number of segments around the base circle
-	const int segments = 32;
-	const int capRings = 8;  // Number of rings for the spherical cap
+	const int segments = kBeamConeSegments;
+	const int capRings = kBeamCapRings;  // Number of rings for the spherical cap
 
 	// Normalized direction vector
 	QVector3D normDirection = direction.normalized();

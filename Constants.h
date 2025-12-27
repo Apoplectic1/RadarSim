@@ -97,4 +97,53 @@ namespace Defaults {
     constexpr float kTargetScale = 20.0f;
 }
 
+// =============================================================================
+// Colors (RGB float arrays)
+// =============================================================================
+namespace Colors {
+    // Scene colors
+    constexpr float kBackgroundGrey[3] = {0.5f, 0.5f, 0.5f};
+    constexpr float kGridLineGrey[3] = {0.4f, 0.4f, 0.4f};
+    constexpr float kSphereOffWhite[3] = {0.95f, 0.95f, 0.95f};
+
+    // Default object colors
+    constexpr float kBeamOrange[3] = {1.0f, 0.5f, 0.0f};
+    constexpr float kTargetGreen[3] = {0.0f, 1.0f, 0.0f};
+
+    // Axis colors (RGB for XYZ)
+    constexpr float kAxisRed[3] = {1.0f, 0.0f, 0.0f};
+    constexpr float kAxisGreen[3] = {0.0f, 1.0f, 0.0f};
+    constexpr float kAxisBlue[3] = {0.0f, 0.0f, 1.0f};
+
+    // Grid special lines
+    constexpr float kEquatorGreen[3] = {0.0f, 0.8f, 0.0f};
+    constexpr float kPrimeMeridianBlue[3] = {0.0f, 0.0f, 0.8f};
+}
+
+// =============================================================================
+// Lighting
+// =============================================================================
+namespace Lighting {
+    constexpr float kLightPosition[3] = {500.0f, -500.0f, 500.0f};
+    constexpr float kTargetLightPosition[3] = {500.0f, 500.0f, 500.0f};
+}
+
+// =============================================================================
+// View/Perspective
+// =============================================================================
+namespace View {
+    constexpr float kPerspectiveFOV = 45.0f;        // Field of view in degrees
+    constexpr float kNearPlane = 0.1f;              // Near clipping plane
+    constexpr float kFarPlane = 2000.0f;            // Far clipping plane
+    constexpr float kAxisLengthMultiplier = 1.2f;   // Axis length as fraction of radius
+}
+
+// =============================================================================
+// UI Constants
+// =============================================================================
+namespace UI {
+    constexpr int kAxisLabelFontSize = 14;          // Font size for axis labels
+    constexpr int kTextOffsetPixels = 15;           // Offset for text labels
+}
+
 }} // namespace RadarSim::Constants

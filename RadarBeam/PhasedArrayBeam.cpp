@@ -1,8 +1,11 @@
 // ---- PhasedArrayBeam.cpp ----
 
 #include "PhasedArrayBeam.h"
+#include "Constants.h"
 #include <cmath>
 #include <QQuaternion>
+
+using namespace RadarSim::Constants;
 
 PhasedArrayBeam::PhasedArrayBeam(float sphereRadius, float mainLobeWidthDegrees)
     : RadarBeam(sphereRadius, mainLobeWidthDegrees),
@@ -86,8 +89,8 @@ void PhasedArrayBeam::createBeamGeometry() {
     }
 
     // Number of segments around the base ellipse
-    const int segments = 32;
-    const int capRings = 8;  // Number of rings for the spherical cap
+    const int segments = kBeamConeSegments;
+    const int capRings = kBeamCapRings;  // Number of rings for the spherical cap
 
     // Calculate beam direction
     QVector3D direction = calculateBeamDirection(currentRadarPosition_);

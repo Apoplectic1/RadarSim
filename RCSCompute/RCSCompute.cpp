@@ -1,6 +1,7 @@
 // RCSCompute.cpp - GPU ray tracing implementation
 #include "RCSCompute.h"
 #include "GLUtils.h"
+#include "Constants.h"
 #include <QOpenGLContext>
 #include <QDebug>
 #include <cmath>
@@ -8,6 +9,8 @@
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
+
+using namespace RadarSim::Constants;
 
 namespace RCS {
 
@@ -398,9 +401,9 @@ void RCSCompute::createBuffers() {
 
     // Shadow map texture for beam visualization
     // Match resolution exactly to ray distribution for 1:1 texel mapping:
-    // - X = raysPerRing = 64
-    // - Y = numRings = numRays / raysPerRing = 10000 / 64 ≈ 157
-    int raysPerRing = 64;
+    // - X = raysPerRing (azimuth)
+    // - Y = numRings (elevation)
+    int raysPerRing = kRaysPerRing;
     int numRings = (numRays_ + raysPerRing - 1) / raysPerRing;
     shadowMapResolution_ = raysPerRing;  // Store for getShadowMapResolution()
 
@@ -486,11 +489,11 @@ void RCSCompute::dispatchRayGeneration() {
     rayGenShader_->setUniformValue("radarPosition", radarPosition_);
     rayGenShader_->setUniformValue("beamDirection", beamDirection_);
     rayGenShader_->setUniformValue("beamWidthRad", static_cast<float>(beamWidthDegrees_ * M_PI / 180.0));
-    rayGenShader_->setUniformValue("maxDistance", sphereRadius_ * 3.0f);
+    rayGenShader_->setUniformValue("maxDistance", sphereRadius_ * kMaxRayDistanceMultiplier);
     rayGenShader_->setUniformValue("numRays", numRays_);
 
     // Calculate ring parameters
-    int raysPerRing = 64;
+    int raysPerRing = kRaysPerRing;
     int numRings = (numRays_ + raysPerRing - 1) / raysPerRing;
     rayGenShader_->setUniformValue("raysPerRing", raysPerRing);
     rayGenShader_->setUniformValue("numRings", numRings);
@@ -499,7 +502,7 @@ void RCSCompute::dispatchRayGeneration() {
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, rayBuffer_);
 
     // Dispatch
-    int numGroups = (numRays_ + 63) / 64;
+    int numGroups = (numRays_ + kComputeWorkgroupSize - 1) / kComputeWorkgroupSize;
     glDispatchCompute(numGroups, 1, 1);
 
     // Memory barrier
@@ -528,7 +531,7 @@ void RCSCompute::dispatchTracing() {
     glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(GLuint), &zero);
 
     // Dispatch
-    int numGroups = (numRays_ + 63) / 64;
+    int numGroups = (numRays_ + kComputeWorkgroupSize - 1) / kComputeWorkgroupSize;
     glDispatchCompute(numGroups, 1, 1);
 
     // Memory barrier
@@ -552,7 +555,7 @@ void RCSCompute::clearShadowMap() {
     if (!shadowMapTexture_) return;
 
     // Get texture dimensions
-    int raysPerRing = 64;
+    int raysPerRing = kRaysPerRing;
     int numRings = (numRays_ + raysPerRing - 1) / raysPerRing;
     int texWidth = raysPerRing;
     int texHeight = numRings;
@@ -574,7 +577,7 @@ void RCSCompute::dispatchShadowMapGeneration() {
     shadowMapShader_->setUniformValue("numRays", numRays_);
 
     // Calculate ring parameters (same as ray generation)
-    int raysPerRing = 64;
+    int raysPerRing = kRaysPerRing;
     int numRings = (numRays_ + raysPerRing - 1) / raysPerRing;
     shadowMapShader_->setUniformValue("raysPerRing", raysPerRing);
     shadowMapShader_->setUniformValue("numRings", numRings);
@@ -584,7 +587,7 @@ void RCSCompute::dispatchShadowMapGeneration() {
     glBindImageTexture(0, shadowMapTexture_, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R32F);
 
     // Dispatch
-    int numGroups = (numRays_ + 63) / 64;
+    int numGroups = (numRays_ + kComputeWorkgroupSize - 1) / kComputeWorkgroupSize;
     glDispatchCompute(numGroups, 1, 1);
 
     // Memory barrier for texture writes - include TEXTURE_FETCH for sampling in fragment shader

@@ -1,10 +1,13 @@
 // BeamController.cpp
 #include "BeamController.h"
+#include "Constants.h"
+
+using namespace RadarSim::Constants;
 
 BeamController::BeamController(QObject* parent)
     : QObject(parent),
     currentBeamType_(BeamType::Conical),
-    sphereRadius_(100.0f),
+    sphereRadius_(Defaults::kSphereRadius),
     showBeam_(true)
 {
 }
@@ -72,7 +75,7 @@ void BeamController::setBeamWidth(float degrees) {
 }
 
 float BeamController::getBeamWidth() const {
-    return radarBeam_ ? radarBeam_->getBeamWidth() : 15.0f;
+    return radarBeam_ ? radarBeam_->getBeamWidth() : Defaults::kBeamWidth;
 }
 
 void BeamController::setBeamColor(const QVector3D& color) {
@@ -86,7 +89,7 @@ void BeamController::setBeamColor(const QVector3D& color) {
 }
 
 QVector3D BeamController::getBeamColor() const {
-    return radarBeam_ ? radarBeam_->getColor() : QVector3D(1.0f, 0.5f, 0.0f);
+    return radarBeam_ ? radarBeam_->getColor() : QVector3D(Colors::kBeamOrange[0], Colors::kBeamOrange[1], Colors::kBeamOrange[2]);
 }
 
 void BeamController::setBeamOpacity(float opacity) {
@@ -100,7 +103,7 @@ void BeamController::setBeamOpacity(float opacity) {
 }
 
 float BeamController::getBeamOpacity() const {
-    return radarBeam_ ? radarBeam_->getOpacity() : 0.3f;
+    return radarBeam_ ? radarBeam_->getOpacity() : Defaults::kBeamOpacity;
 }
 
 void BeamController::setSphereRadius(float radius) {
@@ -167,9 +170,9 @@ void BeamController::setNumRings(int numRings) {
 
 void BeamController::createBeam() {
     // Store current properties if beam exists
-    float width = 15.0f;
-    QVector3D color(1.0f, 0.5f, 0.0f);
-    float opacity = 0.3f;
+    float width = Defaults::kBeamWidth;
+    QVector3D color(Colors::kBeamOrange[0], Colors::kBeamOrange[1], Colors::kBeamOrange[2]);
+    float opacity = Defaults::kBeamOpacity;
     bool visible = showBeam_;
 
     if (radarBeam_) {

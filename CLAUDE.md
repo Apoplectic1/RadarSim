@@ -29,7 +29,7 @@ cmake --build out/build/release
 RadarSim/
 ├── main.cpp                    # Entry point, OpenGL context setup
 ├── RadarSim.h/.cpp             # Main window with tabbed UI
-├── Constants.h                 # Compile-time constants (geometry, buffers, limits)
+├── Constants.h                 # Compile-time constants (see Constants section below)
 ├── GLUtils.h                   # OpenGL error checking utilities
 ├── Config/                     # Settings and configuration system
 │   ├── AppSettings.h/.cpp      # Main settings manager with profile support
@@ -537,6 +537,7 @@ void RadarSim::onTargetPosXChanged(int value) {
 4. RCS contribution calculation not yet implemented (placeholder in HitResult)
 5. Ray visualization for debugging not implemented
 6. OpenGL 4.3 required - no fallback for older hardware
+7. Some shader-embedded constants cannot use C++ constexpr (workgroup size, epsilon values)
 
 ## Future Enhancements
 
@@ -581,3 +582,66 @@ The 3D scene uses orbit camera controls via `CameraController`:
   - `theta`: azimuth angle (horizontal rotation)
   - `phi`: elevation angle (vertical rotation)
 - Conversion to Cartesian in `SphereRenderer::updateRadarDotPosition()`
+
+## Constants.h Organization
+
+All compile-time constants are centralized in `Constants.h` under the `RadarSim::Constants` namespace:
+
+```cpp
+namespace RadarSim::Constants {
+    // Compute Shader Configuration
+    kComputeWorkgroupSize, kDefaultNumRays, kRaysPerRing
+
+    // BVH Settings
+    kBVHMaxLeafSize, kBVHNumBins, kBVHStackSize
+
+    // Geometry Generation
+    kBeamConeSegments, kBeamCapRings, kCylinderSegments,
+    kSphereLatSegments, kSphereLongSegments, kAxisArrowSegments
+
+    // Camera Limits
+    kCameraMinDistance, kCameraMaxDistance, kCameraMaxElevation,
+    kCameraRotationSpeed, kCameraZoomSpeed, kCameraInertiaDecay
+
+    // Ray Tracing
+    kRayTMinEpsilon, kTriangleEpsilon, kMaxRayDistanceMultiplier
+
+    // Rendering
+    kGridLineWidthNormal, kGridLineWidthSpecial, kGridRadiusOffset,
+    kRadarDotRadius, kRadarDotVertices
+
+    // Shader Visual Constants
+    kFresnelMin, kFresnelMax, kMinBeamOpacity,
+    kAmbientStrength, kSpecularStrength, kShininess
+
+    // Shadow Map
+    kShadowMapWidth, kShadowMapHeight, kShadowMapNoHit
+
+    namespace Defaults {
+        kCameraDistance, kCameraAzimuth, kCameraElevation,
+        kSphereRadius, kRadarTheta, kRadarPhi,
+        kBeamWidth, kBeamOpacity, kTargetScale
+    }
+
+    namespace Colors {
+        kBackgroundGrey, kGridLineGrey, kSphereOffWhite,
+        kBeamOrange, kTargetGreen,
+        kAxisRed, kAxisGreen, kAxisBlue,
+        kEquatorGreen, kPrimeMeridianBlue
+    }
+
+    namespace Lighting {
+        kLightPosition, kTargetLightPosition
+    }
+
+    namespace View {
+        kPerspectiveFOV, kNearPlane, kFarPlane, kAxisLengthMultiplier
+    }
+
+    namespace UI {
+        kAxisLabelFontSize, kTextOffsetPixels
+    }
+}
+```
+
+**Usage**: Include `Constants.h` and add `using namespace RadarSim::Constants;` to access constants directly.

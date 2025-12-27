@@ -1,16 +1,19 @@
 // RadarGLWidget.cpp
 #include "RadarSceneWidget/RadarGLWidget.h"
 #include "GLUtils.h"
+#include "Constants.h"
 #include <QActionGroup>
 #include <QDebug>
 #include <QPainter>
 #include <QFont>
 
+using namespace RadarSim::Constants;
+
 RadarGLWidget::RadarGLWidget(QWidget* parent)
 	: QOpenGLWidget(parent),
-	radius_(100.0f),
-	theta_(45.0f),
-	phi_(45.0f),
+	radius_(Defaults::kSphereRadius),
+	theta_(Defaults::kRadarTheta),
+	phi_(Defaults::kRadarPhi),
 	sphereRenderer_(nullptr),
 	beamController_(nullptr),
 	cameraController_(nullptr),
@@ -128,7 +131,7 @@ void RadarGLWidget::initializeGL() {
 	}
 
 	// Set up OpenGL
-	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
+	glClearColor(Colors::kBackgroundGrey[0], Colors::kBackgroundGrey[1], Colors::kBackgroundGrey[2], 1.0f);
 	glEnable(GL_DEPTH_TEST);
 
 	// Check for errors after basic GL setup
@@ -202,7 +205,7 @@ void RadarGLWidget::paintGL() {
 	glDisable(GL_STENCIL_TEST);
 
 	// Clear all buffers including stencil
-	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
+	glClearColor(Colors::kBackgroundGrey[0], Colors::kBackgroundGrey[1], Colors::kBackgroundGrey[2], 1.0f);
 	glClearStencil(0);
 	glStencilMask(0xFF);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -226,7 +229,7 @@ void RadarGLWidget::paintGL() {
 	// Set up projection matrix
 	QMatrix4x4 projectionMatrix;
 	projectionMatrix.setToIdentity();
-	projectionMatrix.perspective(45.0f, float(width()) / float(height()), 0.1f, 2000.0f);
+	projectionMatrix.perspective(View::kPerspectiveFOV, float(width()) / float(height()), View::kNearPlane, View::kFarPlane);
 
 	// Draw components
 	try {
@@ -284,7 +287,7 @@ void RadarGLWidget::paintGL() {
 	// Render 2D text labels for axes on top of 3D scene
 	if (sphereRenderer_ && sphereRenderer_->areAxesVisible()) {
 		// Calculate axis tip positions (same as in SphereRenderer::createAxesLines)
-		float axisLength = radius_ * 1.2f;
+		float axisLength = radius_ * View::kAxisLengthMultiplier;
 		QVector3D xTip(axisLength, 0.0f, 0.0f);
 		QVector3D yTip(0.0f, axisLength, 0.0f);
 		QVector3D zTip(0.0f, 0.0f, axisLength);
@@ -298,12 +301,12 @@ void RadarGLWidget::paintGL() {
 		QPainter painter(this);
 		painter.setPen(Qt::white);
 		QFont font = painter.font();
-		font.setPointSize(14);
+		font.setPointSize(UI::kAxisLabelFontSize);
 		font.setBold(true);
 		painter.setFont(font);
 
 		// Offset text slightly from the arrow tip position
-		int textOffset = 15;
+		int textOffset = UI::kTextOffsetPixels;
 
 		// Draw labels
 		painter.setPen(Qt::red);

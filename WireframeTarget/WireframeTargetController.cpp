@@ -1,7 +1,10 @@
 // WireframeTargetController.cpp
 
 #include "WireframeTargetController.h"
+#include "Constants.h"
 #include <QDebug>
+
+using namespace RadarSim::Constants;
 
 WireframeTargetController::WireframeTargetController(QObject* parent)
     : QObject(parent),
@@ -10,8 +13,8 @@ WireframeTargetController::WireframeTargetController(QObject* parent)
       typeChangePending_(false),
       position_(0.0f, 0.0f, 0.0f),
       rotation_(0.0f, 0.0f, 0.0f),
-      scale_(20.0f),
-      color_(0.0f, 1.0f, 0.0f),
+      scale_(Defaults::kTargetScale),
+      color_(Colors::kTargetGreen[0], Colors::kTargetGreen[1], Colors::kTargetGreen[2]),
       showTarget_(true),
       illuminated_(false),
       lightDirection_(0.0f, 0.0f, 1.0f)

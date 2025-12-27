@@ -1,8 +1,11 @@
 // BVHBuilder.cpp - BVH construction using Surface Area Heuristic
 #include "BVHBuilder.h"
+#include "Constants.h"
 #include <algorithm>
 #include <limits>
 #include <QDebug>
+
+using namespace RadarSim::Constants;
 
 namespace RCS {
 
@@ -92,7 +95,7 @@ int BVHBuilder::buildRecursive(std::vector<int>& triIndices, int start, int end,
     int count = end - start;
 
     // Leaf node threshold
-    const int maxLeafSize = 4;
+    const int maxLeafSize = kBVHMaxLeafSize;
 
     if (count <= maxLeafSize) {
         // Create leaf node
@@ -144,7 +147,7 @@ BVHBuilder::SplitResult BVHBuilder::findBestSplit(const std::vector<int>& triInd
     best.axis = 0;
     best.position = 0.0f;
 
-    const int numBins = 12;
+    const int numBins = kBVHNumBins;
     float parentArea = bounds.surfaceArea();
 
     for (int axis = 0; axis < 3; axis++) {

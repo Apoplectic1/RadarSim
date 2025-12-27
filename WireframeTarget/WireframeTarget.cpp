@@ -5,15 +5,18 @@
 #include "CubeWireframe.h"
 #include "CylinderWireframe.h"
 #include "AircraftWireframe.h"
+#include "Constants.h"
 #include <QDebug>
 #include <QOpenGLContext>
 #include <cmath>
+
+using namespace RadarSim::Constants;
 
 WireframeTarget::WireframeTarget()
     : position_(0.0f, 0.0f, 0.0f),
       rotation_(),
       scale_(1.0f, 1.0f, 1.0f),
-      color_(0.0f, 1.0f, 0.0f),
+      color_(Colors::kTargetGreen[0], Colors::kTargetGreen[1], Colors::kTargetGreen[2]),
       visible_(true),
       illuminated_(false),
       lightDirection_(0.0f, 0.0f, 1.0f)
@@ -246,7 +249,7 @@ void WireframeTarget::render(const QMatrix4x4& projection, const QMatrix4x4& vie
     shaderProgram_->setUniformValue("view", view);
     shaderProgram_->setUniformValue("model", combinedModel);
     shaderProgram_->setUniformValue("objectColor", color_);
-    shaderProgram_->setUniformValue("lightPos", QVector3D(500.0f, 500.0f, 500.0f));
+    shaderProgram_->setUniformValue("lightPos", QVector3D(Lighting::kTargetLightPosition[0], Lighting::kTargetLightPosition[1], Lighting::kTargetLightPosition[2]));
 
     vao_.bind();
     glBindBuffer(GL_ARRAY_BUFFER, vboId_);

@@ -1,11 +1,14 @@
 // CylinderWireframe.cpp
 
 #include "CylinderWireframe.h"
+#include "Constants.h"
 #include <cmath>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
+
+using namespace RadarSim::Constants;
 
 CylinderWireframe::CylinderWireframe()
     : WireframeTarget()
@@ -17,7 +20,7 @@ void CylinderWireframe::generateGeometry() {
 
     const float radius = 0.5f;
     const float halfHeight = 0.5f;
-    const int segments = 24;
+    const int segments = kCylinderSegments;
 
     GLuint baseIdx;
 
