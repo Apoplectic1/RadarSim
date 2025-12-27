@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <QOpenGLFunctions_3_3_Core>
+#include <QOpenGLFunctions_4_3_Core>
 #include <QOpenGLShaderProgram>
 #include <QOpenGLBuffer>
 #include <QOpenGLVertexArrayObject>
@@ -25,7 +25,7 @@ enum class BeamDirection {
 };
 
 // Base class for all beam shapes
-class RadarBeam : protected QOpenGLFunctions_3_3_Core {
+class RadarBeam : protected QOpenGLFunctions_4_3_Core {
 public:
     // Constructor
     RadarBeam(float sphereRadius = 100.0f, float beamWidthDegrees = 15.0f);

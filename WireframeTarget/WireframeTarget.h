@@ -1,7 +1,7 @@
 // WireframeTarget.h
 #pragma once
 
-#include <QOpenGLFunctions_3_3_Core>
+#include <QOpenGLFunctions_4_3_Core>
 #include <QOpenGLShaderProgram>
 #include <QOpenGLVertexArrayObject>
 #include <QVector3D>
@@ -11,7 +11,7 @@
 
 #include "WireframeShapes.h"
 
-class WireframeTarget : protected QOpenGLFunctions_3_3_Core {
+class WireframeTarget : protected QOpenGLFunctions_4_3_Core {
 public:
     WireframeTarget();
     virtual ~WireframeTarget();

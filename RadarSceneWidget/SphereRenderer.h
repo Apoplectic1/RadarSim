@@ -2,7 +2,7 @@
 #pragma once
 
 #include <QObject>
-#include <QOpenGLFunctions_3_3_Core>
+#include <QOpenGLFunctions_4_3_Core>
 #include <QOpenGLShaderProgram>
 #include <QOpenGLBuffer>
 #include <QOpenGLVertexArrayObject>
@@ -12,7 +12,7 @@
 #include <vector>
 #include <QQuaternion>
 
-class SphereRenderer : public QObject, protected QOpenGLFunctions_3_3_Core {
+class SphereRenderer : public QObject, protected QOpenGLFunctions_4_3_Core {
     Q_OBJECT
 
 public:

@@ -7,7 +7,7 @@
 class Model {
 public:
     virtual ~Model() {}
-    virtual void render(QOpenGLFunctions_3_3_Core* gl, QOpenGLShaderProgram* program) = 0;
+    virtual void render(QOpenGLFunctions_4_3_Core* gl, QOpenGLShaderProgram* program) = 0;
 
     QVector3D position = QVector3D(0, 0, 0);
     QVector3D rotation = QVector3D(0, 0, 0);
