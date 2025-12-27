@@ -1,6 +1,7 @@
 ﻿// ---- RadarBeam.cpp ----
 
 #include "RadarBeam.h"
+#include "GLUtils.h"
 #include "ConicalBeam.h"
 #include "PhasedArrayBeam.h"
 #include <cmath>
@@ -248,7 +249,14 @@ void RadarBeam::initialize() {
 		return;
 	}
 
-	initializeOpenGLFunctions();
+	if (!initializeOpenGLFunctions()) {
+		qCritical() << "RadarBeam: Failed to initialize OpenGL functions!";
+		return;
+	}
+
+	// Clear pending GL errors
+	GLUtils::clearGLErrors();
+
 	setupShaders();
 
 	// Create VAO only - buffers will be created in uploadGeometryToGPU
@@ -258,6 +266,9 @@ void RadarBeam::initialize() {
 
 	// Mark geometry as dirty - actual geometry will be created when position is set
 	geometryDirty_ = true;
+
+	// Check for errors after initialization
+	GLUtils::checkGLError("RadarBeam::initialize");
 }
 
 

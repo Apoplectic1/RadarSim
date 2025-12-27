@@ -22,8 +22,8 @@ public:
     explicit ModelManager(QObject* parent = nullptr);
     ~ModelManager();
 
-    // Initialization
-    void initialize();
+    // Initialization (returns false on failure)
+    bool initialize();
 
     // Model management
     bool loadModel(const std::string& filename, const QVector3D& position = QVector3D(0, 0, 0));
@@ -59,5 +59,5 @@ private:
     const char* fragmentShaderSource;
 
     // Helper methods
-    void setupShaders();
+    bool setupShaders();
 };

@@ -1,5 +1,6 @@
 // RCSCompute.cpp - GPU ray tracing implementation
 #include "RCSCompute.h"
+#include "GLUtils.h"
 #include <QOpenGLContext>
 #include <QDebug>
 #include <cmath>
@@ -287,7 +288,13 @@ bool RCSCompute::initialize() {
         return false;
     }
 
-    initializeOpenGLFunctions();
+    if (!initializeOpenGLFunctions()) {
+        qCritical() << "RCSCompute: Failed to initialize OpenGL functions!";
+        return false;
+    }
+
+    // Clear pending GL errors
+    GLUtils::clearGLErrors();
 
     // Check for compute shader support
     GLint maxComputeWorkGroupCount[3];
@@ -305,6 +312,9 @@ bool RCSCompute::initialize() {
     }
 
     createBuffers();
+
+    // Check for errors after initialization
+    GLUtils::checkGLError("RCSCompute::initialize");
 
     initialized_ = true;
     qDebug() << "RCSCompute initialized successfully";

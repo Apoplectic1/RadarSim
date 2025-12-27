@@ -1,6 +1,7 @@
 // WireframeTarget.cpp
 
 #include "WireframeTarget.h"
+#include "GLUtils.h"
 #include "CubeWireframe.h"
 #include "CylinderWireframe.h"
 #include "AircraftWireframe.h"
@@ -151,7 +152,14 @@ void WireframeTarget::initialize() {
         return;
     }
 
-    initializeOpenGLFunctions();
+    if (!initializeOpenGLFunctions()) {
+        qCritical() << "WireframeTarget: Failed to initialize OpenGL functions!";
+        return;
+    }
+
+    // Clear pending GL errors
+    GLUtils::clearGLErrors();
+
     setupShaders();
 
     vao_.create();
@@ -161,6 +169,9 @@ void WireframeTarget::initialize() {
     // Generate and upload initial geometry
     generateGeometry();
     uploadGeometryToGPU();
+
+    // Check for errors after initialization
+    GLUtils::checkGLError("WireframeTarget::initialize");
 }
 
 void WireframeTarget::setupShaders() {

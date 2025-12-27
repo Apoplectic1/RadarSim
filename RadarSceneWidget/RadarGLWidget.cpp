@@ -1,5 +1,6 @@
 // RadarGLWidget.cpp
 #include "RadarSceneWidget/RadarGLWidget.h"
+#include "GLUtils.h"
 #include <QActionGroup>
 #include <QDebug>
 #include <QPainter>
@@ -128,16 +129,27 @@ void RadarGLWidget::initializeGL() {
 	qDebug() << "RadarGLWidget::initializeGL called";
 
 	// Initialize OpenGL functions
-	initializeOpenGLFunctions();
+	if (!initializeOpenGLFunctions()) {
+		qCritical() << "Failed to initialize OpenGL functions!";
+		return;
+	}
 
-	// Set up OpenGL
-	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
-	glEnable(GL_DEPTH_TEST);
+	// Clear any pending GL errors from context initialization
+	GLUtils::clearGLErrors();
 
 	// Make sure the context is current
 	if (!context()->isValid()) {
 		qCritical() << "OpenGL context is not valid!";
 		return;
+	}
+
+	// Set up OpenGL
+	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
+	glEnable(GL_DEPTH_TEST);
+
+	// Check for errors after basic GL setup
+	if (GLUtils::checkGLError("initializeGL: basic setup")) {
+		qWarning() << "OpenGL error during basic setup, continuing...";
 	}
 
 	// Now initializeContext the components with the GL context
@@ -153,7 +165,9 @@ void RadarGLWidget::initializeGL() {
 		}
 
 		if (modelManager_) {
-			modelManager_->initialize();
+			if (!modelManager_->initialize()) {
+				qWarning() << "ModelManager initialization failed";
+			}
 		}
 
 		if (wireframeController_) {

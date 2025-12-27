@@ -91,18 +91,25 @@ ModelManager::~ModelManager() {
     models_.clear();
 }
 
-void ModelManager::initialize() {
+bool ModelManager::initialize() {
     qDebug() << "Initializing ModelManager";
 
-    initializeOpenGLFunctions();
+    if (!initializeOpenGLFunctions()) {
+        qCritical() << "ModelManager: Failed to initialize OpenGL functions!";
+        return false;
+    }
 
     // Set up OpenGL
     glEnable(GL_DEPTH_TEST);
 
     // Create and compile shader program
-    setupShaders();
+    if (!setupShaders()) {
+        qCritical() << "ModelManager initialization failed - shader setup failed";
+        return false;
+    }
 
     qDebug() << "ModelManager initialization complete";
+    return true;
 }
 
 bool ModelManager::loadModel(const std::string& filename, const QVector3D& position) {
@@ -186,9 +193,35 @@ bool ModelManager::checkBeamIntersection(const QVector3D& beamOrigin, const QVec
     return false;
 }
 
-void ModelManager::setupShaders() {
+bool ModelManager::setupShaders() {
+    if (!vertexShaderSource || !fragmentShaderSource) {
+        qCritical() << "ModelManager: Shader sources not initialized!";
+        return false;
+    }
+
     modelShaderProgram = new QOpenGLShaderProgram();
-    modelShaderProgram->addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShaderSource);
-    modelShaderProgram->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
-    modelShaderProgram->link();
+
+    if (!modelShaderProgram->addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShaderSource)) {
+        qCritical() << "ModelManager: Failed to compile vertex shader:" << modelShaderProgram->log();
+        delete modelShaderProgram;
+        modelShaderProgram = nullptr;
+        return false;
+    }
+
+    if (!modelShaderProgram->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource)) {
+        qCritical() << "ModelManager: Failed to compile fragment shader:" << modelShaderProgram->log();
+        delete modelShaderProgram;
+        modelShaderProgram = nullptr;
+        return false;
+    }
+
+    if (!modelShaderProgram->link()) {
+        qCritical() << "ModelManager: Failed to link shader program:" << modelShaderProgram->log();
+        delete modelShaderProgram;
+        modelShaderProgram = nullptr;
+        return false;
+    }
+
+    qDebug() << "ModelManager shader program compiled and linked successfully";
+    return true;
 }

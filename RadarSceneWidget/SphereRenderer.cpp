@@ -1,4 +1,5 @@
 #include "SphereRenderer.h"
+#include "GLUtils.h"
 #include <QtMath>
 #include <qtimer.h>
 
@@ -253,7 +254,13 @@ bool SphereRenderer::initialize() {
 	qDebug() << "Starting initialization";
 
 	// Initialize OpenGL functions
-	initializeOpenGLFunctions();
+	if (!initializeOpenGLFunctions()) {
+		qCritical() << "SphereRenderer: Failed to initialize OpenGL functions!";
+		return false;
+	}
+
+	// Clear any pending GL errors
+	GLUtils::clearGLErrors();
 
 	// Set up OpenGL
 	glEnable(GL_DEPTH_TEST);
@@ -263,6 +270,9 @@ bool SphereRenderer::initialize() {
 		qWarning() << "Shader initialization failed";
 		return false;
 	}
+
+	// Check for errors after shader init
+	GLUtils::checkGLError("SphereRenderer::initialize after shaders");
 
 	// Create geometry
 	createSphere();

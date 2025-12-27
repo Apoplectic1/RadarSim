@@ -104,6 +104,7 @@ set(PROJECT_SOURCES
     RadarSim.cpp
     RadarSim.h
     RadarSim.ui
+    GLUtils.h
 )
 
 # Debug: Print source files
