@@ -756,26 +756,7 @@ void SphereWidget::paintGL() {
 
 	// 5. Draw radar beam if visible
 	if (showBeam_ && radarBeam_ && radarBeam_->isVisible()) {
-		// Debug check
-		if (dynamic_cast<ConicalBeam*>(radarBeam_)) {
-			qDebug() << "Rendering ConicalBeam";
-		}
-		else if (dynamic_cast<PhasedArrayBeam*>(radarBeam_)) {
-			qDebug() << "Rendering PhasedArrayBeam";
-		}
-		else {
-			qDebug() << "Rendering unknown beam type";
-		}
-
 		radarBeam_->render(shaderProgram, projectionMatrix, viewMatrix, modelMatrix);
-	}
-	else if (showBeam_) {
-		if (!radarBeam_) {
-			qDebug() << "Beam object is null";
-		}
-		else if (!radarBeam_->isVisible()) {
-			qDebug() << "Beam is not visible";
-		}
 	}
 }
 

@@ -488,10 +488,6 @@ if (gpuShadowEnabled) {
 - `shadowMapReady_` flag prevents using shadow before first compute completes
 - Uses `LocalPos` (untransformed vertex position) for UV calculation to match ray coordinates
 
-### Stencil Shadow Volumes (Legacy - Disabled)
-
-The old stencil-based shadow volume system is still in the codebase but not actively used. It had issues with scene rotation and depth cap rendering.
-
 ### RCS Ray Tracing Future Work
 
 See [RCSCompute (GPU Ray Tracing)](#rcscompute-gpu-ray-tracing) section for implementation details. Remaining work:
@@ -547,12 +543,10 @@ void RadarSim::onTargetPosXChanged(int value) {
 2. Mixed memory management (raw `new`/`delete` and `std::shared_ptr`)
 3. ModelManager intersection testing is placeholder
 4. No unit test coverage
-5. Excessive qDebug() logging in paintGL() should be reduced for release
-6. RCS ray tracing only outputs to debug console (no UI display)
-7. RCS contribution calculation not yet implemented (placeholder in HitResult)
-8. Ray visualization for debugging not implemented
-9. OpenGL 4.3 required - no fallback for older hardware
-10. Legacy stencil shadow volume code remains in WireframeTarget (disabled, could be removed)
+5. RCS ray tracing only outputs to debug console (no UI display)
+6. RCS contribution calculation not yet implemented (placeholder in HitResult)
+7. Ray visualization for debugging not implemented
+8. OpenGL 4.3 required - no fallback for older hardware
 
 ## Future Enhancements
 

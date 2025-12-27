@@ -39,13 +39,11 @@ void WireframeTargetController::initialize() {
     qDebug() << "WireframeTargetController initialization complete";
 }
 
-void WireframeTargetController::render(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model,
-                                       const QVector3D& radarPosition, float sphereRadius) {
+void WireframeTargetController::render(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model) {
     if (!showTarget_ || !target_) {
         return;
     }
-    // Pass sphere radius for shadow volume extrusion distance calculation
-    target_->render(projection, view, model, radarPosition, sphereRadius);
+    target_->render(projection, view, model);
 }
 
 void WireframeTargetController::rebuildGeometry() {

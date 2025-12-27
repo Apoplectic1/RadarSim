@@ -21,8 +21,7 @@ public:
 
     // Core lifecycle
     virtual void initialize();
-    virtual void render(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& sceneModel,
-                       const QVector3D& radarPosition = QVector3D(), float sphereRadius = 100.0f);
+    virtual void render(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& sceneModel);
     void uploadGeometryToGPU();
 
     // Type identification
@@ -71,24 +70,6 @@ protected:
     GLuint vboId_ = 0;
     GLuint eboId_ = 0;
 
-    // OpenGL resources for shadow volume
-    QOpenGLShaderProgram* shadowShaderProgram_ = nullptr;
-    QOpenGLVertexArrayObject shadowVao_;
-    GLuint shadowVboId_ = 0;
-    GLuint shadowEboId_ = 0;
-    std::vector<float> shadowVertices_;
-    std::vector<GLuint> shadowIndices_;
-    int shadowIndexCount_ = 0;
-
-    // OpenGL resources for depth cap sphere (ensures shadow works when sphere hidden)
-    QOpenGLVertexArrayObject depthCapVao_;
-    GLuint depthCapVboId_ = 0;
-    GLuint depthCapEboId_ = 0;
-    std::vector<float> depthCapVertices_;
-    std::vector<GLuint> depthCapIndices_;
-    int depthCapIndexCount_ = 0;
-    float lastDepthCapRadius_ = 0.0f;
-
     // Geometry data - vertices for GL_TRIANGLES
     // Format: [x, y, z, nx, ny, nz] per vertex (position + surface normal)
     std::vector<float> vertices_;
@@ -119,7 +100,6 @@ protected:
 
     // Helper methods
     void setupShaders();
-    void setupShadowShaders();
     QMatrix4x4 buildModelMatrix() const;
 
     // Geometry helpers for solid surface rendering
@@ -128,14 +108,4 @@ protected:
     void addQuad(GLuint v0, GLuint v1, GLuint v2, GLuint v3);
     GLuint getVertexCount() const { return static_cast<GLuint>(vertices_.size() / 6); }
     void clearGeometry();
-
-    // Shadow volume helpers
-    void generateShadowVolume(const QVector3D& lightPos, const QMatrix4x4& modelMatrix, float extrudeDistance);
-    void uploadShadowVolumeToGPU();
-    void renderShadowVolume(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& sceneModel);
-
-    // Depth cap helpers (sphere at scene boundary for shadow z-fail algorithm)
-    void generateDepthCap(float radius);
-    void uploadDepthCapToGPU();
-    void renderDepthCap(const QMatrix4x4& projection, const QMatrix4x4& viewModel);
 };

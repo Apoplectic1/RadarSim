@@ -207,10 +207,7 @@ void RadarGLWidget::resizeGL(int w, int h) {
 }
 
 void RadarGLWidget::paintGL() {
-	qDebug() << "RadarGLWidget::paintGL starting";
-
 	// Always update beam position and geometry every frame
-	// This ensures the beam is always in sync with current state
 	updateBeamPosition();
 	beamController_->rebuildBeamGeometry();
 	beamDirty_ = false;
@@ -224,10 +221,10 @@ void RadarGLWidget::paintGL() {
 	glDisable(GL_BLEND);
 	glDisable(GL_STENCIL_TEST);
 
-	// Clear all buffers including stencil for shadow volume rendering
+	// Clear all buffers including stencil
 	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
 	glClearStencil(0);
-	glStencilMask(0xFF);  // Enable stencil writing for clear
+	glStencilMask(0xFF);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 	// Check context
@@ -246,51 +243,26 @@ void RadarGLWidget::paintGL() {
 	QMatrix4x4 viewMatrix = cameraController_->getViewMatrix();
 	QMatrix4x4 modelMatrix = cameraController_->getModelMatrix();
 
-	// Debug camera matrices
-	static QElapsedTimer debugTimer;
-	static bool timerInitialized = false;
-
-	if (!timerInitialized) {
-		debugTimer.start();
-		timerInitialized = true;
-	}
-
-	// Log matrices occasionally to avoid console spam
-	if (debugTimer.elapsed() > 1000) { // Once per second
-		qDebug() << "Camera matrices:";
-		qDebug() << "  View:" << viewMatrix;
-		qDebug() << "  Model:" << modelMatrix;
-		debugTimer.restart();
-	}
-
 	// Set up projection matrix
 	QMatrix4x4 projectionMatrix;
 	projectionMatrix.setToIdentity();
 	projectionMatrix.perspective(45.0f, float(width()) / float(height()), 0.1f, 2000.0f);
 
-	// Log component state
-	qDebug() << "  SphereRenderer available:" << (sphereRenderer_ != nullptr);
-	qDebug() << "  BeamController available:" << (beamController_ != nullptr);
-	qDebug() << "  ModelManager available:" << (modelManager_ != nullptr);
-	qDebug() << "  WireframeController available:" << (wireframeController_ != nullptr);
-
-	// Draw components with careful error trapping
+	// Draw components
 	try {
 		if (sphereRenderer_) {
-			qDebug() << "  Rendering sphere...";
 			sphereRenderer_->render(projectionMatrix, viewMatrix, modelMatrix);
 		}
 
 		if (modelManager_) {
-			qDebug() << "  Rendering models...";
 			modelManager_->render(projectionMatrix, viewMatrix, modelMatrix);
 		}
 
 		if (wireframeController_) {
-			qDebug() << "  Rendering wireframe target...";
-			// Pass radar position and sphere radius for shadow volume calculation
+			wireframeController_->render(projectionMatrix, viewMatrix, modelMatrix);
+
+			// Get radar position for RCS ray tracing
 			QVector3D radarPos = sphericalToCartesian(radius_, theta_, phi_);
-			wireframeController_->render(projectionMatrix, viewMatrix, modelMatrix, radarPos, radius_);
 
 			// Run RCS ray tracing if available
 			if (rcsCompute_ && wireframeController_->getTarget()) {
@@ -301,27 +273,18 @@ void RadarGLWidget::paintGL() {
 					target->getModelMatrix()
 				);
 				rcsCompute_->setRadarPosition(radarPos);
-				rcsCompute_->setBeamDirection(-radarPos.normalized());  // Toward origin
+				rcsCompute_->setBeamDirection(-radarPos.normalized());
 				rcsCompute_->compute();
-
-				// Log occlusion ratio occasionally
-				static int frameCount = 0;
-				if (++frameCount % 60 == 0) {
-					qDebug() << "RCS: Hit count =" << rcsCompute_->getHitCount()
-					         << "Occlusion =" << rcsCompute_->getOcclusionRatio();
-				}
 			}
 		}
 
 		if (beamController_) {
-			qDebug() << "  Rendering beam...";
-
 			// Pass GPU shadow map from RCS compute to beam for ray-traced shadow
 			if (rcsCompute_ && rcsCompute_->hasShadowMap() && wireframeController_ && wireframeController_->isVisible()) {
 				QVector3D radarPos = sphericalToCartesian(radius_, theta_, phi_);
 				beamController_->setGPUShadowMap(rcsCompute_->getShadowMapTexture());
 				beamController_->setGPUShadowEnabled(true);
-				beamController_->setBeamAxis(-radarPos.normalized());  // Toward origin
+				beamController_->setBeamAxis(-radarPos.normalized());
 				beamController_->setBeamWidthRadians(rcsCompute_->getBeamWidthRadians());
 				beamController_->setNumRings(rcsCompute_->getNumRings());
 			} else {
@@ -330,8 +293,6 @@ void RadarGLWidget::paintGL() {
 
 			beamController_->render(projectionMatrix, viewMatrix, modelMatrix);
 		}
-
-		qDebug() << "RadarGLWidget::paintGL completed successfully";
 	}
 	catch (const std::exception& e) {
 		qCritical() << "Exception in RadarGLWidget::paintGL:" << e.what();

@@ -20,8 +20,7 @@ public:
 
     // Lifecycle
     void initialize();
-    void render(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model,
-                const QVector3D& radarPosition = QVector3D(), float sphereRadius = 100.0f);
+    void render(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model);
     void rebuildGeometry();  // Called from paintGL with valid GL context
 
     // Target type management
