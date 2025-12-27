@@ -48,13 +48,6 @@ public:
     void setVisible(bool visible);
     bool isVisible() const;
 
-    // Future: Illumination API
-    void setIlluminated(bool illuminated);
-    bool isIlluminated() const;
-
-    void setLightDirection(const QVector3D& direction);
-    QVector3D getLightDirection() const;
-
     // Access to underlying target
     WireframeTarget* getTarget() const { return target_.get(); }
 
@@ -63,7 +56,6 @@ signals:
     void positionChanged(const QVector3D& position);
     void rotationChanged(const QVector3D& eulerAngles);
     void scaleChanged(float scale);
-    void visibilityChanged(bool visible);
 
 private:
     std::unique_ptr<WireframeTarget> target_;
@@ -79,8 +71,6 @@ private:
     float scale_ = 20.0f;  // Default scale for visibility
     QVector3D color_ = QVector3D(0.0f, 1.0f, 0.0f);
     bool showTarget_ = true;
-    bool illuminated_ = false;
-    QVector3D lightDirection_ = QVector3D(0.0f, 0.0f, 1.0f);
 
     void createTarget();
 };

@@ -15,9 +15,7 @@ WireframeTargetController::WireframeTargetController(QObject* parent)
       rotation_(0.0f, 0.0f, 0.0f),
       scale_(Defaults::kTargetScale),
       color_(Colors::kTargetGreen[0], Colors::kTargetGreen[1], Colors::kTargetGreen[2]),
-      showTarget_(true),
-      illuminated_(false),
-      lightDirection_(0.0f, 0.0f, 1.0f)
+      showTarget_(true)
 {
 }
 
@@ -142,34 +140,11 @@ void WireframeTargetController::setVisible(bool visible) {
         if (target_) {
             target_->setVisible(visible);
         }
-        emit visibilityChanged(visible);
     }
 }
 
 bool WireframeTargetController::isVisible() const {
     return showTarget_;
-}
-
-void WireframeTargetController::setIlluminated(bool illuminated) {
-    illuminated_ = illuminated;
-    if (target_) {
-        target_->setIlluminated(illuminated);
-    }
-}
-
-bool WireframeTargetController::isIlluminated() const {
-    return illuminated_;
-}
-
-void WireframeTargetController::setLightDirection(const QVector3D& direction) {
-    lightDirection_ = direction;
-    if (target_) {
-        target_->setLightDirection(direction);
-    }
-}
-
-QVector3D WireframeTargetController::getLightDirection() const {
-    return lightDirection_;
 }
 
 void WireframeTargetController::createTarget() {
@@ -185,7 +160,5 @@ void WireframeTargetController::createTarget() {
         target_->setScale(scale_);
         target_->setColor(color_);
         target_->setVisible(showTarget_);
-        target_->setIlluminated(illuminated_);
-        target_->setLightDirection(lightDirection_);
     }
 }

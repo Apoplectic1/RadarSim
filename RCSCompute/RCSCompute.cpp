@@ -629,8 +629,6 @@ void RCSCompute::compute() {
 
     // Mark shadow map as ready for beam rendering
     shadowMapReady_ = true;
-
-    emit computeComplete(hitCount_, getOcclusionRatio());
 }
 
 float RCSCompute::getOcclusionRatio() const {

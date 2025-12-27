@@ -221,30 +221,13 @@ void SphereRenderer::cleanup() {
 }
 
 SphereRenderer::~SphereRenderer() {
-	// Clean up inertia timer
+	// Clean up inertia timer (parented to this, but stop it first)
 	if (inertiaTimer_) {
 		inertiaTimer_->stop();
-		delete inertiaTimer_;
-		inertiaTimer_ = nullptr;
 	}
-
 	// OpenGL resources should already be cleaned up via cleanup() called from
 	// RadarGLWidget::cleanupGL() before context destruction.
-	// Only clean up non-GL resources here.
-
-	// If shader programs still exist, delete them (safe without GL context)
-	if (shaderProgram_) {
-		delete shaderProgram_;
-		shaderProgram_ = nullptr;
-	}
-	if (axesShaderProgram_) {
-		delete axesShaderProgram_;
-		axesShaderProgram_ = nullptr;
-	}
-	if (dotShaderProgram_) {
-		delete dotShaderProgram_;
-		dotShaderProgram_ = nullptr;
-	}
+	// Note: shader pointers should be nullptr at this point
 }
 
 bool SphereRenderer::initialize() {
@@ -282,24 +265,15 @@ bool SphereRenderer::initialize() {
 
 bool SphereRenderer::initializeShaders() {
 	// Clean up existing shader programs to prevent memory leaks
-	if (shaderProgram_) {
-		delete shaderProgram_;
-		shaderProgram_ = nullptr;
-	}
-
-	if (axesShaderProgram_) {
-		delete axesShaderProgram_;
-		axesShaderProgram_ = nullptr;
-	}
-
-	if (dotShaderProgram_) {
-		delete dotShaderProgram_;
-		dotShaderProgram_ = nullptr;
-	}
+	delete shaderProgram_;
+	shaderProgram_ = nullptr;
+	delete axesShaderProgram_;
+	axesShaderProgram_ = nullptr;
+	delete dotShaderProgram_;
+	dotShaderProgram_ = nullptr;
 
 	// Create main shader program
 	shaderProgram_ = new QOpenGLShaderProgram();
-	// (existing shader code)
 
 	// Create the dot shader program
 	dotShaderProgram_ = new QOpenGLShaderProgram();
@@ -734,14 +708,12 @@ void SphereRenderer::setRadius(float radius) {
 void SphereRenderer::setSphereVisible(bool visible) {
 	if (showSphere_ != visible) {
 		showSphere_ = visible;
-		emit visibilityChanged("sphere", visible);
 	}
 }
 
 void SphereRenderer::setGridLinesVisible(bool visible) {
 	if (showGridLines_ != visible) {
 		showGridLines_ = visible;
-		emit visibilityChanged("gridLines", visible);
 	}
 }
 
@@ -918,7 +890,6 @@ void SphereRenderer::createAxesLines() {
 void SphereRenderer::setAxesVisible(bool visible) {
 	if (showAxes_ != visible) {
 		showAxes_ = visible;
-		emit visibilityChanged("axes", visible);
 	}
 }
 

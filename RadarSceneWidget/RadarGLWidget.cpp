@@ -35,9 +35,7 @@ RadarGLWidget::~RadarGLWidget() {
 	// because Qt may have already started destroying the context infrastructure.
 
 	// rcsCompute_ is automatically deleted by unique_ptr
-
-	delete contextMenu_;
-	contextMenu_ = nullptr;
+	// contextMenu_ is parented to 'this' and auto-deleted by Qt
 }
 
 void RadarGLWidget::cleanupGL() {

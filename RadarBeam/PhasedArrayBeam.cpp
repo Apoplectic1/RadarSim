@@ -174,8 +174,7 @@ void PhasedArrayBeam::createBeamGeometry() {
 
         // Calculate normal for cone surface
         QVector3D toCircle = circlePoint - baseCenter;
-        float blendFactor = 0.25f;
-        QVector3D normal = (normDirection * blendFactor + toCircle.normalized() * (1.0f - blendFactor)).normalized();
+        QVector3D normal = (normDirection * kNormalBlendFactor + toCircle.normalized() * (1.0f - kNormalBlendFactor)).normalized();
 
         // Position
         vertices_.push_back(circlePoint.x());

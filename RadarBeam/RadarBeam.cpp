@@ -18,9 +18,7 @@ RadarBeam::RadarBeam(float sphereRadius, float beamWidthDegrees)
 	visible_(true),
 	beamLengthFactor_(1.0f), // Default to full sphere diameter
 	beamDirection_(BeamDirection::ToOrigin),
-	customDirection_(0.0f, 0.0f, 0.0f),
-	beamVBO(QOpenGLBuffer::VertexBuffer),
-	beamEBO(QOpenGLBuffer::IndexBuffer)
+	customDirection_(0.0f, 0.0f, 0.0f)
 {
 	// Vertex shader for beam
 	beamVertexShaderSource = R"(
@@ -151,14 +149,14 @@ void RadarBeam::cleanup() {
 	QOpenGLContext* ctx = QOpenGLContext::currentContext();
 	if (!ctx) {
 		qWarning() << "RadarBeam::cleanup() - no current context, skipping GL cleanup";
-		delete beamShaderProgram;
-		beamShaderProgram = nullptr;
+		delete beamShaderProgram_;
+		beamShaderProgram_ = nullptr;
 		return;
 	}
 
 	// Clean up OpenGL resources
-	if (beamVAO.isCreated()) {
-		beamVAO.destroy();
+	if (beamVAO_.isCreated()) {
+		beamVAO_.destroy();
 	}
 	if (vboId_ != 0) {
 		glDeleteBuffers(1, &vboId_);
@@ -168,21 +166,15 @@ void RadarBeam::cleanup() {
 		glDeleteBuffers(1, &eboId_);
 		eboId_ = 0;
 	}
-	delete beamShaderProgram;
-	beamShaderProgram = nullptr;
+	delete beamShaderProgram_;
+	beamShaderProgram_ = nullptr;
 }
 
 // Destructor
 RadarBeam::~RadarBeam() {
 	// OpenGL resources should already be cleaned up via cleanup() called from
 	// RadarGLWidget::cleanupGL() before context destruction.
-	// Only clean up non-GL resources here.
-
-	// If shader program still exists, delete it (safe without GL context)
-	if (beamShaderProgram) {
-		delete beamShaderProgram;
-		beamShaderProgram = nullptr;
-	}
+	// Note: beamShaderProgram_ should be nullptr at this point
 }
 
 void RadarBeam::uploadGeometryToGPU() {
@@ -194,7 +186,7 @@ void RadarBeam::uploadGeometryToGPU() {
 	}
 
 	// Make sure VAO exists
-	if (!beamVAO.isCreated()) {
+	if (!beamVAO_.isCreated()) {
 		geometryDirty_ = true;
 		return;
 	}
@@ -204,7 +196,7 @@ void RadarBeam::uploadGeometryToGPU() {
 		return;
 	}
 
-	beamVAO.bind();
+	beamVAO_.bind();
 
 	// Create VBO if needed
 	if (vboId_ == 0) {
@@ -235,13 +227,13 @@ void RadarBeam::uploadGeometryToGPU() {
 		indices_.data(),
 		GL_DYNAMIC_DRAW);
 
-	beamVAO.release();
+	beamVAO_.release();
 	geometryDirty_ = false;
 }
 
 void RadarBeam::initialize() {
 	// Make sure we don't initialize twice
-	if (beamVAO.isCreated()) {
+	if (beamVAO_.isCreated()) {
 		return;
 	}
 
@@ -256,11 +248,11 @@ void RadarBeam::initialize() {
 	setupShaders();
 
 	// Create VAO only - buffers will be created in uploadGeometryToGPU
-	if (!beamVAO.isCreated()) {
-		beamVAO.create();
+	if (!beamVAO_.isCreated()) {
+		beamVAO_.create();
 	}
-	beamVAO.bind();
-	beamVAO.release();
+	beamVAO_.bind();
+	beamVAO_.release();
 
 	// Mark geometry as dirty - actual geometry will be created when position is set
 	geometryDirty_ = true;
@@ -278,21 +270,21 @@ void RadarBeam::setupShaders() {
 	}
 
 	// Create and compile beam shader program
-	beamShaderProgram = new QOpenGLShaderProgram();
+	beamShaderProgram_ = new QOpenGLShaderProgram();
 
 	// Debug shader compilation
-	if (!beamShaderProgram->addShaderFromSourceCode(QOpenGLShader::Vertex, beamVertexShaderSource)) {
-		qCritical() << "Failed to compile vertex shader:" << beamShaderProgram->log();
+	if (!beamShaderProgram_->addShaderFromSourceCode(QOpenGLShader::Vertex, beamVertexShaderSource)) {
+		qCritical() << "Failed to compile vertex shader:" << beamShaderProgram_->log();
 		return;
 	}
 
-	if (!beamShaderProgram->addShaderFromSourceCode(QOpenGLShader::Fragment, beamFragmentShaderSource)) {
-		qCritical() << "Failed to compile fragment shader:" << beamShaderProgram->log();
+	if (!beamShaderProgram_->addShaderFromSourceCode(QOpenGLShader::Fragment, beamFragmentShaderSource)) {
+		qCritical() << "Failed to compile fragment shader:" << beamShaderProgram_->log();
 		return;
 	}
 
-	if (!beamShaderProgram->link()) {
-		qCritical() << "Failed to link shader program:" << beamShaderProgram->log();
+	if (!beamShaderProgram_->link()) {
+		qCritical() << "Failed to link shader program:" << beamShaderProgram_->log();
 		return;
 	}
 }
@@ -309,7 +301,7 @@ void RadarBeam::render(QOpenGLShaderProgram* program, const QMatrix4x4& projecti
 	}
 
 	// Check if OpenGL resources are valid
-	if (!beamVAO.isCreated() || !beamShaderProgram) {
+	if (!beamVAO_.isCreated() || !beamShaderProgram_) {
 		qWarning() << "RadarBeam::render called with invalid OpenGL resources";
 		return;
 	}
@@ -357,36 +349,36 @@ void RadarBeam::render(QOpenGLShaderProgram* program, const QMatrix4x4& projecti
 	glCullFace(GL_BACK);
 
 	// Use the beam shader program
-	beamShaderProgram->bind();
+	beamShaderProgram_->bind();
 
 	// Set uniforms
-	beamShaderProgram->setUniformValue("projection", projection);
-	beamShaderProgram->setUniformValue("view", view);
-	beamShaderProgram->setUniformValue("model", model);
-	beamShaderProgram->setUniformValue("beamColor", color_);
-	beamShaderProgram->setUniformValue("opacity", opacity_);
+	beamShaderProgram_->setUniformValue("projection", projection);
+	beamShaderProgram_->setUniformValue("view", view);
+	beamShaderProgram_->setUniformValue("model", model);
+	beamShaderProgram_->setUniformValue("beamColor", color_);
+	beamShaderProgram_->setUniformValue("opacity", opacity_);
 
 	// Extract camera position from view matrix for Fresnel effect
 	QMatrix4x4 inverseView = view.inverted();
 	QVector3D cameraPos = inverseView.column(3).toVector3D();
-	beamShaderProgram->setUniformValue("viewPos", cameraPos);
+	beamShaderProgram_->setUniformValue("viewPos", cameraPos);
 
 	// Set GPU shadow map uniforms
-	beamShaderProgram->setUniformValue("radarPos", currentRadarPosition_);
-	beamShaderProgram->setUniformValue("gpuShadowEnabled", gpuShadowEnabled_);
-	beamShaderProgram->setUniformValue("beamAxis", beamAxis_);
-	beamShaderProgram->setUniformValue("beamWidthRad", beamWidthRadians_);
-	beamShaderProgram->setUniformValue("numRings", numRings_);
+	beamShaderProgram_->setUniformValue("radarPos", currentRadarPosition_);
+	beamShaderProgram_->setUniformValue("gpuShadowEnabled", gpuShadowEnabled_);
+	beamShaderProgram_->setUniformValue("beamAxis", beamAxis_);
+	beamShaderProgram_->setUniformValue("beamWidthRad", beamWidthRadians_);
+	beamShaderProgram_->setUniformValue("numRings", numRings_);
 
 	// Bind shadow map texture if enabled
 	if (gpuShadowEnabled_ && gpuShadowMapTexture_ != 0) {
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, gpuShadowMapTexture_);
-		beamShaderProgram->setUniformValue("shadowMap", 0);
+		beamShaderProgram_->setUniformValue("shadowMap", 0);
 	}
 
 	// Bind VAO and draw
-	beamVAO.bind();
+	beamVAO_.bind();
 
 	// Bind buffers explicitly
 	glBindBuffer(GL_ARRAY_BUFFER, vboId_);
@@ -396,12 +388,12 @@ void RadarBeam::render(QOpenGLShaderProgram* program, const QMatrix4x4& projecti
 	
 
 	// Release VAO
-	if (beamVAO.isCreated() && beamVAO.objectId() != 0) {
-		beamVAO.release();
+	if (beamVAO_.isCreated() && beamVAO_.objectId() != 0) {
+		beamVAO_.release();
 	}
 
 	// Release shader program
-	beamShaderProgram->release();
+	beamShaderProgram_->release();
 
 	// Restore previous OpenGL state
 	glDepthMask(depthMaskPrevious);

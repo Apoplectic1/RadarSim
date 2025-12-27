@@ -13,7 +13,6 @@
 #include <QGroupBox>
 #include <QDoubleSpinBox>
 #include <QComboBox>
-#include <QCheckBox>
 #include <QPushButton>
 #include <QTabWidget>
 #include <QFrame>
@@ -158,10 +157,6 @@ void RadarSim::setupConfigurationTab() {
     physicsStepSpinBox->setSingleStep(0.001);
     simSettingsLayout->addRow("Physics Time Step (s):", physicsStepSpinBox);
 
-    QCheckBox* enableAdvancedPhysicsCheckBox = new QCheckBox(simSettingsGroup);
-    enableAdvancedPhysicsCheckBox->setChecked(false);
-    simSettingsLayout->addRow("Enable Advanced Physics:", enableAdvancedPhysicsCheckBox);
-
     configLayout->addWidget(simSettingsGroup);
 
     // Create a group box for beam settings
@@ -238,7 +233,7 @@ void RadarSim::setupRadarSceneTab() {
 
     // Adjust stretch factors to give equal visual weight
     radarSplitter_->setStretchFactor(0, 1);  // RadarScene gets 1 part
-    radarSplitter_->setStretchFactor(0, 1);  // Controls get 1 part (equal space)
+    radarSplitter_->setStretchFactor(1, 1);  // Controls get 1 part (equal space)
 }
 
 void RadarSim::setupRadarControls(QFrame* controlsFrame, QVBoxLayout* controlsFrameLayout) {

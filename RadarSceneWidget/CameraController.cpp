@@ -159,8 +159,8 @@ void CameraController::mouseMoveEvent(QMouseEvent* event) {
         elevation_ = qBound(-kCameraMaxElevation, elevation_, kCameraMaxElevation);
 
         // Store velocities for inertia calculation
-        azimuthVelocity_ = dAzimuth / dt * 0.3f;    // Scale down for smoother inertia
-        elevationVelocity_ = dElevation / dt * 0.3f;
+        azimuthVelocity_ = dAzimuth / dt * kCameraInertiaScaleFactor;
+        elevationVelocity_ = dElevation / dt * kCameraInertiaScaleFactor;
 
         // Store current mouse position for next frame
         lastMousePos_ = event->pos();
@@ -190,7 +190,7 @@ void CameraController::mouseReleaseEvent(QMouseEvent* event) {
             // Only start inertia if it's enabled and velocity is significant
             float totalVelocity = std::sqrt(azimuthVelocity_ * azimuthVelocity_ +
                                              elevationVelocity_ * elevationVelocity_);
-            if (inertiaEnabled_ && totalVelocity > 0.001f) {
+            if (inertiaEnabled_ && totalVelocity > kCameraVelocityThreshold) {
                 startInertia(azimuthVelocity_, elevationVelocity_);
             }
         }

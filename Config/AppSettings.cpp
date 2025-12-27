@@ -128,7 +128,6 @@ bool AppSettings::saveProfile(const QString& name)
     QString path = profilePath(name);
     if (saveToFile(path)) {
         currentProfile_ = name;
-        emit settingsSaved();
         emit profilesChanged();
         return true;
     }
@@ -145,7 +144,6 @@ bool AppSettings::loadProfile(const QString& name)
     QString path = profilePath(name);
     if (loadFromFile(path)) {
         currentProfile_ = name;
-        emit settingsLoaded();
         return true;
     }
     return false;
@@ -162,26 +160,6 @@ bool AppSettings::deleteProfile(const QString& name)
     if (file.exists() && file.remove()) {
         if (currentProfile_ == name) {
             currentProfile_.clear();
-        }
-        emit profilesChanged();
-        return true;
-    }
-    return false;
-}
-
-bool AppSettings::renameProfile(const QString& oldName, const QString& newName)
-{
-    if (oldName.isEmpty() || newName.isEmpty()) {
-        return false;
-    }
-
-    QString oldPath = profilePath(oldName);
-    QString newPath = profilePath(newName);
-
-    QFile file(oldPath);
-    if (file.exists() && file.rename(newPath)) {
-        if (currentProfile_ == oldName) {
-            currentProfile_ = newName;
         }
         emit profilesChanged();
         return true;
@@ -213,7 +191,6 @@ bool AppSettings::restoreLastSession()
 {
     if (loadFromFile(lastSessionPath())) {
         currentProfile_.clear();  // Last session is not a named profile
-        emit settingsLoaded();
         return true;
     }
     return false;
@@ -226,7 +203,6 @@ void AppSettings::resetToDefaults()
     target = TargetConfig();
     scene = SceneConfig();
     currentProfile_.clear();
-    emit settingsLoaded();
 }
 
 } // namespace RSConfig

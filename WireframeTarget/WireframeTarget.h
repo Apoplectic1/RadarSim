@@ -54,12 +54,6 @@ public:
     const std::vector<GLuint>& getIndices() const { return indices_; }
     QMatrix4x4 getModelMatrix() const { return buildModelMatrix(); }
 
-    // Future: Illumination support
-    void setIlluminated(bool illuminated);
-    void setLightDirection(const QVector3D& lightDir);
-    bool isIlluminated() const { return illuminated_; }
-    QVector3D getLightDirection() const { return lightDirection_; }
-
     // Factory method
     static WireframeTarget* createTarget(WireframeType type);
 
@@ -86,10 +80,6 @@ protected:
     // Appearance state
     QVector3D color_ = QVector3D(0.0f, 1.0f, 0.0f);  // Default: green
     bool visible_ = true;
-
-    // Illumination state (for future beam illumination)
-    bool illuminated_ = false;
-    QVector3D lightDirection_ = QVector3D(0.0f, 0.0f, 1.0f);
 
     // Shader sources
     const char* vertexShaderSource_;

@@ -41,6 +41,8 @@ constexpr float kCameraRotationSpeed = 0.005f;  // Mouse rotation sensitivity
 constexpr float kCameraZoomSpeed = 0.5f;        // Mouse wheel zoom sensitivity
 constexpr float kCameraInertiaDecay = 0.95f;    // Inertia velocity decay factor
 constexpr int kCameraInertiaTimerMs = 16;       // Inertia timer interval (~60 FPS)
+constexpr float kCameraInertiaScaleFactor = 0.3f; // Inertia velocity scale factor
+constexpr float kCameraVelocityThreshold = 0.001f; // Min velocity to trigger inertia
 
 // =============================================================================
 // Ray Tracing Precision
@@ -67,6 +69,7 @@ constexpr float kMinBeamOpacity = 0.1f;         // Minimum beam alpha (prevents 
 constexpr float kAmbientStrength = 0.3f;        // Ambient lighting strength
 constexpr float kSpecularStrength = 0.5f;       // Specular highlight strength
 constexpr float kShininess = 32.0f;             // Specular shininess exponent
+constexpr float kNormalBlendFactor = 0.25f;     // Normal blending factor for phased array beam
 
 // =============================================================================
 // Shadow Map Configuration

@@ -28,7 +28,6 @@ public:
     bool saveProfile(const QString& name);
     bool loadProfile(const QString& name);
     bool deleteProfile(const QString& name);
-    bool renameProfile(const QString& oldName, const QString& newName);
     QStringList availableProfiles() const;
     QString currentProfileName() const { return currentProfile_; }
 
@@ -45,8 +44,6 @@ public:
 
 signals:
     void profilesChanged();
-    void settingsLoaded();
-    void settingsSaved();
 
 private:
     QString configDir() const;

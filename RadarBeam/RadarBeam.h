@@ -10,9 +10,6 @@
 #include <QMatrix4x4>
 #include <vector>
 
-// Forward declarations
-class QOpenGLShaderProgram;
-
 // Enum for different beam types
 enum class BeamType {
     Conical,       // Standard conical beam
@@ -81,14 +78,10 @@ public:
 
 protected:
     // OpenGL resources
-    QOpenGLShaderProgram* beamShaderProgram = nullptr;
-    QOpenGLVertexArrayObject beamVAO;
+    QOpenGLShaderProgram* beamShaderProgram_ = nullptr;
+    QOpenGLVertexArrayObject beamVAO_;
     GLuint vboId_ = 0;  // Raw OpenGL buffer ID for vertices
     GLuint eboId_ = 0;  // Raw OpenGL buffer ID for indices
-
-    // Keep QOpenGLBuffer for compatibility but mark as deprecated
-    QOpenGLBuffer beamVBO;  // deprecated - use vboId_
-    QOpenGLBuffer beamEBO;  // deprecated - use eboId_
 
     // Beam properties
     float sphereRadius_;

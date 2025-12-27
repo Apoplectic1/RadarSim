@@ -55,9 +55,6 @@ public:
     int getNumRays() const { return numRays_; }
     int getNumRings() const { return (numRays_ + 63) / 64; }  // 64 rays per ring
 
-signals:
-    void computeComplete(int hitCount, float occlusionRatio);
-
 private:
     bool initialized_ = false;
 

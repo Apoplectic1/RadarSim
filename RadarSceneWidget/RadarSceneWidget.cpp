@@ -4,13 +4,15 @@
 RadarSceneWidget::RadarSceneWidget(QWidget* parent)
     : QWidget(parent),
     radarGLWidget_(nullptr),
-    layout_(new QVBoxLayout(this)),
+    layout_(nullptr),
     sphereRenderer_(nullptr),
     beamController_(nullptr),
     cameraController_(nullptr),
     modelManager_(nullptr),
     wireframeController_(nullptr)
 {
+    // Create layout in body after base class is fully constructed
+    layout_ = new QVBoxLayout(this);
     layout_->setContentsMargins(0, 0, 0, 0);
     layout_->setSpacing(0);
 
@@ -27,11 +29,7 @@ RadarSceneWidget::RadarSceneWidget(QWidget* parent)
 }
 
 RadarSceneWidget::~RadarSceneWidget() {
-    delete sphereRenderer_;
-    delete beamController_;
-    delete cameraController_;
-    delete modelManager_;
-    delete wireframeController_;
+    // Components are parented to 'this' and auto-deleted by Qt
 }
 
 void RadarSceneWidget::createComponents() {

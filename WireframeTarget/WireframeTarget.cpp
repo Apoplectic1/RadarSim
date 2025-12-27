@@ -17,9 +17,7 @@ WireframeTarget::WireframeTarget()
       rotation_(),
       scale_(1.0f, 1.0f, 1.0f),
       color_(Colors::kTargetGreen[0], Colors::kTargetGreen[1], Colors::kTargetGreen[2]),
-      visible_(true),
-      illuminated_(false),
-      lightDirection_(0.0f, 0.0f, 1.0f)
+      visible_(true)
 {
     // Vertex shader for solid surface rendering
     vertexShaderSource_ = R"(
@@ -100,13 +98,7 @@ void WireframeTarget::cleanup() {
 WireframeTarget::~WireframeTarget() {
     // OpenGL resources should already be cleaned up via cleanup() called from
     // RadarGLWidget::cleanupGL() before context destruction.
-    // Only clean up non-GL resources here.
-
-    // If shader program still exists, delete it (safe without GL context)
-    if (shaderProgram_) {
-        delete shaderProgram_;
-        shaderProgram_ = nullptr;
-    }
+    // Note: shaderProgram_ should be nullptr at this point
 }
 
 void WireframeTarget::initialize() {
@@ -340,15 +332,6 @@ void WireframeTarget::setColor(const QVector3D& color) {
 
 void WireframeTarget::setVisible(bool visible) {
     visible_ = visible;
-}
-
-// Illumination setters
-void WireframeTarget::setIlluminated(bool illuminated) {
-    illuminated_ = illuminated;
-}
-
-void WireframeTarget::setLightDirection(const QVector3D& lightDir) {
-    lightDirection_ = lightDir.normalized();
 }
 
 // Factory method
