@@ -57,6 +57,9 @@ public:
     void transferStateToComponents();
     QVector3D sphericalToCartesian(float r, float thetaDeg, float phiDeg);
 
+    // Force update of the OpenGL scene
+    void updateScene();
+
 signals:
     void radarPositionChanged(float radius, float theta, float phi);
     void beamTypeChanged(BeamType type);

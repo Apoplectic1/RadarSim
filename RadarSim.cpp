@@ -622,7 +622,7 @@ void RadarSim::onTargetPosXChanged(int value) {
     if (auto* controller = radarSceneView_->getWireframeController()) {
         QVector3D pos = controller->getPosition();
         controller->setPosition(static_cast<float>(value), pos.y(), pos.z());
-        radarSceneView_->update();
+        radarSceneView_->updateScene();
     }
 }
 
@@ -639,7 +639,7 @@ void RadarSim::onTargetPosYChanged(int value) {
     if (auto* controller = radarSceneView_->getWireframeController()) {
         QVector3D pos = controller->getPosition();
         controller->setPosition(pos.x(), static_cast<float>(value), pos.z());
-        radarSceneView_->update();
+        radarSceneView_->updateScene();
     }
 }
 
@@ -656,7 +656,7 @@ void RadarSim::onTargetPosZChanged(int value) {
     if (auto* controller = radarSceneView_->getWireframeController()) {
         QVector3D pos = controller->getPosition();
         controller->setPosition(pos.x(), pos.y(), static_cast<float>(value));
-        radarSceneView_->update();
+        radarSceneView_->updateScene();
     }
 }
 
@@ -673,7 +673,7 @@ void RadarSim::onTargetPitchChanged(int value) {
     if (auto* controller = radarSceneView_->getWireframeController()) {
         QVector3D rot = controller->getRotation();
         controller->setRotation(static_cast<float>(value), rot.y(), rot.z());
-        radarSceneView_->update();
+        radarSceneView_->updateScene();
     }
 }
 
@@ -690,7 +690,7 @@ void RadarSim::onTargetYawChanged(int value) {
     if (auto* controller = radarSceneView_->getWireframeController()) {
         QVector3D rot = controller->getRotation();
         controller->setRotation(rot.x(), static_cast<float>(value), rot.z());
-        radarSceneView_->update();
+        radarSceneView_->updateScene();
     }
 }
 
@@ -707,7 +707,7 @@ void RadarSim::onTargetRollChanged(int value) {
     if (auto* controller = radarSceneView_->getWireframeController()) {
         QVector3D rot = controller->getRotation();
         controller->setRotation(rot.x(), rot.y(), static_cast<float>(value));
-        radarSceneView_->update();
+        radarSceneView_->updateScene();
     }
 }
 
@@ -723,7 +723,7 @@ void RadarSim::onTargetScaleChanged(int value) {
     // Update the wireframe target scale
     if (auto* controller = radarSceneView_->getWireframeController()) {
         controller->setScale(static_cast<float>(value));
-        radarSceneView_->update();
+        radarSceneView_->updateScene();
     }
 }
 
@@ -1006,5 +1006,5 @@ void RadarSim::applySettingsToScene() {
         beam->setBeamOpacity(appSettings_->beam.opacity);
     }
 
-    radarSceneView_->update();
+    radarSceneView_->updateScene();
 }

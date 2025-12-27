@@ -201,6 +201,14 @@ QVector3D RadarSceneWidget::sphericalToCartesian(float r, float thetaDeg, float 
     );
 }
 
+void RadarSceneWidget::updateScene() {
+    if (useComponents_ && radarGLWidget_) {
+        radarGLWidget_->update();
+    } else if (sphereWidget_) {
+        sphereWidget_->update();
+    }
+}
+
 // Slot handlers for RadarGLWidget signals
 void RadarSceneWidget::onRadiusChanged(float radius) {
     emit radarPositionChanged(radius, getTheta(), getPhi());
