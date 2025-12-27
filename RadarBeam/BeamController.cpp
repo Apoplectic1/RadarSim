@@ -15,7 +15,6 @@ void BeamController::cleanup() {
     if (radarBeam_) {
         radarBeam_->cleanup();
     }
-    qDebug() << "BeamController::cleanup() - cleaned up OpenGL resources";
 }
 
 void BeamController::rebuildBeamGeometry() {
@@ -36,12 +35,7 @@ void BeamController::rebuildBeamGeometry() {
     }
 }
 void BeamController::initialize() {
-    qDebug() << "Initializing BeamController";
-
-    // Create initial beam
     createBeam();
-
-    qDebug() << "BeamController initialization complete";
 }
 
 void BeamController::render(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model) {
@@ -51,12 +45,6 @@ void BeamController::render(const QMatrix4x4& projection, const QMatrix4x4& view
             radarBeam_->update(currentPosition_);
         }
         radarBeam_->render(nullptr, projection, view, model);
-    }
-}
-
-void BeamController::renderDepthOnly(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model) {
-    if (radarBeam_ && showBeam_) {
-        radarBeam_->renderDepthOnly(projection, view, model);
     }
 }
 

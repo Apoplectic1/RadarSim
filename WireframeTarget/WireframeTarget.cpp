@@ -78,8 +78,6 @@ void WireframeTarget::cleanup() {
         return;
     }
 
-    qDebug() << "WireframeTarget::cleanup() - cleaning up OpenGL resources";
-
     // Clean up main geometry resources
     if (vao_.isCreated()) {
         vao_.destroy();
@@ -94,8 +92,6 @@ void WireframeTarget::cleanup() {
     }
     delete shaderProgram_;
     shaderProgram_ = nullptr;
-
-    qDebug() << "WireframeTarget::cleanup() complete";
 }
 
 WireframeTarget::~WireframeTarget() {
@@ -108,13 +104,10 @@ WireframeTarget::~WireframeTarget() {
         delete shaderProgram_;
         shaderProgram_ = nullptr;
     }
-
-    qDebug() << "WireframeTarget destructor called";
 }
 
 void WireframeTarget::initialize() {
     if (vao_.isCreated()) {
-        qDebug() << "WireframeTarget already initialized, skipping";
         return;
     }
 
@@ -162,8 +155,6 @@ void WireframeTarget::setupShaders() {
         qCritical() << "WireframeTarget: Failed to link shader program:" << shaderProgram_->log();
         return;
     }
-
-    qDebug() << "WireframeTarget shader program compiled and linked successfully";
 }
 
 void WireframeTarget::uploadGeometryToGPU() {

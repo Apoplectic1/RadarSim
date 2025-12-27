@@ -45,7 +45,6 @@ public:
     virtual void initialize();
     virtual void update(const QVector3D& radarPosition);
     virtual void render(QOpenGLShaderProgram* program, const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model);
-    virtual void renderDepthOnly(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model);
 
     // Property setters
     virtual BeamType getBeamType() const { return BeamType::Conical; }  // Default

@@ -5,7 +5,6 @@
 #include <QTabWidget>
 #include <QSplitter>
 #include <QComboBox>
-#include "SphereWidget.h"
 #include "RadarSceneWidget.h"
 #include "AppSettings.h"
 

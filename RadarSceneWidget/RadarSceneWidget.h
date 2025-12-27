@@ -1,10 +1,9 @@
-// RadarSceneWidget.h - Updated to include RadarGLWidget
+// RadarSceneWidget.h - Component-based radar scene container
 #pragma once
 
 #include <QWidget>
 #include <QVBoxLayout>
 #include <QOpenGLContext>
-#include "SphereWidget.h"
 #include "SphereRenderer.h"
 #include "BeamController.h"
 #include "CameraController.h"
@@ -26,7 +25,7 @@ public:
     float getTheta() const;
     float getPhi() const;
 
-    // Beam control (forwarded to SphereWidget for now)
+    // Beam control
     void setBeamWidth(float degrees);
     void setBeamType(BeamType type);
     void setBeamColor(const QVector3D& color);
@@ -52,11 +51,6 @@ public:
     ModelManager* getModelManager() const { return modelManager_; }
     WireframeTargetController* getWireframeController() const { return wireframeController_; }
 
-    // Enable component-based rendering
-    void enableComponentRendering(bool enable);
-    void transferStateToComponents();
-    QVector3D sphericalToCartesian(float r, float thetaDeg, float phiDeg);
-
     // Force update of the OpenGL scene
     void updateScene();
 
@@ -72,13 +66,8 @@ private slots:
 
 private:
     void createComponents();
-    // During transition, maintain the SphereWidget instance
-    SphereWidget* sphereWidget_ = nullptr;
 
-    // New OpenGL widget that will eventually replace SphereWidget
     RadarGLWidget* radarGLWidget_ = nullptr;
-
-    // Layout for this widget
     QVBoxLayout* layout_ = nullptr;
 
     // Component handles
@@ -87,10 +76,4 @@ private:
     CameraController* cameraController_ = nullptr;
     ModelManager* modelManager_ = nullptr;
     WireframeTargetController* wireframeController_ = nullptr;
-
-    // Current mode
-    bool useComponents_ = true;
-
-    // Create and initialize components
-    void initializeComponents();
 };

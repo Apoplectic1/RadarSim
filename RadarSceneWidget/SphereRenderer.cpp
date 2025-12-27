@@ -172,8 +172,6 @@ void SphereRenderer::cleanup() {
 		return;
 	}
 
-	qDebug() << "SphereRenderer::cleanup() - cleaning up OpenGL resources";
-
 	// Clean up sphere resources
 	if (sphereVAO_.isCreated()) {
 		sphereVAO_.destroy();
@@ -218,7 +216,6 @@ void SphereRenderer::cleanup() {
 	dotShaderProgram_ = nullptr;
 
 	initialized_ = false;
-	qDebug() << "SphereRenderer::cleanup() complete";
 }
 
 SphereRenderer::~SphereRenderer() {
@@ -246,13 +243,9 @@ SphereRenderer::~SphereRenderer() {
 		delete dotShaderProgram_;
 		dotShaderProgram_ = nullptr;
 	}
-
-	qDebug() << "SphereRenderer destructor called";
 }
 
 bool SphereRenderer::initialize() {
-	qDebug() << "Starting initialization";
-
 	// Initialize OpenGL functions
 	if (!initializeOpenGLFunctions()) {
 		qCritical() << "SphereRenderer: Failed to initialize OpenGL functions!";
@@ -282,8 +275,6 @@ bool SphereRenderer::initialize() {
 
 	// Mark as initialized
 	initialized_ = true;
-
-	qDebug() << "Initialization complete";
 	return true;
 }
 
@@ -421,10 +412,14 @@ void SphereRenderer::createDot() {
 	}
 
 	// Set up VAO and VBO for dot
-	dotVAO_.create();
+	if (!dotVAO_.isCreated()) {
+		dotVAO_.create();
+	}
 	dotVAO_.bind();
 
-	dotVBO_.create();
+	if (!dotVBO_.isCreated()) {
+		dotVBO_.create();
+	}
 	dotVBO_.bind();
 	dotVBO_.allocate(dotVertices_.data(), dotVertices_.size() * sizeof(float));
 
@@ -896,10 +891,14 @@ void SphereRenderer::createAxesLines() {
 	axesVertices_ = vertices;
 
 	// Set up VAO and VBO for axes
-	axesVAO_.create();
+	if (!axesVAO_.isCreated()) {
+		axesVAO_.create();
+	}
 	axesVAO_.bind();
 
-	axesVBO_.create();
+	if (!axesVBO_.isCreated()) {
+		axesVBO_.create();
+	}
 	axesVBO_.bind();
 	axesVBO_.allocate(axesVertices_.data(), axesVertices_.size() * sizeof(float));
 
@@ -1088,18 +1087,15 @@ void SphereRenderer::createGridLines() {
 		}
 	}
 
-	// Print debug info to console
-	qDebug() << "Created" << latitudeLineCount_ << "latitude lines";
-	qDebug() << "Created" << longitudeLineCount_ << "longitude lines";
-	qDebug() << "Equator index:" << equatorStartIndex_;
-	qDebug() << "Prime Meridian index:" << primeMeridianStartIndex_;
-	qDebug() << "Total vertices:" << latLongLines_.size() / 3;
-
 	// Set up VAO and VBO for lines
-	linesVAO_.create();
+	if (!linesVAO_.isCreated()) {
+		linesVAO_.create();
+	}
 	linesVAO_.bind();
 
-	linesVBO_.create();
+	if (!linesVBO_.isCreated()) {
+		linesVBO_.create();
+	}
 	linesVBO_.bind();
 	linesVBO_.allocate(latLongLines_.data(), latLongLines_.size() * sizeof(float));
 

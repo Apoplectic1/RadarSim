@@ -43,8 +43,7 @@ RadarSim/
 │   ├── PhasedArrayBeam.h/.cpp  # Array beam with side lobes
 │   └── BeamController.h/.cpp   # Component wrapper for beams
 ├── RadarSceneWidget/           # OpenGL scene management
-│   ├── RadarGLWidget.h/.cpp    # Modern QOpenGLWidget (primary)
-│   ├── SphereWidget.h/.cpp     # Legacy OpenGL widget
+│   ├── RadarGLWidget.h/.cpp    # Modern QOpenGLWidget with component architecture
 │   ├── SphereRenderer.h/.cpp   # Sphere/grid/axes component
 │   ├── RadarSceneWidget.h/.cpp # Scene container
 │   └── CameraController.h/.cpp # View/camera controls
@@ -149,13 +148,6 @@ rcsCompute_->compute();
 **Current Output:** Hit count and occlusion ratio logged to debug console every 60 frames.
 
 **Future Work:** Calculate actual RCS values from hit geometry, add UI display, visualize ray hits.
-
-### Dual Implementation (Transition State)
-
-The codebase has both legacy and new implementations:
-- **Legacy**: `SphereWidget` - standalone OpenGL widget
-- **New**: `RadarGLWidget` + components - modular architecture
-- A UI toggle in Configuration tab switches between them
 
 ### Settings/Configuration System
 
@@ -539,13 +531,12 @@ void RadarSim::onTargetPosXChanged(int value) {
 
 ## Known Technical Debt
 
-1. Dual rendering paths (legacy SphereWidget + new component system)
-2. ModelManager intersection testing is placeholder
-3. No unit test coverage
-4. RCS ray tracing only outputs to debug console (no UI display)
-5. RCS contribution calculation not yet implemented (placeholder in HitResult)
-6. Ray visualization for debugging not implemented
-7. OpenGL 4.3 required - no fallback for older hardware
+1. ModelManager intersection testing is placeholder
+2. No unit test coverage
+3. RCS ray tracing only outputs to debug console (no UI display)
+4. RCS contribution calculation not yet implemented (placeholder in HitResult)
+5. Ray visualization for debugging not implemented
+6. OpenGL 4.3 required - no fallback for older hardware
 
 ## Future Enhancements
 

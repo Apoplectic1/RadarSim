@@ -24,16 +24,10 @@ void WireframeTargetController::cleanup() {
     if (target_) {
         target_->cleanup();
     }
-    qDebug() << "WireframeTargetController::cleanup() - cleaned up OpenGL resources";
 }
 
 void WireframeTargetController::initialize() {
-    qDebug() << "Initializing WireframeTargetController";
-
-    // Create initial target
     createTarget();
-
-    qDebug() << "WireframeTargetController initialization complete";
 }
 
 void WireframeTargetController::render(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model) {

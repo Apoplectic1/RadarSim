@@ -81,14 +81,6 @@ void BVHBuilder::build(const std::vector<float>& vertices,
     }
     triangles_ = std::move(sortedTriangles);
     triangleBounds_ = std::move(sortedBounds);
-
-    // Debug: Log BVH bounds
-    if (!nodes_.empty()) {
-        const auto& root = nodes_[0];
-        qDebug() << "BVH built:" << nodes_.size() << "nodes," << triangles_.size() << "triangles";
-        qDebug() << "  Root bounds min:" << QVector3D(root.boundsMin.x(), root.boundsMin.y(), root.boundsMin.z());
-        qDebug() << "  Root bounds max:" << QVector3D(root.boundsMax.x(), root.boundsMax.y(), root.boundsMax.z());
-    }
 }
 
 int BVHBuilder::buildRecursive(std::vector<int>& triIndices, int start, int end, int depth) {

@@ -44,11 +44,11 @@ The shadow volume system for beam occlusion behind targets has issues:
 
 ### Low Priority / Technical Debt
 
-- [ ] Remove legacy SphereWidget (keep only component-based RadarGLWidget)
+- [x] Remove legacy SphereWidget (keep only component-based RadarGLWidget)
 - [ ] Unify memory management (raw pointers vs std::shared_ptr)
 - [ ] Implement ModelManager intersection testing (currently placeholder)
 - [ ] Add unit test coverage
-- [ ] Remove excessive qDebug() logging in paintGL()
+- [x] Remove excessive qDebug() logging
 
 ## UI Improvements
 

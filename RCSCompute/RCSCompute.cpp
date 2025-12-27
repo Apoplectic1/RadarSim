@@ -304,9 +304,6 @@ bool RCSCompute::initialize() {
         return false;
     }
 
-    qDebug() << "RCSCompute: Compute shader support confirmed";
-    qDebug() << "  Max work group count:" << maxComputeWorkGroupCount[0];
-
     if (!compileShaders()) {
         return false;
     }
@@ -317,7 +314,6 @@ bool RCSCompute::initialize() {
     GLUtils::checkGLError("RCSCompute::initialize");
 
     initialized_ = true;
-    qDebug() << "RCSCompute initialized successfully";
     return true;
 }
 
@@ -373,7 +369,6 @@ bool RCSCompute::compileShaders() {
         return false;
     }
 
-    qDebug() << "RCSCompute: Shaders compiled successfully";
     return true;
 }
 
@@ -422,10 +417,6 @@ void RCSCompute::createBuffers() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);      // Azimuth wraps
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);  // Elevation clamps
     glBindTexture(GL_TEXTURE_2D, 0);
-
-    qDebug() << "RCSCompute: Shadow map" << raysPerRing << "x" << numRings << "for" << numRays_ << "rays";
-
-    qDebug() << "RCSCompute: Created shadow map texture" << shadowMapResolution_ << "x" << shadowMapResolution_;
 }
 
 void RCSCompute::setTargetGeometry(const std::vector<float>& vertices,
@@ -486,8 +477,6 @@ void RCSCompute::uploadBVH() {
 
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
     bvhDirty_ = false;
-
-    qDebug() << "RCSCompute: Uploaded BVH with" << nodes.size() << "nodes and" << triangles.size() << "triangles";
 }
 
 void RCSCompute::dispatchRayGeneration() {
@@ -620,20 +609,6 @@ void RCSCompute::compute() {
     // Upload BVH if needed
     uploadBVH();
 
-    // Debug: Log ray generation parameters occasionally
-    static int computeFrame = 0;
-    computeFrame++;
-    bool shouldLog = (computeFrame <= 3) || (computeFrame % 300 == 0);
-    if (shouldLog) {
-        qDebug() << "=== RCSCompute::compute() frame" << computeFrame << "===";
-        qDebug() << "  Radar position:" << radarPosition_;
-        qDebug() << "  Beam direction:" << beamDirection_;
-        qDebug() << "  Beam width (deg):" << beamWidthDegrees_;
-        qDebug() << "  Num rays:" << numRays_;
-        qDebug() << "  BVH nodes:" << bvhBuilder_.getNodeCount();
-        qDebug() << "  BVH triangles:" << bvhBuilder_.getTriangleCount();
-    }
-
     // Clear shadow map before tracing
     clearShadowMap();
 
@@ -648,10 +623,6 @@ void RCSCompute::compute() {
 
     // Read results
     readResults();
-
-    if (shouldLog) {
-        qDebug() << "  >>> Hit count:" << hitCount_ << "/ " << numRays_ << "Occlusion:" << getOcclusionRatio();
-    }
 
     // Mark shadow map as ready for beam rendering
     shadowMapReady_ = true;

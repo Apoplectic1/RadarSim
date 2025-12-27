@@ -50,8 +50,6 @@ bool AppSettings::saveToFile(const QString& path) const
     QJsonDocument doc(toJson());
     file.write(doc.toJson(QJsonDocument::Indented));
     file.close();
-
-    qDebug() << "AppSettings: Saved to" << path;
     return true;
 }
 
@@ -59,7 +57,6 @@ bool AppSettings::loadFromFile(const QString& path)
 {
     QFile file(path);
     if (!file.exists()) {
-        qDebug() << "AppSettings: File does not exist:" << path;
         return false;
     }
 
@@ -84,7 +81,6 @@ bool AppSettings::loadFromFile(const QString& path)
     }
 
     loadFromJson(doc.object());
-    qDebug() << "AppSettings: Loaded from" << path;
     return true;
 }
 
@@ -164,7 +160,6 @@ bool AppSettings::deleteProfile(const QString& name)
     QString path = profilePath(name);
     QFile file(path);
     if (file.exists() && file.remove()) {
-        qDebug() << "AppSettings: Deleted profile" << name;
         if (currentProfile_ == name) {
             currentProfile_.clear();
         }
@@ -185,7 +180,6 @@ bool AppSettings::renameProfile(const QString& oldName, const QString& newName)
 
     QFile file(oldPath);
     if (file.exists() && file.rename(newPath)) {
-        qDebug() << "AppSettings: Renamed profile" << oldName << "to" << newName;
         if (currentProfile_ == oldName) {
             currentProfile_ = newName;
         }

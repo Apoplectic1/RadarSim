@@ -92,8 +92,6 @@ ModelManager::~ModelManager() {
 }
 
 bool ModelManager::initialize() {
-    qDebug() << "Initializing ModelManager";
-
     if (!initializeOpenGLFunctions()) {
         qCritical() << "ModelManager: Failed to initialize OpenGL functions!";
         return false;
@@ -108,13 +106,10 @@ bool ModelManager::initialize() {
         return false;
     }
 
-    qDebug() << "ModelManager initialization complete";
     return true;
 }
 
 bool ModelManager::loadModel(const std::string& filename, const QVector3D& position) {
-    qDebug() << "Loading model from:" << QString::fromStdString(filename);
-
     // We'll implement actual model loading in a future step
     // For now, return false to indicate failure
     return false;
@@ -222,6 +217,5 @@ bool ModelManager::setupShaders() {
         return false;
     }
 
-    qDebug() << "ModelManager shader program compiled and linked successfully";
     return true;
 }

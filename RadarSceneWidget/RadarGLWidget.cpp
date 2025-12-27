@@ -18,20 +18,14 @@ RadarGLWidget::RadarGLWidget(QWidget* parent)
 	wireframeController_(nullptr),
 	contextMenu_(new QMenu(this))
 {
-	qDebug() << "Creating RadarGLWidget";
-
 	// Set focus policy to receive keyboard events
 	setFocusPolicy(Qt::StrongFocus);
 
 	// Set up context menu
 	setupContextMenu();
-
-	qDebug() << "RadarGLWidget constructor complete";
 }
 
 RadarGLWidget::~RadarGLWidget() {
-	qDebug() << "RadarGLWidget destructor called";
-
 	// Note: We intentionally do NOT call cleanupGL() here.
 	// OpenGL resources are automatically cleaned up when the context is destroyed.
 	// Trying to manually clean them up during widget destruction can cause crashes
@@ -49,8 +43,6 @@ void RadarGLWidget::cleanupGL() {
 		return;
 	}
 	glCleanedUp_ = true;
-
-	qDebug() << "RadarGLWidget::cleanupGL() - cleaning up all OpenGL resources";
 
 	// Try to make context current for cleanup
 	// This may fail if the context is already being destroyed
@@ -87,13 +79,9 @@ void RadarGLWidget::cleanupGL() {
 	if (contextMadeCurrent) {
 		doneCurrent();
 	}
-
-	qDebug() << "RadarGLWidget::cleanupGL() complete";
 }
 
 void RadarGLWidget::initialize(SphereRenderer* sphereRenderer, BeamController* beamController, CameraController* cameraController, ModelManager* modelManager, WireframeTargetController* wireframeController) {
-	qDebug() << "RadarGLWidget::initialize called";
-
 	sphereRenderer_ = sphereRenderer;
 	beamController_ = beamController;
 	cameraController_ = cameraController;
@@ -124,8 +112,6 @@ void RadarGLWidget::initialize(SphereRenderer* sphereRenderer, BeamController* b
 }
 
 void RadarGLWidget::initializeGL() {
-	qDebug() << "RadarGLWidget::initializeGL called";
-
 	// Initialize OpenGL functions
 	if (!initializeOpenGLFunctions()) {
 		qCritical() << "Failed to initialize OpenGL functions!";
@@ -178,7 +164,6 @@ void RadarGLWidget::initializeGL() {
 			qWarning() << "RCSCompute initialization failed - ray tracing disabled";
 			rcsCompute_.reset();
 		} else {
-			qDebug() << "RCSCompute initialized successfully";
 			rcsCompute_->setSphereRadius(radius_);
 		}
 
@@ -195,8 +180,6 @@ void RadarGLWidget::initializeGL() {
 	catch (...) {
 		qCritical() << "Unknown exception during component initialization";
 	}
-
-	qDebug() << "RadarGLWidget::initializeGL complete";
 }
 
 void RadarGLWidget::resizeGL(int w, int h) {
@@ -439,8 +422,6 @@ QVector3D RadarGLWidget::sphericalToCartesian(float r, float thetaDeg, float phi
 }
 
 void RadarGLWidget::setupContextMenu() {
-	qDebug() << "Setting up context menu";
-
 	// Reset view
 	QAction* resetAction = contextMenu_->addAction("Reset View");
 	connect(resetAction, &QAction::triggered, [this]() {

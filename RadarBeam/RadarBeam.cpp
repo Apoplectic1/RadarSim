@@ -153,8 +153,6 @@ void RadarBeam::cleanup() {
 		return;
 	}
 
-	qDebug() << "RadarBeam::cleanup() - cleaning up OpenGL resources";
-
 	// Clean up OpenGL resources
 	if (beamVAO.isCreated()) {
 		beamVAO.destroy();
@@ -169,8 +167,6 @@ void RadarBeam::cleanup() {
 	}
 	delete beamShaderProgram;
 	beamShaderProgram = nullptr;
-
-	qDebug() << "RadarBeam::cleanup() complete";
 }
 
 // Destructor
@@ -184,8 +180,6 @@ RadarBeam::~RadarBeam() {
 		delete beamShaderProgram;
 		beamShaderProgram = nullptr;
 	}
-
-	qDebug() << "RadarBeam destructor called";
 }
 
 void RadarBeam::uploadGeometryToGPU() {
@@ -245,7 +239,6 @@ void RadarBeam::uploadGeometryToGPU() {
 void RadarBeam::initialize() {
 	// Make sure we don't initialize twice
 	if (beamVAO.isCreated()) {
-		qDebug() << "RadarBeam already initialized, skipping";
 		return;
 	}
 
@@ -260,7 +253,9 @@ void RadarBeam::initialize() {
 	setupShaders();
 
 	// Create VAO only - buffers will be created in uploadGeometryToGPU
-	beamVAO.create();
+	if (!beamVAO.isCreated()) {
+		beamVAO.create();
+	}
 	beamVAO.bind();
 	beamVAO.release();
 
@@ -297,8 +292,6 @@ void RadarBeam::setupShaders() {
 		qCritical() << "Failed to link shader program:" << beamShaderProgram->log();
 		return;
 	}
-
-	qDebug() << "Beam shader program compiled and linked successfully";
 }
 
 void RadarBeam::update(const QVector3D& radarPosition) {
@@ -308,37 +301,8 @@ void RadarBeam::update(const QVector3D& radarPosition) {
 }
 
 void RadarBeam::render(QOpenGLShaderProgram* program, const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model) {
-	static int frameCount = 0;
-	frameCount++;
-	bool shouldLog = (frameCount <= 10) || (frameCount % 60 == 0); // Log first 10 frames and every 60th after
-
-	if (shouldLog) {
-		qDebug() << "=== RadarBeam::render() frame" << frameCount << "===";
-		qDebug() << "  visible_:" << visible_;
-		qDebug() << "  currentRadarPosition_:" << currentRadarPosition_;
-		qDebug() << "  vertices_.size():" << vertices_.size();
-		qDebug() << "  indices_.size():" << indices_.size();
-		qDebug() << "  vboId_:" << vboId_;
-		qDebug() << "  eboId_:" << eboId_;
-		qDebug() << "  beamVAO.isCreated():" << beamVAO.isCreated();
-		qDebug() << "  geometryDirty_:" << geometryDirty_;
-		qDebug() << "  gpuShadowEnabled_:" << gpuShadowEnabled_;
-		qDebug() << "  beamAxis_:" << beamAxis_;
-		qDebug() << "  beamWidthRadians_:" << beamWidthRadians_;
-		qDebug() << "  numRings_:" << numRings_;
-		qDebug() << "  gpuShadowMapTexture_:" << gpuShadowMapTexture_;
-	}
-
-	// Early exit checks
 	if (!visible_ || vertices_.empty()) {
-		if (shouldLog) {
-			qDebug() << "  >>> EARLY EXIT - visible_:" << visible_ << "vertices_.empty():" << vertices_.empty();
-		}
 		return;
-	}
-
-	if (shouldLog) {
-		qDebug() << "  >>> WILL RENDER";
 	}
 
 	// Check if OpenGL resources are valid
@@ -444,55 +408,6 @@ void RadarBeam::render(QOpenGLShaderProgram* program, const QMatrix4x4& projecti
 		glDisable(GL_BLEND);
 	}
 	glBlendFunc(blendSrcPrevious, blendDstPrevious);
-}
-
-void RadarBeam::renderDepthOnly(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model) {
-	if (!visible_) return;
-
-	// Verify VAO exists
-	if (!beamVAO.isCreated() || beamVAO.objectId() == 0) {
-		return;
-	}
-
-	// Verify buffers exist
-	if (vboId_ == 0 || eboId_ == 0 || indices_.empty()) {
-		return;
-	}
-
-	// Render to depth buffer only - no color output
-	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-	glDepthMask(GL_TRUE);
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LESS);
-	glDisable(GL_STENCIL_TEST);  // No stencil for depth pre-pass
-	glDisable(GL_BLEND);
-
-	// Enable face culling - only render front faces
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_BACK);
-
-	// Use the beam shader program
-	beamShaderProgram->bind();
-
-	// Set uniforms
-	beamShaderProgram->setUniformValue("projection", projection);
-	beamShaderProgram->setUniformValue("view", view);
-	beamShaderProgram->setUniformValue("model", model);
-	beamShaderProgram->setUniformValue("beamColor", color_);
-	beamShaderProgram->setUniformValue("opacity", 1.0f);  // Full opacity for depth
-
-	// Bind VAO and draw
-	beamVAO.bind();
-	glBindBuffer(GL_ARRAY_BUFFER, vboId_);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eboId_);
-	glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices_.size()), GL_UNSIGNED_INT, nullptr);
-	beamVAO.release();
-
-	beamShaderProgram->release();
-
-	// Restore state
-	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-	glDisable(GL_CULL_FACE);
 }
 
 void RadarBeam::setBeamWidth(float degrees) {

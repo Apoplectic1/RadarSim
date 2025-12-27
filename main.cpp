@@ -4,8 +4,6 @@
 #include "RadarSim.h"
 
 int main(int argc, char** argv) {
-    qDebug() << "Qt version:" << QT_VERSION_STR;
-   
     // Set up OpenGL format for better debugging
     QSurfaceFormat format;
     format.setDepthBufferSize(24);
@@ -18,12 +16,8 @@ int main(int argc, char** argv) {
     qSetMessagePattern("[%{time}] %{type} %{function}: %{message}");
     QApplication a(argc, argv);
 
-    qDebug() << "Creating main window";
     RadarSim w;
-
-    qDebug() << "Showing main window";
     w.show();
 
-    qDebug() << "Entering event loop";
     return a.exec();
 }

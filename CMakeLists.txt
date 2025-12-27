@@ -94,8 +94,6 @@ set(RADAR_SCENE_WIDGET_SOURCES
     RadarSceneWidget/RadarSceneWidget.h
     RadarSceneWidget/SphereRenderer.cpp
     RadarSceneWidget/SphereRenderer.h
-    RadarSceneWidget/SphereWidget.cpp
-    RadarSceneWidget/SphereWidget.h
 )
 
 # Config sources (settings and configuration)

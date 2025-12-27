@@ -1,7 +1,6 @@
 // ---- RadarSim.cpp ----
 
 #include "RadarSim.h"
-#include "SphereWidget.h"
 #include "AppSettings.h"
 
 #include <QWidget>
@@ -94,24 +93,17 @@ void RadarSim::setupUI() {
 }
 
 void RadarSim::setupTabs() {
-    qDebug() << "Starting setupTabs()";
-
-    // Create tab widgets with proper parent
     configTabWidget_ = new QWidget(tabWidget_);
     radarSceneTabWidget_ = new QWidget(tabWidget_);
     physicsTabWidget_ = new QWidget(tabWidget_);
 
-    // Add tabs
     tabWidget_->addTab(configTabWidget_, "Configuration");
     tabWidget_->addTab(radarSceneTabWidget_, "Radar Scene");
     tabWidget_->addTab(physicsTabWidget_, "Physics Analysis");
 
-    // Setup each tab independently
     setupConfigurationTab();
     setupRadarSceneTab();
     setupPhysicsAnalysisTab();
-
-    qDebug() << "Exiting setupTabs()";
 }
 
 void RadarSim::setupConfigurationTab() {
@@ -187,23 +179,6 @@ void RadarSim::setupConfigurationTab() {
     beamSettingsLayout->addRow("Default Beam Width (°):", beamWidthSpinBox);
 
     configLayout->addWidget(beamSettingsGroup);
-
-    // Add a group box for component architecture
-    QGroupBox* architectureGroup = new QGroupBox("Architecture", configTabWidget_);
-    QVBoxLayout* architectureLayout = new QVBoxLayout(architectureGroup);
-
-    QCheckBox* useComponentsCheckbox = new QCheckBox("Use Component Architecture", architectureGroup);
-    useComponentsCheckbox->setChecked(true);
-    useComponentsCheckbox->setToolTip("Switch between old and new rendering architecture. Checked is new.");
-    architectureLayout->addWidget(useComponentsCheckbox);
-
-    connect(useComponentsCheckbox, &QCheckBox::toggled, [this](bool checked) {
-        if (radarSceneView_) {
-            radarSceneView_->enableComponentRendering(checked);
-        }
-    });
-
-    configLayout->addWidget(architectureGroup);
     configLayout->addStretch();
 
     // Connect profile management signals
@@ -695,7 +670,6 @@ void RadarSim::onProfileSelected(int index) {
     // Load the selected profile
     if (appSettings_->loadProfile(profileName)) {
         applySettingsToScene();
-        qDebug() << "Loaded profile:" << profileName;
     }
 }
 
@@ -714,9 +688,7 @@ void RadarSim::onSaveProfile() {
 
     // Read current settings from scene and save
     readSettingsFromScene();
-    if (appSettings_->saveProfile(profileName)) {
-        qDebug() << "Saved profile:" << profileName;
-    }
+    appSettings_->saveProfile(profileName);
 }
 
 void RadarSim::onSaveProfileAs() {
@@ -734,7 +706,6 @@ void RadarSim::onSaveProfileAs() {
             if (index >= 0) {
                 profileComboBox_->setCurrentIndex(index);
             }
-            qDebug() << "Saved new profile:" << name;
         }
     }
 }
@@ -756,9 +727,7 @@ void RadarSim::onDeleteProfile() {
         QMessageBox::Yes | QMessageBox::No);
 
     if (reply == QMessageBox::Yes) {
-        if (appSettings_->deleteProfile(profileName)) {
-            qDebug() << "Deleted profile:" << profileName;
-        }
+        appSettings_->deleteProfile(profileName);
     }
 }
 
@@ -771,7 +740,6 @@ void RadarSim::onResetToDefaults() {
     if (reply == QMessageBox::Yes) {
         appSettings_->resetToDefaults();
         applySettingsToScene();
-        qDebug() << "Reset to defaults";
     }
 }
 
@@ -780,11 +748,8 @@ void RadarSim::onProfilesChanged() {
 }
 
 void RadarSim::closeEvent(QCloseEvent* event) {
-    // Save current session before closing
     readSettingsFromScene();
     appSettings_->saveLastSession();
-    qDebug() << "Saved last session on exit";
-
     event->accept();
 }
 
