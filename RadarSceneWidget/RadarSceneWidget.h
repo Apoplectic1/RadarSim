@@ -21,6 +21,7 @@ public:
 
     // Radar position control
     void setRadius(float radius);
+    float getRadius() const;
     void setAngles(float theta, float phi);
     float getTheta() const;
     float getPhi() const;

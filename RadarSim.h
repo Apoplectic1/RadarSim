@@ -3,9 +3,11 @@
 #pragma once
 #include <QMainWindow>
 #include <QTabWidget>
-#include <QSplitter> 
+#include <QSplitter>
+#include <QComboBox>
 #include "SphereWidget.h"
 #include "RadarSceneWidget.h"
+#include "AppSettings.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class RadarSim; }
@@ -40,6 +42,17 @@ private slots:
     void onTargetYawChanged(int value);
     void onTargetRollChanged(int value);
     void onTargetScaleChanged(int value);
+
+    // Profile management slots
+    void onProfileSelected(int index);
+    void onSaveProfile();
+    void onSaveProfileAs();
+    void onDeleteProfile();
+    void onResetToDefaults();
+    void onProfilesChanged();
+
+protected:
+    void closeEvent(QCloseEvent* event) override;
 
 private:
     void setupUI();
@@ -87,4 +100,13 @@ private:
     QSpinBox* targetYawSpinBox_;
     QSpinBox* targetRollSpinBox_;
     QSpinBox* targetScaleSpinBox_;
+
+    // Settings and profile management
+    RSConfig::AppSettings* appSettings_;
+    QComboBox* profileComboBox_;
+
+    // Helper methods
+    void readSettingsFromScene();
+    void applySettingsToScene();
+    void refreshProfileList();
 };

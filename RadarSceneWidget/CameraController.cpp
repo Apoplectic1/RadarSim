@@ -82,6 +82,33 @@ void CameraController::setInertiaEnabled(bool enabled) {
     }
 }
 
+void CameraController::setDistance(float d) {
+    const float minDistance = 50.0f;
+    const float maxDistance = 1000.0f;
+    distance_ = qBound(minDistance, d, maxDistance);
+    updateViewMatrix();
+    emit viewChanged();
+}
+
+void CameraController::setAzimuth(float a) {
+    azimuth_ = a;
+    updateViewMatrix();
+    emit viewChanged();
+}
+
+void CameraController::setElevation(float e) {
+    const float maxElevation = 1.5f;
+    elevation_ = qBound(-maxElevation, e, maxElevation);
+    updateViewMatrix();
+    emit viewChanged();
+}
+
+void CameraController::setFocusPoint(const QVector3D& fp) {
+    focusPoint_ = fp;
+    updateViewMatrix();
+    emit viewChanged();
+}
+
 void CameraController::mousePressEvent(QMouseEvent* event) {
     if (event->button() == Qt::LeftButton) {
         // Left button for scene rotation (orbit camera)

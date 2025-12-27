@@ -98,6 +98,16 @@ set(RADAR_SCENE_WIDGET_SOURCES
     RadarSceneWidget/SphereWidget.h
 )
 
+# Config sources (settings and configuration)
+set(CONFIG_SOURCES
+    Config/AppSettings.cpp
+    Config/AppSettings.h
+    Config/BeamConfig.h
+    Config/CameraConfig.h
+    Config/TargetConfig.h
+    Config/SceneConfig.h
+)
+
 # Main application sources
 set(PROJECT_SOURCES
     main.cpp
@@ -105,6 +115,7 @@ set(PROJECT_SOURCES
     RadarSim.h
     RadarSim.ui
     GLUtils.h
+    Constants.h
 )
 
 # Debug: Print source files
@@ -123,6 +134,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         ${MODEL_MANAGER_SOURCES}
         ${WIREFRAME_TARGET_SOURCES}
         ${RCS_COMPUTE_SOURCES}
+        ${CONFIG_SOURCES}
     )
 else()
     add_executable(RadarSim
@@ -132,6 +144,7 @@ else()
         ${MODEL_MANAGER_SOURCES}
         ${WIREFRAME_TARGET_SOURCES}
         ${RCS_COMPUTE_SOURCES}
+        ${CONFIG_SOURCES}
     )
 endif()
 
@@ -143,6 +156,7 @@ target_include_directories(RadarSim PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/ModelManager
     ${CMAKE_CURRENT_SOURCE_DIR}/WireframeTarget
     ${CMAKE_CURRENT_SOURCE_DIR}/RCSCompute
+    ${CMAKE_CURRENT_SOURCE_DIR}/Config
 )
 
 # Link Qt libraries

@@ -222,6 +222,15 @@ void RadarSceneWidget::setRadius(float radius) {
     emit radarPositionChanged(radius, getTheta(), getPhi());
 }
 
+float RadarSceneWidget::getRadius() const {
+    if (useComponents_) {
+        return radarGLWidget_->getRadius();
+    }
+    else {
+        return sphereWidget_->getRadius();
+    }
+}
+
 void RadarSceneWidget::setAngles(float theta, float phi) {
     if (useComponents_) {
         radarGLWidget_->setAngles(theta, phi);

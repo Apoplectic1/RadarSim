@@ -1,7 +1,8 @@
-﻿// ---- RadarSim.cpp ----
+// ---- RadarSim.cpp ----
 
 #include "RadarSim.h"
 #include "SphereWidget.h"
+#include "AppSettings.h"
 
 #include <QWidget>
 #include <QVBoxLayout>
@@ -18,6 +19,10 @@
 #include <QTabWidget>
 #include <QFrame>
 #include <QSplitter>
+#include <QCloseEvent>
+#include <QInputDialog>
+#include <QMessageBox>
+#include <QTimer>
 
 // Constructor
 RadarSim::RadarSim(QWidget* parent)
@@ -46,11 +51,19 @@ RadarSim::RadarSim(QWidget* parent)
     targetPitchSpinBox_(nullptr),
     targetYawSpinBox_(nullptr),
     targetRollSpinBox_(nullptr),
-    targetScaleSpinBox_(nullptr)
+    targetScaleSpinBox_(nullptr),
+    appSettings_(new RSConfig::AppSettings(this)),
+    profileComboBox_(nullptr)
 {
     setupUI();
     setupTabs();
     connectSignals();
+
+    // Try to restore last session settings
+    if (appSettings_->restoreLastSession()) {
+        // Apply restored settings after a brief delay to ensure scene is ready
+        QTimer::singleShot(100, this, &RadarSim::applySettingsToScene);
+    }
 
     // Start with the radar scene tab selected
     tabWidget_->setCurrentIndex(1);
@@ -103,6 +116,39 @@ void RadarSim::setupTabs() {
 
 void RadarSim::setupConfigurationTab() {
     QVBoxLayout* configLayout = new QVBoxLayout(configTabWidget_);
+
+    // Create a group box for profile management (at top)
+    QGroupBox* profileGroup = new QGroupBox("Configuration Profiles", configTabWidget_);
+    QVBoxLayout* profileLayout = new QVBoxLayout(profileGroup);
+
+    // Profile selector row
+    QHBoxLayout* profileSelectorLayout = new QHBoxLayout();
+    QLabel* profileLabel = new QLabel("Profile:", profileGroup);
+    profileComboBox_ = new QComboBox(profileGroup);
+    profileComboBox_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    profileSelectorLayout->addWidget(profileLabel);
+    profileSelectorLayout->addWidget(profileComboBox_);
+    profileLayout->addLayout(profileSelectorLayout);
+
+    // Profile buttons row
+    QHBoxLayout* profileButtonsLayout = new QHBoxLayout();
+    QPushButton* saveButton = new QPushButton("Save", profileGroup);
+    QPushButton* saveAsButton = new QPushButton("Save As...", profileGroup);
+    QPushButton* deleteButton = new QPushButton("Delete", profileGroup);
+    QPushButton* resetButton = new QPushButton("Reset to Defaults", profileGroup);
+
+    saveButton->setToolTip("Save current settings to the selected profile");
+    saveAsButton->setToolTip("Save current settings to a new profile");
+    deleteButton->setToolTip("Delete the selected profile");
+    resetButton->setToolTip("Reset all settings to their default values");
+
+    profileButtonsLayout->addWidget(saveButton);
+    profileButtonsLayout->addWidget(saveAsButton);
+    profileButtonsLayout->addWidget(deleteButton);
+    profileButtonsLayout->addWidget(resetButton);
+    profileLayout->addLayout(profileButtonsLayout);
+
+    configLayout->addWidget(profileGroup);
 
     // Create a group box for simulation settings
     QGroupBox* simSettingsGroup = new QGroupBox("Simulation Settings", configTabWidget_);
@@ -160,13 +206,20 @@ void RadarSim::setupConfigurationTab() {
     configLayout->addWidget(architectureGroup);
     configLayout->addStretch();
 
-    // Add buttons for loading/saving configuration
-    QHBoxLayout* configButtonsLayout = new QHBoxLayout();
-    QPushButton* loadConfigButton = new QPushButton("Load Configuration", configTabWidget_);
-    QPushButton* saveConfigButton = new QPushButton("Save Configuration", configTabWidget_);
-    configButtonsLayout->addWidget(loadConfigButton);
-    configButtonsLayout->addWidget(saveConfigButton);
-    configLayout->addLayout(configButtonsLayout);
+    // Connect profile management signals
+    connect(profileComboBox_, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &RadarSim::onProfileSelected);
+    connect(saveButton, &QPushButton::clicked, this, &RadarSim::onSaveProfile);
+    connect(saveAsButton, &QPushButton::clicked, this, &RadarSim::onSaveProfileAs);
+    connect(deleteButton, &QPushButton::clicked, this, &RadarSim::onDeleteProfile);
+    connect(resetButton, &QPushButton::clicked, this, &RadarSim::onResetToDefaults);
+
+    // Connect settings signals
+    connect(appSettings_, &RSConfig::AppSettings::profilesChanged,
+            this, &RadarSim::onProfilesChanged);
+
+    // Populate profile list
+    refreshProfileList();
 }
 
 void RadarSim::setupRadarSceneTab() {
@@ -672,4 +725,286 @@ void RadarSim::onTargetScaleChanged(int value) {
         controller->setScale(static_cast<float>(value));
         radarSceneView_->update();
     }
+}
+
+// Profile management slot implementations
+void RadarSim::onProfileSelected(int index) {
+    if (index < 0 || !profileComboBox_) {
+        return;
+    }
+
+    QString profileName = profileComboBox_->currentText();
+    if (profileName.isEmpty()) {
+        return;
+    }
+
+    // Load the selected profile
+    if (appSettings_->loadProfile(profileName)) {
+        applySettingsToScene();
+        qDebug() << "Loaded profile:" << profileName;
+    }
+}
+
+void RadarSim::onSaveProfile() {
+    if (!profileComboBox_ || profileComboBox_->currentIndex() < 0) {
+        // No profile selected, use Save As instead
+        onSaveProfileAs();
+        return;
+    }
+
+    QString profileName = profileComboBox_->currentText();
+    if (profileName.isEmpty()) {
+        onSaveProfileAs();
+        return;
+    }
+
+    // Read current settings from scene and save
+    readSettingsFromScene();
+    if (appSettings_->saveProfile(profileName)) {
+        qDebug() << "Saved profile:" << profileName;
+    }
+}
+
+void RadarSim::onSaveProfileAs() {
+    bool ok;
+    QString name = QInputDialog::getText(this, "Save Profile As",
+        "Profile name:", QLineEdit::Normal, "", &ok);
+
+    if (ok && !name.isEmpty()) {
+        // Read current settings from scene and save
+        readSettingsFromScene();
+        if (appSettings_->saveProfile(name)) {
+            refreshProfileList();
+            // Select the newly saved profile
+            int index = profileComboBox_->findText(name);
+            if (index >= 0) {
+                profileComboBox_->setCurrentIndex(index);
+            }
+            qDebug() << "Saved new profile:" << name;
+        }
+    }
+}
+
+void RadarSim::onDeleteProfile() {
+    if (!profileComboBox_ || profileComboBox_->currentIndex() < 0) {
+        return;
+    }
+
+    QString profileName = profileComboBox_->currentText();
+    if (profileName.isEmpty()) {
+        return;
+    }
+
+    // Confirm deletion
+    QMessageBox::StandardButton reply = QMessageBox::question(this,
+        "Delete Profile",
+        QString("Are you sure you want to delete the profile '%1'?").arg(profileName),
+        QMessageBox::Yes | QMessageBox::No);
+
+    if (reply == QMessageBox::Yes) {
+        if (appSettings_->deleteProfile(profileName)) {
+            qDebug() << "Deleted profile:" << profileName;
+        }
+    }
+}
+
+void RadarSim::onResetToDefaults() {
+    QMessageBox::StandardButton reply = QMessageBox::question(this,
+        "Reset to Defaults",
+        "Are you sure you want to reset all settings to their default values?",
+        QMessageBox::Yes | QMessageBox::No);
+
+    if (reply == QMessageBox::Yes) {
+        appSettings_->resetToDefaults();
+        applySettingsToScene();
+        qDebug() << "Reset to defaults";
+    }
+}
+
+void RadarSim::onProfilesChanged() {
+    refreshProfileList();
+}
+
+void RadarSim::closeEvent(QCloseEvent* event) {
+    // Save current session before closing
+    readSettingsFromScene();
+    appSettings_->saveLastSession();
+    qDebug() << "Saved last session on exit";
+
+    event->accept();
+}
+
+void RadarSim::refreshProfileList() {
+    if (!profileComboBox_) {
+        return;
+    }
+
+    // Block signals while updating
+    profileComboBox_->blockSignals(true);
+
+    QString currentProfile = appSettings_->currentProfileName();
+    profileComboBox_->clear();
+
+    QStringList profiles = appSettings_->availableProfiles();
+    profileComboBox_->addItems(profiles);
+
+    // Restore selection
+    if (!currentProfile.isEmpty()) {
+        int index = profileComboBox_->findText(currentProfile);
+        if (index >= 0) {
+            profileComboBox_->setCurrentIndex(index);
+        }
+    }
+
+    profileComboBox_->blockSignals(false);
+}
+
+void RadarSim::readSettingsFromScene() {
+    if (!radarSceneView_) {
+        return;
+    }
+
+    // Read scene settings
+    appSettings_->scene.sphereRadius = static_cast<float>(radarSceneView_->getRadius());
+    appSettings_->scene.radarTheta = static_cast<float>(radarSceneView_->getTheta());
+    appSettings_->scene.radarPhi = static_cast<float>(radarSceneView_->getPhi());
+
+    // Read camera settings
+    if (auto* camera = radarSceneView_->getCameraController()) {
+        appSettings_->camera.distance = camera->getDistance();
+        appSettings_->camera.azimuth = camera->getAzimuth();
+        appSettings_->camera.elevation = camera->getElevation();
+        appSettings_->camera.focusPoint = camera->getFocusPoint();
+        appSettings_->camera.inertiaEnabled = camera->isInertiaEnabled();
+    }
+
+    // Read target settings
+    if (auto* target = radarSceneView_->getWireframeController()) {
+        appSettings_->target.position = target->getPosition();
+        appSettings_->target.rotation = target->getRotation();
+        appSettings_->target.scale = target->getScale();
+    }
+
+    // Read beam settings from BeamController
+    if (auto* beam = radarSceneView_->getBeamController()) {
+        appSettings_->beam.beamWidth = beam->getBeamWidth();
+        appSettings_->beam.opacity = beam->getBeamOpacity();
+    }
+}
+
+void RadarSim::applySettingsToScene() {
+    if (!radarSceneView_) {
+        return;
+    }
+
+    // Apply scene settings
+    radarSceneView_->setRadius(static_cast<int>(appSettings_->scene.sphereRadius));
+    radarSceneView_->setAngles(
+        static_cast<int>(appSettings_->scene.radarTheta),
+        static_cast<int>(appSettings_->scene.radarPhi)
+    );
+
+    // Update UI controls to match
+    radiusSlider_->blockSignals(true);
+    radiusSpinBox_->blockSignals(true);
+    radiusSlider_->setValue(static_cast<int>(appSettings_->scene.sphereRadius));
+    radiusSpinBox_->setValue(static_cast<int>(appSettings_->scene.sphereRadius));
+    radiusSlider_->blockSignals(false);
+    radiusSpinBox_->blockSignals(false);
+
+    thetaSlider_->blockSignals(true);
+    thetaSpinBox_->blockSignals(true);
+    thetaSlider_->setValue(359 - static_cast<int>(appSettings_->scene.radarTheta));
+    thetaSpinBox_->setValue(static_cast<int>(appSettings_->scene.radarTheta));
+    thetaSlider_->blockSignals(false);
+    thetaSpinBox_->blockSignals(false);
+
+    phiSlider_->blockSignals(true);
+    phiSpinBox_->blockSignals(true);
+    phiSlider_->setValue(static_cast<int>(appSettings_->scene.radarPhi));
+    phiSpinBox_->setValue(static_cast<int>(appSettings_->scene.radarPhi));
+    phiSlider_->blockSignals(false);
+    phiSpinBox_->blockSignals(false);
+
+    // Apply camera settings
+    if (auto* camera = radarSceneView_->getCameraController()) {
+        camera->setDistance(appSettings_->camera.distance);
+        camera->setAzimuth(appSettings_->camera.azimuth);
+        camera->setElevation(appSettings_->camera.elevation);
+        camera->setFocusPoint(appSettings_->camera.focusPoint);
+        camera->setInertiaEnabled(appSettings_->camera.inertiaEnabled);
+    }
+
+    // Apply target settings
+    if (auto* target = radarSceneView_->getWireframeController()) {
+        target->setPosition(
+            appSettings_->target.position.x(),
+            appSettings_->target.position.y(),
+            appSettings_->target.position.z()
+        );
+        target->setRotation(
+            appSettings_->target.rotation.x(),
+            appSettings_->target.rotation.y(),
+            appSettings_->target.rotation.z()
+        );
+        target->setScale(appSettings_->target.scale);
+
+        // Update target UI controls
+        targetPosXSlider_->blockSignals(true);
+        targetPosXSpinBox_->blockSignals(true);
+        targetPosXSlider_->setValue(static_cast<int>(appSettings_->target.position.x()));
+        targetPosXSpinBox_->setValue(static_cast<int>(appSettings_->target.position.x()));
+        targetPosXSlider_->blockSignals(false);
+        targetPosXSpinBox_->blockSignals(false);
+
+        targetPosYSlider_->blockSignals(true);
+        targetPosYSpinBox_->blockSignals(true);
+        targetPosYSlider_->setValue(static_cast<int>(appSettings_->target.position.y()));
+        targetPosYSpinBox_->setValue(static_cast<int>(appSettings_->target.position.y()));
+        targetPosYSlider_->blockSignals(false);
+        targetPosYSpinBox_->blockSignals(false);
+
+        targetPosZSlider_->blockSignals(true);
+        targetPosZSpinBox_->blockSignals(true);
+        targetPosZSlider_->setValue(static_cast<int>(appSettings_->target.position.z()));
+        targetPosZSpinBox_->setValue(static_cast<int>(appSettings_->target.position.z()));
+        targetPosZSlider_->blockSignals(false);
+        targetPosZSpinBox_->blockSignals(false);
+
+        targetPitchSlider_->blockSignals(true);
+        targetPitchSpinBox_->blockSignals(true);
+        targetPitchSlider_->setValue(static_cast<int>(appSettings_->target.rotation.x()));
+        targetPitchSpinBox_->setValue(static_cast<int>(appSettings_->target.rotation.x()));
+        targetPitchSlider_->blockSignals(false);
+        targetPitchSpinBox_->blockSignals(false);
+
+        targetYawSlider_->blockSignals(true);
+        targetYawSpinBox_->blockSignals(true);
+        targetYawSlider_->setValue(static_cast<int>(appSettings_->target.rotation.y()));
+        targetYawSpinBox_->setValue(static_cast<int>(appSettings_->target.rotation.y()));
+        targetYawSlider_->blockSignals(false);
+        targetYawSpinBox_->blockSignals(false);
+
+        targetRollSlider_->blockSignals(true);
+        targetRollSpinBox_->blockSignals(true);
+        targetRollSlider_->setValue(static_cast<int>(appSettings_->target.rotation.z()));
+        targetRollSpinBox_->setValue(static_cast<int>(appSettings_->target.rotation.z()));
+        targetRollSlider_->blockSignals(false);
+        targetRollSpinBox_->blockSignals(false);
+
+        targetScaleSlider_->blockSignals(true);
+        targetScaleSpinBox_->blockSignals(true);
+        targetScaleSlider_->setValue(static_cast<int>(appSettings_->target.scale));
+        targetScaleSpinBox_->setValue(static_cast<int>(appSettings_->target.scale));
+        targetScaleSlider_->blockSignals(false);
+        targetScaleSpinBox_->blockSignals(false);
+    }
+
+    // Apply beam settings
+    if (auto* beam = radarSceneView_->getBeamController()) {
+        beam->setBeamWidth(appSettings_->beam.beamWidth);
+        beam->setBeamOpacity(appSettings_->beam.opacity);
+    }
+
+    radarSceneView_->update();
 }

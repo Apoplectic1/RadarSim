@@ -29,6 +29,14 @@ cmake --build out/build/release
 RadarSim/
 ├── main.cpp                    # Entry point, OpenGL context setup
 ├── RadarSim.h/.cpp             # Main window with tabbed UI
+├── Constants.h                 # Compile-time constants (geometry, buffers, limits)
+├── GLUtils.h                   # OpenGL error checking utilities
+├── Config/                     # Settings and configuration system
+│   ├── AppSettings.h/.cpp      # Main settings manager with profile support
+│   ├── BeamConfig.h            # Beam parameters (type, width, color, opacity)
+│   ├── CameraConfig.h          # Camera state (distance, angles, focus)
+│   ├── TargetConfig.h          # Target parameters (position, rotation, scale)
+│   └── SceneConfig.h           # Scene options (radius, radar position, visibility)
 ├── RadarBeam/                  # Beam visualization module
 │   ├── RadarBeam.h/.cpp        # Base beam class (VAO/VBO/shaders)
 │   ├── ConicalBeam.h/.cpp      # Simple cone geometry
@@ -149,6 +157,58 @@ The codebase has both legacy and new implementations:
 - **New**: `RadarGLWidget` + components - modular architecture
 - A UI toggle in Configuration tab switches between them
 
+### Settings/Configuration System
+
+The application includes a complete settings system for saving/restoring state between sessions and managing named configuration profiles.
+
+**Architecture:**
+```
+Constants.h           - Compile-time constants (not user-configurable)
+Config/
+├── AppSettings       - Main settings manager, aggregates all configs
+├── BeamConfig        - Beam parameters (type, width, opacity, color)
+├── CameraConfig      - Camera state (distance, azimuth, elevation, focus)
+├── TargetConfig      - Target parameters (type, position, rotation, scale)
+└── SceneConfig       - Scene options (sphere radius, radar position)
+```
+
+**Features:**
+- **Session Persistence**: State auto-saved on exit, restored on next launch
+- **Named Profiles**: Save/load multiple named configurations
+- **Profile Management UI**: Configuration tab has Save/Save As/Delete/Reset buttons
+
+**File Storage:**
+- Location: `%APPDATA%/RadarSim/` (Windows) or `~/.config/RadarSim/` (Linux/macOS)
+- `last_session.json` - Auto-saved session state
+- `profiles/*.json` - Named configuration profiles
+
+**JSON Format:**
+```json
+{
+    "version": 1,
+    "beam": { "type": 0, "width": 15.0, "opacity": 0.3 },
+    "camera": { "distance": 300.0, "azimuth": 0.0, "elevation": 0.4 },
+    "target": { "position": [0,0,0], "rotation": [0,0,0], "scale": 20.0 },
+    "scene": { "sphereRadius": 100.0, "radarTheta": 45.0, "radarPhi": 45.0 }
+}
+```
+
+**Usage in RadarSim.cpp:**
+```cpp
+// Constructor - restore last session
+if (appSettings_->restoreLastSession()) {
+    QTimer::singleShot(100, this, &RadarSim::applySettingsToScene);
+}
+
+// On close - save session
+void RadarSim::closeEvent(QCloseEvent* event) {
+    readSettingsFromScene();
+    appSettings_->saveLastSession();
+}
+```
+
+**Namespace:** Config classes use `RSConfig` namespace to avoid conflict with `RadarSim` class.
+
 ## Coding Conventions
 
 ### Naming
@@ -247,6 +307,9 @@ Without this connection, timer-based animations will appear stuttery because `up
 | Sphere geometry | `SphereRenderer.cpp` |
 | Target transforms | `WireframeTargetController.cpp`, `RadarSim.cpp` (target slots) |
 | RCS ray tracing | `RCSCompute/RCSCompute.cpp`, `RCSCompute/BVHBuilder.cpp` |
+| Add compile-time constant | `Constants.h` |
+| Add saved setting | `Config/*Config.h`, `AppSettings.cpp`, `RadarSim.cpp` (read/apply methods) |
+| Profile management | `Config/AppSettings.cpp`, `RadarSim.cpp` (profile slots) |
 
 ## Rendering Pipeline
 
@@ -490,6 +553,25 @@ void RadarSim::onTargetPosXChanged(int value) {
 8. Ray visualization for debugging not implemented
 9. OpenGL 4.3 required - no fallback for older hardware
 10. Legacy stencil shadow volume code remains in WireframeTarget (disabled, could be removed)
+
+## Future Enhancements
+
+### Beam Transparency Through Shadow (Nice to Have)
+
+**Problem**: When viewing the beam shadow through the semi-transparent beam sides, the shadow is obscured. The fresnel effect makes glancing-angle surfaces MORE opaque, which is counterproductive for seeing through to the shadow.
+
+**Best Attempted Solution (Option C - Inverted Fresnel)**:
+```glsl
+// Current (edges opaque):
+float fresnel = 0.3 + 0.7 * pow(1.0 - abs(dot(norm, viewDir)), 2.0);
+
+// Inverted (edges transparent, glass-like):
+float fresnel = 1.0 - 0.5 * pow(1.0 - abs(dot(norm, viewDir)), 2.0);
+```
+
+**Location**: `RadarBeam/RadarBeam.cpp`, fragment shader (~line 128)
+
+**Notes**: Testing showed minimal visual improvement. May require more aggressive changes to opacity, rim lighting removal, or different blending modes to achieve the desired effect.
 
 ## Mouse Controls
 

@@ -28,6 +28,18 @@ public:
     void setInertiaEnabled(bool enabled);
     bool isInertiaEnabled() const { return inertiaEnabled_; }
 
+    // Camera state getters
+    float getDistance() const { return distance_; }
+    float getAzimuth() const { return azimuth_; }
+    float getElevation() const { return elevation_; }
+    QVector3D getFocusPoint() const { return focusPoint_; }
+
+    // Camera state setters
+    void setDistance(float d);
+    void setAzimuth(float a);
+    void setElevation(float e);
+    void setFocusPoint(const QVector3D& fp);
+
     // Mouse interaction
     void mousePressEvent(QMouseEvent* event);
     void mouseMoveEvent(QMouseEvent* event);
