@@ -2,7 +2,7 @@
 #pragma once
 
 #include <QObject>
-#include <QOpenGLFunctions_4_3_Core>
+#include <QOpenGLFunctions_4_5_Core>
 #include <QOpenGLShaderProgram>
 #include <QOpenGLBuffer>
 #include <QOpenGLVertexArrayObject>
@@ -10,9 +10,10 @@
 #include <QMatrix4x4>
 #include <QElapsedTimer>
 #include <vector>
+#include <memory>
 #include <QQuaternion>
 
-class SphereRenderer : public QObject, protected QOpenGLFunctions_4_3_Core {
+class SphereRenderer : public QObject, protected QOpenGLFunctions_4_5_Core {
     Q_OBJECT
 
 public:
@@ -64,8 +65,8 @@ private:
     bool initialized_ = false;  // Track initialization state
 
     // OpenGL objects
-    QOpenGLShaderProgram* shaderProgram_ = nullptr;
-    QOpenGLShaderProgram* axesShaderProgram_ = nullptr;
+    std::unique_ptr<QOpenGLShaderProgram> shaderProgram_;
+    std::unique_ptr<QOpenGLShaderProgram> axesShaderProgram_;
 
     // Sphere geometry
     QOpenGLVertexArrayObject sphereVAO_;
@@ -111,7 +112,7 @@ private:
     QOpenGLVertexArrayObject dotVAO_;
     QOpenGLBuffer dotVBO_;
     std::vector<float> dotVertices_;
-    QOpenGLShaderProgram* dotShaderProgram_ = nullptr;
+    std::unique_ptr<QOpenGLShaderProgram> dotShaderProgram_;
     float theta_ = 45.0f;  // Spherical coordinate theta (longitude)
     float phi_ = 45.0f;    // Spherical coordinate phi (latitude)
 

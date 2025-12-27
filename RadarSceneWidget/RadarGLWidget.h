@@ -68,13 +68,14 @@ private:
     float phi_ = 45.0f;
     bool beamDirty_ = true;
     bool glCleanedUp_ = false;  // Prevent double cleanup
+    bool glInitialized_ = false;  // Track if initializeGL completed successfully
 
-    // Component references (owned by RadarSceneWidget)
-    SphereRenderer* sphereRenderer_ = nullptr;
-    BeamController* beamController_ = nullptr;
-    CameraController* cameraController_ = nullptr;
-    ModelManager* modelManager_ = nullptr;
-    WireframeTargetController* wireframeController_ = nullptr;
+    // Component ownership - deleted while GL context is still valid
+    std::unique_ptr<SphereRenderer> sphereRenderer_;
+    std::unique_ptr<BeamController> beamController_;
+    std::unique_ptr<CameraController> cameraController_;
+    std::unique_ptr<ModelManager> modelManager_;
+    std::unique_ptr<WireframeTargetController> wireframeController_;
 
     // RCS computation (owned by this widget)
     std::unique_ptr<RCS::RCSCompute> rcsCompute_;

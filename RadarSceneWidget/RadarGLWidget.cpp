@@ -29,12 +29,22 @@ RadarGLWidget::RadarGLWidget(QWidget* parent)
 }
 
 RadarGLWidget::~RadarGLWidget() {
-	// Note: We intentionally do NOT call cleanupGL() here.
-	// OpenGL resources are automatically cleaned up when the context is destroyed.
-	// Trying to manually clean them up during widget destruction can cause crashes
-	// because Qt may have already started destroying the context infrastructure.
+	// Clean up OpenGL resources while context is still valid
+	// Must do this before base class destructor destroys the context
+	makeCurrent();
+	cleanupGL();
 
-	// rcsCompute_ is automatically deleted by unique_ptr
+	// Reset unique_ptrs while context is still current
+	// This ensures VAO/VBO destructors run with valid context
+	sphereRenderer_.reset();
+	beamController_.reset();
+	cameraController_.reset();
+	modelManager_.reset();
+	wireframeController_.reset();
+	rcsCompute_.reset();
+
+	doneCurrent();
+
 	// contextMenu_ is parented to 'this' and auto-deleted by Qt
 }
 
@@ -83,11 +93,12 @@ void RadarGLWidget::cleanupGL() {
 }
 
 void RadarGLWidget::initialize(SphereRenderer* sphereRenderer, BeamController* beamController, CameraController* cameraController, ModelManager* modelManager, WireframeTargetController* wireframeController) {
-	sphereRenderer_ = sphereRenderer;
-	beamController_ = beamController;
-	cameraController_ = cameraController;
-	modelManager_ = modelManager;
-	wireframeController_ = wireframeController;
+	// Take ownership of components via unique_ptr
+	sphereRenderer_.reset(sphereRenderer);
+	beamController_.reset(beamController);
+	cameraController_.reset(cameraController);
+	modelManager_.reset(modelManager);
+	wireframeController_.reset(wireframeController);
 
 	// Store the components but don't initialize them here
 	// They will be initialized in initializeGL when a valid context exists
@@ -97,7 +108,7 @@ void RadarGLWidget::initialize(SphereRenderer* sphereRenderer, BeamController* b
 	// Connect camera controller's viewChanged signal to trigger repaints
 	// This is essential for smooth inertia animation
 	if (cameraController_) {
-		connect(cameraController_, &CameraController::viewChanged,
+		connect(cameraController_.get(), &CameraController::viewChanged,
 			this, QOverload<>::of(&QWidget::update));
 	}
 
@@ -174,6 +185,9 @@ void RadarGLWidget::initializeGL() {
 			beamController_->updateBeamPosition(initialPos);
 			beamController_->rebuildBeamGeometry();
 		}
+
+		// Mark initialization as complete
+		glInitialized_ = true;
 	}
 	catch (const std::exception& e) {
 		qCritical() << "Exception during component initialization:" << e.what();
@@ -184,11 +198,31 @@ void RadarGLWidget::initializeGL() {
 }
 
 void RadarGLWidget::resizeGL(int w, int h) {
+	if (!glInitialized_) {
+		return;
+	}
 	glViewport(0, 0, w, h);
 }
 
 void RadarGLWidget::paintGL() {
-	// Always update beam position and geometry every frame
+	// Check context and initialization FIRST - before any GL calls
+	if (!context() || !context()->isValid()) {
+		qWarning() << "OpenGL context not valid in paintGL";
+		return;
+	}
+
+	if (!glInitialized_) {
+		qWarning() << "paintGL called before initialization complete";
+		return;
+	}
+
+	// Check camera controller
+	if (!cameraController_) {
+		qWarning() << "CameraController not available in paintGL";
+		return;
+	}
+
+	// Now safe to use GL functions - update beam position and geometry
 	updateBeamPosition();
 	beamController_->rebuildBeamGeometry();
 	beamDirty_ = false;
@@ -207,18 +241,6 @@ void RadarGLWidget::paintGL() {
 	glClearStencil(0);
 	glStencilMask(0xFF);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
-	// Check context
-	if (!context() || !context()->isValid()) {
-		qWarning() << "OpenGL context not valid in paintGL";
-		return;
-	}
-
-	// Check camera controller
-	if (!cameraController_) {
-		qWarning() << "CameraController not available in paintGL";
-		return;
-	}
 
 	// Get view and model matrices from camera controller
 	QMatrix4x4 viewMatrix = cameraController_->getViewMatrix();

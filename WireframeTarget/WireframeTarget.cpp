@@ -74,8 +74,7 @@ void WireframeTarget::cleanup() {
     QOpenGLContext* ctx = QOpenGLContext::currentContext();
     if (!ctx) {
         qWarning() << "WireframeTarget::cleanup() - no current context, skipping GL cleanup";
-        delete shaderProgram_;
-        shaderProgram_ = nullptr;
+        shaderProgram_.reset();
         return;
     }
 
@@ -91,8 +90,7 @@ void WireframeTarget::cleanup() {
         glDeleteBuffers(1, &eboId_);
         eboId_ = 0;
     }
-    delete shaderProgram_;
-    shaderProgram_ = nullptr;
+    shaderProgram_.reset();
 }
 
 WireframeTarget::~WireframeTarget() {
@@ -134,7 +132,7 @@ void WireframeTarget::setupShaders() {
         return;
     }
 
-    shaderProgram_ = new QOpenGLShaderProgram();
+    shaderProgram_ = std::make_unique<QOpenGLShaderProgram>();
 
     if (!shaderProgram_->addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShaderSource_)) {
         qCritical() << "WireframeTarget: Failed to compile vertex shader:" << shaderProgram_->log();

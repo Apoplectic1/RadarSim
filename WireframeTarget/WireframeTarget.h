@@ -1,17 +1,18 @@
 // WireframeTarget.h
 #pragma once
 
-#include <QOpenGLFunctions_4_3_Core>
+#include <QOpenGLFunctions_4_5_Core>
 #include <QOpenGLShaderProgram>
 #include <QOpenGLVertexArrayObject>
 #include <QVector3D>
 #include <QMatrix4x4>
 #include <QQuaternion>
 #include <vector>
+#include <memory>
 
 #include "WireframeShapes.h"
 
-class WireframeTarget : protected QOpenGLFunctions_4_3_Core {
+class WireframeTarget : protected QOpenGLFunctions_4_5_Core {
 public:
     WireframeTarget();
     virtual ~WireframeTarget();
@@ -59,7 +60,7 @@ public:
 
 protected:
     // OpenGL resources for target geometry
-    QOpenGLShaderProgram* shaderProgram_ = nullptr;
+    std::unique_ptr<QOpenGLShaderProgram> shaderProgram_;
     QOpenGLVertexArrayObject vao_;
     GLuint vboId_ = 0;
     GLuint eboId_ = 0;

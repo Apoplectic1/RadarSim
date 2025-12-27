@@ -4,7 +4,7 @@
 #include <QObject>
 #include <QVector3D>
 #include <QMatrix4x4>
-#include <QOpenGLFunctions_4_3_Core>
+#include <QOpenGLFunctions_4_5_Core>
 #include <QOpenGLShaderProgram>
 #include <QOpenGLBuffer>
 #include <QOpenGLVertexArrayObject>
@@ -15,7 +15,7 @@
 // Forward declaration for model class
 class Model;
 
-class ModelManager : public QObject, protected QOpenGLFunctions_4_3_Core {
+class ModelManager : public QObject, protected QOpenGLFunctions_4_5_Core {
     Q_OBJECT
 
 public:
@@ -49,7 +49,7 @@ signals:
 
 private:
     // Shader for models
-    QOpenGLShaderProgram* modelShaderProgram = nullptr;
+    std::unique_ptr<QOpenGLShaderProgram> modelShaderProgram_;
 
     // Collection of models
     std::vector<std::shared_ptr<Model>> models_;

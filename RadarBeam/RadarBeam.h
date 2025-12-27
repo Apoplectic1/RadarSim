@@ -2,13 +2,14 @@
 
 #pragma once
 
-#include <QOpenGLFunctions_4_3_Core>
+#include <QOpenGLFunctions_4_5_Core>
 #include <QOpenGLShaderProgram>
 #include <QOpenGLBuffer>
 #include <QOpenGLVertexArrayObject>
 #include <QVector3D>
 #include <QMatrix4x4>
 #include <vector>
+#include <memory>
 
 // Enum for different beam types
 enum class BeamType {
@@ -25,7 +26,7 @@ enum class BeamDirection {
 };
 
 // Base class for all beam shapes
-class RadarBeam : protected QOpenGLFunctions_4_3_Core {
+class RadarBeam : protected QOpenGLFunctions_4_5_Core {
 public:
     // Constructor
     RadarBeam(float sphereRadius = 100.0f, float beamWidthDegrees = 15.0f);
@@ -78,7 +79,7 @@ public:
 
 protected:
     // OpenGL resources
-    QOpenGLShaderProgram* beamShaderProgram_ = nullptr;
+    std::unique_ptr<QOpenGLShaderProgram> beamShaderProgram_;
     QOpenGLVertexArrayObject beamVAO_;
     GLuint vboId_ = 0;  // Raw OpenGL buffer ID for vertices
     GLuint eboId_ = 0;  // Raw OpenGL buffer ID for indices

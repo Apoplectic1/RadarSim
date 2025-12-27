@@ -29,15 +29,18 @@ RadarSceneWidget::RadarSceneWidget(QWidget* parent)
 }
 
 RadarSceneWidget::~RadarSceneWidget() {
-    // Components are parented to 'this' and auto-deleted by Qt
+    // Components are deleted by RadarGLWidget's destructor while GL context is still valid
+    // Nothing to clean up here
 }
 
 void RadarSceneWidget::createComponents() {
-    sphereRenderer_ = new SphereRenderer(this);
-    beamController_ = new BeamController(this);
-    cameraController_ = new CameraController(this);
-    modelManager_ = new ModelManager(this);
-    wireframeController_ = new WireframeTargetController(this);
+    // Create components with no parent - we'll manage their lifetime manually
+    // This allows us to delete them while the GL context is still valid
+    sphereRenderer_ = new SphereRenderer(nullptr);
+    beamController_ = new BeamController(nullptr);
+    cameraController_ = new CameraController(nullptr);
+    modelManager_ = new ModelManager(nullptr);
+    wireframeController_ = new WireframeTargetController(nullptr);
 
     radarGLWidget_->initialize(sphereRenderer_, beamController_,
         cameraController_, modelManager_, wireframeController_);

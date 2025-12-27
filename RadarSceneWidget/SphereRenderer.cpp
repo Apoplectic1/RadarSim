@@ -165,12 +165,9 @@ void SphereRenderer::cleanup() {
 	if (!ctx) {
 		qWarning() << "SphereRenderer::cleanup() - no current context, skipping GL cleanup";
 		// Still clean up shader programs (safe without context)
-		delete shaderProgram_;
-		shaderProgram_ = nullptr;
-		delete axesShaderProgram_;
-		axesShaderProgram_ = nullptr;
-		delete dotShaderProgram_;
-		dotShaderProgram_ = nullptr;
+		shaderProgram_.reset();
+		axesShaderProgram_.reset();
+		dotShaderProgram_.reset();
 		return;
 	}
 
@@ -210,12 +207,9 @@ void SphereRenderer::cleanup() {
 	}
 
 	// Clean up shader programs
-	delete shaderProgram_;
-	shaderProgram_ = nullptr;
-	delete axesShaderProgram_;
-	axesShaderProgram_ = nullptr;
-	delete dotShaderProgram_;
-	dotShaderProgram_ = nullptr;
+	shaderProgram_.reset();
+	axesShaderProgram_.reset();
+	dotShaderProgram_.reset();
 
 	initialized_ = false;
 }
@@ -265,18 +259,15 @@ bool SphereRenderer::initialize() {
 
 bool SphereRenderer::initializeShaders() {
 	// Clean up existing shader programs to prevent memory leaks
-	delete shaderProgram_;
-	shaderProgram_ = nullptr;
-	delete axesShaderProgram_;
-	axesShaderProgram_ = nullptr;
-	delete dotShaderProgram_;
-	dotShaderProgram_ = nullptr;
+	shaderProgram_.reset();
+	axesShaderProgram_.reset();
+	dotShaderProgram_.reset();
 
 	// Create main shader program
-	shaderProgram_ = new QOpenGLShaderProgram();
+	shaderProgram_ = std::make_unique<QOpenGLShaderProgram>();
 
 	// Create the dot shader program
-	dotShaderProgram_ = new QOpenGLShaderProgram();
+	dotShaderProgram_ = std::make_unique<QOpenGLShaderProgram>();
 
 	if (!dotShaderProgram_->addShaderFromSourceCode(QOpenGLShader::Vertex, dotVertexShaderSource_)) {
 		qWarning() << "Failed to compile dot vertex shader:" << dotShaderProgram_->log();
@@ -312,7 +303,7 @@ bool SphereRenderer::initializeShaders() {
 	}
 
 	// Create axes shader program
-	axesShaderProgram_ = new QOpenGLShaderProgram();
+	axesShaderProgram_ = std::make_unique<QOpenGLShaderProgram>();
 
 	// Load and compile axes vertex shader
 	if (!axesShaderProgram_->addShaderFromSourceCode(QOpenGLShader::Vertex, axesVertexShaderSource_)) {
@@ -436,15 +427,15 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 	// 1. Draw the sphere with two-pass transparency for 3D effect
 	if (showSphere_) {
 		// Release any currently bound shader that's not the one we need
-		if (currentShader && currentShader != shaderProgram_) {
+		if (currentShader && currentShader != shaderProgram_.get()) {
 			currentShader->release();
 			currentShader = nullptr;
 		}
 
 		// Bind shader if not already bound
-		if (currentShader != shaderProgram_) {
+		if (currentShader != shaderProgram_.get()) {
 			shaderProgram_->bind();
-			currentShader = shaderProgram_;
+			currentShader = shaderProgram_.get();
 
 			// Set common uniforms only when binding
 			shaderProgram_->setUniformValue("projection", projection);
@@ -487,15 +478,15 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 	// 2. Draw grid lines if visible
 	if (showGridLines_) {
 		// Release any currently bound shader that's not the one we need
-		if (currentShader && currentShader != shaderProgram_) {
+		if (currentShader && currentShader != shaderProgram_.get()) {
 			currentShader->release();
 			currentShader = nullptr;
 		}
 
 		// Bind shader if not already bound
-		if (currentShader != shaderProgram_) {
+		if (currentShader != shaderProgram_.get()) {
 			shaderProgram_->bind();
-			currentShader = shaderProgram_;
+			currentShader = shaderProgram_.get();
 
 			// Set common uniforms only when binding
 			shaderProgram_->setUniformValue("projection", projection);
@@ -558,15 +549,15 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 	// 3. Draw coordinate axes if visible
 	if (showAxes_) {
 		// Release any currently bound shader that's not the one we need
-		if (currentShader && currentShader != axesShaderProgram_) {
+		if (currentShader && currentShader != axesShaderProgram_.get()) {
 			currentShader->release();
 			currentShader = nullptr;
 		}
 
 		// Bind shader if not already bound
-		if (currentShader != axesShaderProgram_) {
+		if (currentShader != axesShaderProgram_.get()) {
 			axesShaderProgram_->bind();
-			currentShader = axesShaderProgram_;
+			currentShader = axesShaderProgram_.get();
 		}
 
 		axesShaderProgram_->setUniformValue("projection", projection);
@@ -599,7 +590,7 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 		axesVAO_.release();
 
 		// Release axesShaderProgram_ before switching to another shader
-		if (currentShader == axesShaderProgram_) {
+		if (currentShader == axesShaderProgram_.get()) {
 			currentShader->release();
 			currentShader = nullptr;
 		}
@@ -615,13 +606,13 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 
 	// 4.1. First, draw opaque parts of the dot (front-facing parts)
 	// Switch to dot shader program
-	if (currentShader && currentShader != dotShaderProgram_) {
+	if (currentShader && currentShader != dotShaderProgram_.get()) {
 		currentShader->release();
 		currentShader = nullptr;
 	}
 
 	dotShaderProgram_->bind();
-	currentShader = dotShaderProgram_;
+	currentShader = dotShaderProgram_.get();
 
 	// Ensure proper depth testing for opaque rendering
 	glDisable(GL_BLEND);
@@ -666,7 +657,7 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 
 	dotVAO_.release();
 
-	if (currentShader == dotShaderProgram_) {
+	if (currentShader == dotShaderProgram_.get()) {
 		currentShader->release();
 		currentShader = nullptr;
 	}

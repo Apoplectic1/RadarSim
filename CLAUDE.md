@@ -214,7 +214,7 @@ void RadarSim::closeEvent(QCloseEvent* event) {
 - `Q_OBJECT` macro required for signal/slot support
 
 ### OpenGL Patterns
-- Use `QOpenGLFunctions_4_3_Core` for type-safe GL calls
+- Use `QOpenGLFunctions_4_5_Core` for type-safe GL calls
 - VAO/VBO/EBO pattern for geometry
 - Shaders defined as raw strings in constructors
 - `QMatrix4x4` for all matrix operations

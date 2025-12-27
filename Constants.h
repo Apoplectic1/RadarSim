@@ -107,7 +107,7 @@ namespace Colors {
     // Scene colors
     constexpr float kBackgroundGrey[3] = {0.5f, 0.5f, 0.5f};
     constexpr float kGridLineGrey[3] = {0.4f, 0.4f, 0.4f};
-    constexpr float kSphereOffWhite[3] = {0.95f, 0.95f, 0.95f};
+    constexpr float kSphereOffWhite[3] = { 0.95f, 0.95f, 0.95f };
 
     // Default object colors
     constexpr float kBeamOrange[3] = {1.0f, 0.5f, 0.0f};

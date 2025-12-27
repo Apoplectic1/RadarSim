@@ -7,7 +7,7 @@
 class Model {
 public:
     virtual ~Model() {}
-    virtual void render(QOpenGLFunctions_4_3_Core* gl, QOpenGLShaderProgram* program) = 0;
+    virtual void render(QOpenGLFunctions_4_5_Core* gl, QOpenGLShaderProgram* program) = 0;
 
     QVector3D position = QVector3D(0, 0, 0);
     QVector3D rotation = QVector3D(0, 0, 0);
@@ -82,10 +82,7 @@ ModelManager::ModelManager(QObject* parent)
 
 ModelManager::~ModelManager() {
     // Clean up OpenGL resources
-    if (modelShaderProgram) {
-        delete modelShaderProgram;
-        modelShaderProgram = nullptr;
-    }
+    modelShaderProgram_.reset();
 
     // Clear models
     models_.clear();
@@ -147,22 +144,22 @@ void ModelManager::setModelScale(int index, float scale) {
 }
 
 void ModelManager::render(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model) {
-    if (models_.empty() || !modelShaderProgram) {
+    if (models_.empty() || !modelShaderProgram_) {
         return;
     }
 
     // Set up shared shader parameters
-    modelShaderProgram->bind();
-    modelShaderProgram->setUniformValue("projection", projection);
-    modelShaderProgram->setUniformValue("view", view);
+    modelShaderProgram_->bind();
+    modelShaderProgram_->setUniformValue("projection", projection);
+    modelShaderProgram_->setUniformValue("view", view);
 
     // Extract camera position from view matrix for specular calculations
     QMatrix4x4 inverseView = view.inverted();
     QVector3D cameraPos = inverseView.column(3).toVector3D();
-    modelShaderProgram->setUniformValue("viewPos", cameraPos);
+    modelShaderProgram_->setUniformValue("viewPos", cameraPos);
 
     // Set light position
-    modelShaderProgram->setUniformValue("lightPos", QVector3D(500.0f, 500.0f, 500.0f));
+    modelShaderProgram_->setUniformValue("lightPos", QVector3D(500.0f, 500.0f, 500.0f));
 
     // Render each model
     for (const auto& modelPtr : models_) {
@@ -172,13 +169,13 @@ void ModelManager::render(const QMatrix4x4& projection, const QMatrix4x4& view, 
         modelMatrix.rotate(QQuaternion::fromEulerAngles(modelPtr->rotation));
         modelMatrix.scale(modelPtr->scale);
 
-        modelShaderProgram->setUniformValue("model", modelMatrix);
+        modelShaderProgram_->setUniformValue("model", modelMatrix);
 
         // Let the model handle its specific rendering
-        modelPtr->render(this, modelShaderProgram);
+        modelPtr->render(this, modelShaderProgram_.get());
     }
 
-    modelShaderProgram->release();
+    modelShaderProgram_->release();
 }
 
 bool ModelManager::checkBeamIntersection(const QVector3D& beamOrigin, const QVector3D& beamDirection,
@@ -194,26 +191,23 @@ bool ModelManager::setupShaders() {
         return false;
     }
 
-    modelShaderProgram = new QOpenGLShaderProgram();
+    modelShaderProgram_ = std::make_unique<QOpenGLShaderProgram>();
 
-    if (!modelShaderProgram->addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShaderSource)) {
-        qCritical() << "ModelManager: Failed to compile vertex shader:" << modelShaderProgram->log();
-        delete modelShaderProgram;
-        modelShaderProgram = nullptr;
+    if (!modelShaderProgram_->addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShaderSource)) {
+        qCritical() << "ModelManager: Failed to compile vertex shader:" << modelShaderProgram_->log();
+        modelShaderProgram_.reset();
         return false;
     }
 
-    if (!modelShaderProgram->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource)) {
-        qCritical() << "ModelManager: Failed to compile fragment shader:" << modelShaderProgram->log();
-        delete modelShaderProgram;
-        modelShaderProgram = nullptr;
+    if (!modelShaderProgram_->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource)) {
+        qCritical() << "ModelManager: Failed to compile fragment shader:" << modelShaderProgram_->log();
+        modelShaderProgram_.reset();
         return false;
     }
 
-    if (!modelShaderProgram->link()) {
-        qCritical() << "ModelManager: Failed to link shader program:" << modelShaderProgram->log();
-        delete modelShaderProgram;
-        modelShaderProgram = nullptr;
+    if (!modelShaderProgram_->link()) {
+        qCritical() << "ModelManager: Failed to link shader program:" << modelShaderProgram_->log();
+        modelShaderProgram_.reset();
         return false;
     }
 

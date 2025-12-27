@@ -149,8 +149,7 @@ void RadarBeam::cleanup() {
 	QOpenGLContext* ctx = QOpenGLContext::currentContext();
 	if (!ctx) {
 		qWarning() << "RadarBeam::cleanup() - no current context, skipping GL cleanup";
-		delete beamShaderProgram_;
-		beamShaderProgram_ = nullptr;
+		beamShaderProgram_.reset();
 		return;
 	}
 
@@ -166,8 +165,7 @@ void RadarBeam::cleanup() {
 		glDeleteBuffers(1, &eboId_);
 		eboId_ = 0;
 	}
-	delete beamShaderProgram_;
-	beamShaderProgram_ = nullptr;
+	beamShaderProgram_.reset();
 }
 
 // Destructor
@@ -270,7 +268,7 @@ void RadarBeam::setupShaders() {
 	}
 
 	// Create and compile beam shader program
-	beamShaderProgram_ = new QOpenGLShaderProgram();
+	beamShaderProgram_ = std::make_unique<QOpenGLShaderProgram>();
 
 	// Debug shader compilation
 	if (!beamShaderProgram_->addShaderFromSourceCode(QOpenGLShader::Vertex, beamVertexShaderSource)) {
