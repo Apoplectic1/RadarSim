@@ -12,7 +12,10 @@
       "Bash(git stash:*)",
       "Bash(git restore:*)",
       "Bash(git branch:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(git -C \"E:/Projects/VisualStudio/RadarSim\" log --oneline -5)",
+      "Bash(git -C \"E:/Projects/VisualStudio/RadarSim\" add -A)",
+      "Bash(git -C \"E:/Projects/VisualStudio/RadarSim\" commit -m \"$\\(cat <<''EOF''\nStandardize memory management with std::unique_ptr\n\nConvert raw new/delete patterns to std::unique_ptr for non-Qt owned objects:\n- BeamController::radarBeam_\n- WireframeTargetController::target_\n- RadarGLWidget::rcsCompute_\n- SphereWidget::radarBeam_\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }

@@ -14,6 +14,7 @@
 #include <QTimer>
 #include <QElapsedTimer>
 #include <vector>
+#include <memory>
 #include <QMenu>
 #include <QAction>
 
@@ -36,7 +37,7 @@ public:
     void setBeamType(BeamType type);
     void setBeamColor(const QVector3D& color);
     void setBeamOpacity(float opacity);
-    RadarBeam* getBeam() const { return radarBeam_; }
+    RadarBeam* getBeam() const { return radarBeam_.get(); }
 
 
     void setInertiaParameters(float decay, float velocityScale) {
@@ -189,7 +190,7 @@ private:
 
     private:
         // Radar beam
-        RadarBeam* radarBeam_ = nullptr;
+        std::unique_ptr<RadarBeam> radarBeam_;
         bool showBeam_ = true;
 
     // Add variables to store counts for debugging

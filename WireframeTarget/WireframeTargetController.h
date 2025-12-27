@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QVector3D>
 #include <QMatrix4x4>
+#include <memory>
 
 #include "WireframeTarget.h"
 #include "WireframeShapes.h"
@@ -55,7 +56,7 @@ public:
     QVector3D getLightDirection() const;
 
     // Access to underlying target
-    WireframeTarget* getTarget() const { return target_; }
+    WireframeTarget* getTarget() const { return target_.get(); }
 
 signals:
     void targetTypeChanged(WireframeType type);
@@ -65,7 +66,7 @@ signals:
     void visibilityChanged(bool visible);
 
 private:
-    WireframeTarget* target_ = nullptr;
+    std::unique_ptr<WireframeTarget> target_;
 
     // Deferred type change (following BeamController pattern)
     WireframeType currentType_ = WireframeType::Cube;

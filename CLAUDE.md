@@ -540,13 +540,12 @@ void RadarSim::onTargetPosXChanged(int value) {
 ## Known Technical Debt
 
 1. Dual rendering paths (legacy SphereWidget + new component system)
-2. Mixed memory management (raw `new`/`delete` and `std::shared_ptr`)
-3. ModelManager intersection testing is placeholder
-4. No unit test coverage
-5. RCS ray tracing only outputs to debug console (no UI display)
-6. RCS contribution calculation not yet implemented (placeholder in HitResult)
-7. Ray visualization for debugging not implemented
-8. OpenGL 4.3 required - no fallback for older hardware
+2. ModelManager intersection testing is placeholder
+3. No unit test coverage
+4. RCS ray tracing only outputs to debug console (no UI display)
+5. RCS contribution calculation not yet implemented (placeholder in HitResult)
+6. Ray visualization for debugging not implemented
+7. OpenGL 4.3 required - no fallback for older hardware
 
 ## Future Enhancements
 

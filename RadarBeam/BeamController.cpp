@@ -3,16 +3,13 @@
 
 BeamController::BeamController(QObject* parent)
     : QObject(parent),
-    radarBeam_(nullptr),
     currentBeamType_(BeamType::Conical),
     sphereRadius_(100.0f),
     showBeam_(true)
 {
 }
 
-BeamController::~BeamController() {
-    delete radarBeam_;
-}
+BeamController::~BeamController() = default;
 
 void BeamController::cleanup() {
     if (radarBeam_) {
@@ -193,14 +190,10 @@ void BeamController::createBeam() {
         color = radarBeam_->getColor();
         opacity = radarBeam_->getOpacity();
         visible = radarBeam_->isVisible();
-
-        // Delete old beam
-        delete radarBeam_;
-        radarBeam_ = nullptr;
     }
 
-    // Create new beam
-    radarBeam_ = RadarBeam::createBeam(currentBeamType_, sphereRadius_, width);
+    // Create new beam (unique_ptr automatically deletes old beam)
+    radarBeam_.reset(RadarBeam::createBeam(currentBeamType_, sphereRadius_, width));
 
     if (radarBeam_) {
         radarBeam_->initialize();

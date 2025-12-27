@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QVector3D>
 #include <QOpenGLFunctions>
+#include <memory>
 #include "RadarBeam.h"
 
 class BeamController : public QObject {
@@ -54,7 +55,7 @@ public:
     void setNumRings(int numRings);
 
     // Access beam
-    RadarBeam* getBeam() const { return radarBeam_; }
+    RadarBeam* getBeam() const { return radarBeam_.get(); }
 
 signals:
     void beamTypeChanged(BeamType type);
@@ -65,7 +66,7 @@ signals:
 
 private:
     // Beam properties
-    RadarBeam* radarBeam_ = nullptr;
+    std::unique_ptr<RadarBeam> radarBeam_;
     BeamType currentBeamType_ = BeamType::Conical;
     BeamType pendingBeamType_ = BeamType::Conical;  // For deferred type changes
     bool beamTypeChangePending_ = false;  // Flag for deferred type change

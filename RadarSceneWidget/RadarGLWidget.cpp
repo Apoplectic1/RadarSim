@@ -37,9 +37,7 @@ RadarGLWidget::~RadarGLWidget() {
 	// Trying to manually clean them up during widget destruction can cause crashes
 	// because Qt may have already started destroying the context infrastructure.
 
-	// Delete owned objects
-	delete rcsCompute_;
-	rcsCompute_ = nullptr;
+	// rcsCompute_ is automatically deleted by unique_ptr
 
 	delete contextMenu_;
 	contextMenu_ = nullptr;
@@ -175,11 +173,10 @@ void RadarGLWidget::initializeGL() {
 		}
 
 		// Initialize RCS compute for GPU ray tracing
-		rcsCompute_ = new RCS::RCSCompute(this);
+		rcsCompute_ = std::make_unique<RCS::RCSCompute>(this);
 		if (!rcsCompute_->initialize()) {
 			qWarning() << "RCSCompute initialization failed - ray tracing disabled";
-			delete rcsCompute_;
-			rcsCompute_ = nullptr;
+			rcsCompute_.reset();
 		} else {
 			qDebug() << "RCSCompute initialized successfully";
 			rcsCompute_->setSphereRadius(radius_);

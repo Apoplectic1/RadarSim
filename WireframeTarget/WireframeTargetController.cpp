@@ -5,7 +5,6 @@
 
 WireframeTargetController::WireframeTargetController(QObject* parent)
     : QObject(parent),
-      target_(nullptr),
       currentType_(WireframeType::Cube),
       pendingType_(WireframeType::Cube),
       typeChangePending_(false),
@@ -19,9 +18,7 @@ WireframeTargetController::WireframeTargetController(QObject* parent)
 {
 }
 
-WireframeTargetController::~WireframeTargetController() {
-    delete target_;
-}
+WireframeTargetController::~WireframeTargetController() = default;
 
 void WireframeTargetController::cleanup() {
     if (target_) {
@@ -179,14 +176,8 @@ QVector3D WireframeTargetController::getLightDirection() const {
 }
 
 void WireframeTargetController::createTarget() {
-    // Delete old target if exists
-    if (target_) {
-        delete target_;
-        target_ = nullptr;
-    }
-
-    // Create new target using factory
-    target_ = WireframeTarget::createTarget(currentType_);
+    // Create new target using factory (unique_ptr automatically deletes old target)
+    target_.reset(WireframeTarget::createTarget(currentType_));
 
     if (target_) {
         target_->initialize();

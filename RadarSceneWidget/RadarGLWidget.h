@@ -9,6 +9,7 @@
 #include <QTimer>
 #include <QElapsedTimer>
 #include <QMenu>
+#include <memory>
 
 #include "RadarSceneWidget/SphereRenderer.h"
 #include "RadarBeam/BeamController.h"
@@ -76,7 +77,7 @@ private:
     WireframeTargetController* wireframeController_ = nullptr;
 
     // RCS computation (owned by this widget)
-    RCS::RCSCompute* rcsCompute_ = nullptr;
+    std::unique_ptr<RCS::RCSCompute> rcsCompute_;
 
     // Context menu
     QMenu* contextMenu_ = nullptr;

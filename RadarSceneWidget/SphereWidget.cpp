@@ -170,8 +170,8 @@ SphereWidget::~SphereWidget() {
 	delete shaderProgram;
 	delete dotShaderProgram;
 	delete axesShaderProgram;
-	delete radarBeam_;
-	
+	// radarBeam_ is automatically deleted by unique_ptr
+
 	// Clean up inertia timer
 	if (inertiaTimer_) {
 		inertiaTimer_->stop();
@@ -357,7 +357,7 @@ void SphereWidget::initializeGL() {
 	viewMatrix.translate(0, 0, -300.0f); // Same as the fixed-distance camera
 
 	// Initialize the radar beam (after OpenGL context is set up)
-	radarBeam_ = RadarBeam::createBeam(BeamType::Conical, radius_, 15.0f);
+	radarBeam_.reset(RadarBeam::createBeam(BeamType::Conical, radius_, 15.0f));
 	radarBeam_->initialize();
 	radarBeam_->setColor(QVector3D(1.0f, 0.5f, 0.0f)); // Orange-red beam
 	radarBeam_->setOpacity(0.3f); // Semi-transparent
@@ -393,16 +393,12 @@ void SphereWidget::setRadius(float r) {
 
 		// Determine beam type
 		BeamType currentType = BeamType::Conical; // Default
-		if (dynamic_cast<PhasedArrayBeam*>(radarBeam_)) {
+		if (dynamic_cast<PhasedArrayBeam*>(radarBeam_.get())) {
 			currentType = BeamType::Phased;
 		}
 
-		// Delete old beam
-		delete radarBeam_;
-		radarBeam_ = nullptr;
-
-		// Create and initialize new beam using factory method
-		radarBeam_ = RadarBeam::createBeam(currentType, radius_, width);
+		// Create and initialize new beam using factory method (unique_ptr handles old beam)
+		radarBeam_.reset(RadarBeam::createBeam(currentType, radius_, width));
 
 		if (radarBeam_) {
 			radarBeam_->initialize();
@@ -1224,12 +1220,8 @@ void SphereWidget::setBeamType(BeamType type) {
 
 		makeCurrent();
 
-		// Delete old beam
-		delete radarBeam_;
-		radarBeam_ = nullptr;
-
-		// Create new beam of specified type
-		radarBeam_ = RadarBeam::createBeam(type, radius_, width);
+		// Create new beam of specified type (unique_ptr automatically deletes old beam)
+		radarBeam_.reset(RadarBeam::createBeam(type, radius_, width));
 
 		if (radarBeam_) {
 			radarBeam_->initialize();
@@ -1255,7 +1247,7 @@ void SphereWidget::setBeamType(BeamType type) {
 
 		// Create a new beam if none exists
 		makeCurrent();
-		radarBeam_ = RadarBeam::createBeam(type, radius_, 15.0f);
+		radarBeam_.reset(RadarBeam::createBeam(type, radius_, 15.0f));
 		if (radarBeam_) {
 			radarBeam_->initialize();
 			radarBeam_->setColor(QVector3D(1.0f, 0.5f, 0.0f));
