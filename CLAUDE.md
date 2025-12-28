@@ -488,6 +488,7 @@ See [RCSCompute (GPU Ray Tracing)](#rcscompute-gpu-ray-tracing) section for impl
 2. **Add UI display** - Show hit count and occlusion ratio in application
 3. **Visualize ray hits** - Debug rendering of traced rays and hit points
 4. **Implement diffraction effects** - For realistic radar simulation
+5. **Reflected Lobe Visualization** (PLANNED ~22hrs) - Visualize RCS reflected energy as colored cone lobes emanating from target. Features BRDF-based intensity, GPU clustering, instanced rendering, multi-target support. See detailed plan at `.claude/plans/deep-finding-sutherland.md`
 
 ## UI Layout
 
