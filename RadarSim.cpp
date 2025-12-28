@@ -208,7 +208,7 @@ void RadarSim::setupRadarSceneTab() {
 
     QFrame* controlsFrame = new QFrame();
     controlsFrame->setFrameStyle(QFrame::StyledPanel);
-    controlsFrame->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    controlsFrame->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
 
     // Setup layouts for frames
     QVBoxLayout* sphereFrameLayout = new QVBoxLayout(sphereFrame);
@@ -216,7 +216,7 @@ void RadarSim::setupRadarSceneTab() {
 
     QVBoxLayout* controlsFrameLayout = new QVBoxLayout(controlsFrame);
     controlsFrameLayout->setContentsMargins(4, 4, 4, 4);
-    controlsFrameLayout->setSpacing(0);
+    controlsFrameLayout->setSpacing(8);  // Gap between groupboxes
 
     // Create RadarSceneWidget
     radarSceneView_ = new RadarSceneWidget(sphereFrame);
@@ -226,14 +226,15 @@ void RadarSim::setupRadarSceneTab() {
     // Setup control groups
     setupRadarControls(controlsFrame, controlsFrameLayout);
     setupTargetControls(controlsFrame, controlsFrameLayout);
+    controlsFrameLayout->addStretch();  // Push controls to top, prevent vertical stretching
 
     // Add frames to splitter AFTER all setup is done
     radarSplitter_->addWidget(sphereFrame);
     radarSplitter_->addWidget(controlsFrame);
 
-    // Adjust stretch factors to give equal visual weight
-    radarSplitter_->setStretchFactor(0, 1);  // RadarScene gets 1 part
-    radarSplitter_->setStretchFactor(1, 1);  // Controls get 1 part (equal space)
+    // Scene expands to fill space, controls stay minimal
+    radarSplitter_->setStretchFactor(0, 1);  // RadarScene expands
+    radarSplitter_->setStretchFactor(1, 0);  // Controls stay minimal
 }
 
 void RadarSim::setupRadarControls(QFrame* controlsFrame, QVBoxLayout* controlsFrameLayout) {
@@ -248,6 +249,7 @@ void RadarSim::setupRadarControls(QFrame* controlsFrame, QVBoxLayout* controlsFr
     controlsLayout->addWidget(radiusLabel);
 
     QHBoxLayout* radiusLayout = new QHBoxLayout();
+    radiusLayout->setContentsMargins(0, 0, 0, 0);
     radiusSlider_ = new QSlider(Qt::Horizontal, controlsGroup);
     radiusSlider_->setRange(50, 300);
     radiusSlider_->setValue(100);
@@ -266,6 +268,7 @@ void RadarSim::setupRadarControls(QFrame* controlsFrame, QVBoxLayout* controlsFr
     controlsLayout->addWidget(thetaLabel);
 
     QHBoxLayout* thetaLayout = new QHBoxLayout();
+    thetaLayout->setContentsMargins(0, 0, 0, 0);
     thetaSlider_ = new QSlider(Qt::Horizontal, controlsGroup);
     thetaSlider_->setRange(0, 359);
     int initialAzimuth = 45;
@@ -285,6 +288,7 @@ void RadarSim::setupRadarControls(QFrame* controlsFrame, QVBoxLayout* controlsFr
     controlsLayout->addWidget(phiLabel);
 
     QHBoxLayout* phiLayout = new QHBoxLayout();
+    phiLayout->setContentsMargins(0, 0, 0, 0);
     phiSlider_ = new QSlider(Qt::Horizontal, controlsGroup);
     phiSlider_->setRange(-90, 90);
     phiSlider_->setValue(45);
@@ -311,6 +315,7 @@ void RadarSim::setupTargetControls(QFrame* controlsFrame, QVBoxLayout* controlsF
     targetControlsLayout->addWidget(targetPosXLabel);
 
     QHBoxLayout* targetPosXLayout = new QHBoxLayout();
+    targetPosXLayout->setContentsMargins(0, 0, 0, 0);
     targetPosXSlider_ = new QSlider(Qt::Horizontal, targetControlsGroup);
     targetPosXSlider_->setRange(-100, 100);
     targetPosXSlider_->setValue(0);
@@ -329,6 +334,7 @@ void RadarSim::setupTargetControls(QFrame* controlsFrame, QVBoxLayout* controlsF
     targetControlsLayout->addWidget(targetPosYLabel);
 
     QHBoxLayout* targetPosYLayout = new QHBoxLayout();
+    targetPosYLayout->setContentsMargins(0, 0, 0, 0);
     targetPosYSlider_ = new QSlider(Qt::Horizontal, targetControlsGroup);
     targetPosYSlider_->setRange(-100, 100);
     targetPosYSlider_->setValue(0);
@@ -347,6 +353,7 @@ void RadarSim::setupTargetControls(QFrame* controlsFrame, QVBoxLayout* controlsF
     targetControlsLayout->addWidget(targetPosZLabel);
 
     QHBoxLayout* targetPosZLayout = new QHBoxLayout();
+    targetPosZLayout->setContentsMargins(0, 0, 0, 0);
     targetPosZSlider_ = new QSlider(Qt::Horizontal, targetControlsGroup);
     targetPosZSlider_->setRange(-100, 100);
     targetPosZSlider_->setValue(0);
@@ -365,6 +372,7 @@ void RadarSim::setupTargetControls(QFrame* controlsFrame, QVBoxLayout* controlsF
     targetControlsLayout->addWidget(targetPitchLabel);
 
     QHBoxLayout* targetPitchLayout = new QHBoxLayout();
+    targetPitchLayout->setContentsMargins(0, 0, 0, 0);
     targetPitchSlider_ = new QSlider(Qt::Horizontal, targetControlsGroup);
     targetPitchSlider_->setRange(-180, 180);
     targetPitchSlider_->setValue(0);
@@ -383,6 +391,7 @@ void RadarSim::setupTargetControls(QFrame* controlsFrame, QVBoxLayout* controlsF
     targetControlsLayout->addWidget(targetYawLabel);
 
     QHBoxLayout* targetYawLayout = new QHBoxLayout();
+    targetYawLayout->setContentsMargins(0, 0, 0, 0);
     targetYawSlider_ = new QSlider(Qt::Horizontal, targetControlsGroup);
     targetYawSlider_->setRange(-180, 180);
     targetYawSlider_->setValue(0);
@@ -401,6 +410,7 @@ void RadarSim::setupTargetControls(QFrame* controlsFrame, QVBoxLayout* controlsF
     targetControlsLayout->addWidget(targetRollLabel);
 
     QHBoxLayout* targetRollLayout = new QHBoxLayout();
+    targetRollLayout->setContentsMargins(0, 0, 0, 0);
     targetRollSlider_ = new QSlider(Qt::Horizontal, targetControlsGroup);
     targetRollSlider_->setRange(-180, 180);
     targetRollSlider_->setValue(0);
@@ -419,6 +429,7 @@ void RadarSim::setupTargetControls(QFrame* controlsFrame, QVBoxLayout* controlsF
     targetControlsLayout->addWidget(targetScaleLabel);
 
     QHBoxLayout* targetScaleLayout = new QHBoxLayout();
+    targetScaleLayout->setContentsMargins(0, 0, 0, 0);
     targetScaleSlider_ = new QSlider(Qt::Horizontal, targetControlsGroup);
     targetScaleSlider_->setRange(1, 100);
     targetScaleSlider_->setValue(20);
