@@ -527,7 +527,7 @@ See [RCSCompute (GPU Ray Tracing)](#rcscompute-gpu-ray-tracing) section for impl
 2. **Add UI display** - Show hit count and occlusion ratio in application
 3. **Visualize ray hits** - Debug rendering of traced rays and hit points
 4. **Implement diffraction effects** - For realistic radar simulation
-5. **Reflected Lobe Visualization** (PLANNED ~22hrs) - Visualize RCS reflected energy as colored cone lobes emanating from target. Features BRDF-based intensity, GPU clustering, instanced rendering, multi-target support. See detailed plan at `.claude/plans/deep-finding-sutherland.md`
+5. **Multi-target support** - Track multiple targets with inter-target reflections
 
 ## UI Layout
 
@@ -661,6 +661,11 @@ namespace RadarSim::Constants {
     // Shadow Map
     kShadowMapWidth, kShadowMapHeight, kShadowMapNoHit
 
+    // Reflection Lobe Visualization
+    kMaxReflectionLobes, kLobeClusterAngle, kLobeClusterDist,
+    kLobeConeLength, kLobeConeRadius, kLobeConeSegments,
+    kLobeMinIntensity, kLobeBRDFDiffuse, kLobeBRDFSpecular, kLobeBRDFShininess
+
     namespace Defaults {
         kCameraDistance, kCameraAzimuth, kCameraElevation,
         kSphereRadius, kRadarTheta, kRadarPhi,
@@ -671,7 +676,8 @@ namespace RadarSim::Constants {
         kBackgroundGrey, kGridLineGrey, kSphereOffWhite,
         kBeamOrange, kTargetGreen,
         kAxisRed, kAxisGreen, kAxisBlue,
-        kEquatorGreen, kPrimeMeridianBlue
+        kEquatorGreen, kPrimeMeridianBlue,
+        kLobeHighIntensity, kLobeMidIntensity, kLobeLowIntensity
     }
 
     namespace Lighting {
