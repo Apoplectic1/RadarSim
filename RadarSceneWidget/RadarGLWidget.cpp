@@ -557,10 +557,14 @@ void RadarGLWidget::setupContextMenu() {
 	QAction* phasedBeamAction = beamTypeMenu->addAction("Phased Array");
 	phasedBeamAction->setCheckable(true);
 
+	QAction* sincBeamAction = beamTypeMenu->addAction("Sinc Pattern");
+	sincBeamAction->setCheckable(true);
+
 	// Make them exclusive
 	QActionGroup* beamTypeGroup = new QActionGroup(this);
 	beamTypeGroup->addAction(conicalBeamAction);
 	beamTypeGroup->addAction(phasedBeamAction);
+	beamTypeGroup->addAction(sincBeamAction);
 	beamTypeGroup->setExclusive(true);
 
 	// Connect beam type actions
@@ -575,6 +579,14 @@ void RadarGLWidget::setupContextMenu() {
 	connect(phasedBeamAction, &QAction::triggered, [this]() {
 		if (beamController_) {
 			beamController_->setBeamType(BeamType::Phased);
+			beamDirty_ = true;  // Force geometry rebuild with GL context
+			update();
+		}
+		});
+
+	connect(sincBeamAction, &QAction::triggered, [this]() {
+		if (beamController_) {
+			beamController_->setBeamType(BeamType::Sinc);
 			beamDirty_ = true;  // Force geometry rebuild with GL context
 			update();
 		}

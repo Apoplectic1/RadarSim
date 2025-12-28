@@ -39,8 +39,9 @@ RadarSim/
 │   └── SceneConfig.h           # Scene options (radius, radar position, visibility)
 ├── RadarBeam/                  # Beam visualization module
 │   ├── RadarBeam.h/.cpp        # Base beam class (VAO/VBO/shaders)
-│   ├── ConicalBeam.h/.cpp      # Simple cone geometry
+│   ├── ConicalBeam.h/.cpp      # Simple cone geometry (uniform intensity)
 │   ├── PhasedArrayBeam.h/.cpp  # Array beam with side lobes
+│   ├── SincBeam.h/.cpp         # Sinc² pattern with intensity falloff
 │   └── BeamController.h/.cpp   # Component wrapper for beams
 ├── RadarSceneWidget/           # OpenGL scene management
 │   ├── RadarGLWidget.h/.cpp    # Modern QOpenGLWidget with component architecture
@@ -91,13 +92,23 @@ void RadarGLWidget::initializeGL() {
 
 ```
 RadarBeam (base)
-├── ConicalBeam
-└── PhasedArrayBeam
+├── ConicalBeam      # Uniform intensity cone
+├── PhasedArrayBeam  # Main lobe + side lobes (phased array pattern)
+└── SincBeam         # Sinc² intensity pattern with natural side lobes
 ```
+
+**BeamType enum:** `Conical`, `Shaped`, `Phased`, `Sinc`
+
+**SincBeam Details:**
+- Intensity follows sinc²(πθ/θmax) pattern (realistic electromagnetic field)
+- 7-float vertex format: `[x, y, z, nx, ny, nz, intensity]`
+- Extended geometry (2.5× main lobe) for visible side lobes
+- Per-vertex intensity drives color blending and alpha modulation
+- Side lobes at ~1.43× (−13dB) and ~2.46× (−18dB) main lobe angle
 
 Factory method for beam creation:
 ```cpp
-std::shared_ptr<RadarBeam> RadarBeam::createBeam(BeamType type);
+RadarBeam* RadarBeam::createBeam(BeamType type, float sphereRadius, float beamWidthDegrees);
 ```
 
 ### WireframeTarget Hierarchy
@@ -670,6 +681,9 @@ namespace RadarSim::Constants {
     // Geometry Constants
     kGimbalLockThreshold
 
+    // Sinc Beam Pattern Configuration
+    kSincBeamNumSideLobes, kSincSideLobeMultiplier, kSincBeamRadialSegments
+
     namespace Defaults {
         kCameraDistance, kCameraAzimuth, kCameraElevation,
         kSphereRadius, kRadarTheta, kRadarPhi,
@@ -678,7 +692,7 @@ namespace RadarSim::Constants {
 
     namespace Colors {
         kBackgroundGrey, kGridLineGrey, kSphereOffWhite,
-        kBeamOrange, kTargetGreen,
+        kBeamOrange, kTargetGreen, kSincSideLobeColor,
         kAxisRed, kAxisGreen, kAxisBlue,
         kEquatorGreen, kPrimeMeridianBlue,
         kLobeHighIntensity, kLobeMidIntensity, kLobeLowIntensity

@@ -86,6 +86,8 @@ set(RADAR_BEAM_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/ConicalBeam.h
     ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/PhasedArrayBeam.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/PhasedArrayBeam.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/SincBeam.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/SincBeam.h
     ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/RadarBeam.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/RadarBeam.h
 )

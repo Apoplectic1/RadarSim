@@ -114,6 +114,13 @@ constexpr float kLobeColorThreshold = 0.5f;     // Intensity threshold for color
 constexpr float kGimbalLockThreshold = 0.99f;   // Dot product threshold for gimbal lock avoidance
 
 // =============================================================================
+// Sinc Beam Pattern Configuration
+// =============================================================================
+constexpr int kSincBeamNumSideLobes = 3;        // Number of side lobes to render
+constexpr float kSincSideLobeMultiplier = 2.5f; // Geometry extends 2.5x main lobe for side lobes
+constexpr int kSincBeamRadialSegments = 64;     // Radial resolution for intensity gradient
+
+// =============================================================================
 // Default Values (used when no config loaded)
 // =============================================================================
 namespace Defaults {
@@ -147,6 +154,7 @@ namespace Colors {
     // Default object colors
     constexpr float kBeamOrange[3] = {1.0f, 0.5f, 0.0f};
     constexpr float kTargetGreen[3] = {0.0f, 1.0f, 0.0f};
+    constexpr float kSincSideLobeColor[3] = {0.3f, 0.15f, 0.0f};  // Darker orange for side lobes
 
     // Axis colors (RGB for XYZ)
     constexpr float kAxisRed[3] = {1.0f, 0.0f, 0.0f};

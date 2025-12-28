@@ -14,9 +14,10 @@
 
 // Enum for different beam types
 enum class BeamType {
-    Conical,       // Standard conical beam
+    Conical,       // Standard conical beam (uniform intensity)
     Shaped,        // Custom shaped beam using a pattern function
-    Phased         // Full phased array beam with multiple lobes
+    Phased,        // Full phased array beam with multiple lobes
+    Sinc           // Sinc² pattern with intensity falloff and side lobes
 };
 
 // Enum for beam direction reference

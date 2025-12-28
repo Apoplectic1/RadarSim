@@ -4,6 +4,7 @@
 #include "GLUtils.h"
 #include "ConicalBeam.h"
 #include "PhasedArrayBeam.h"
+#include "SincBeam.h"
 #include "Constants.h"
 #include <cmath>
 
@@ -702,6 +703,8 @@ RadarBeam* RadarBeam::createBeam(BeamType type, float sphereRadius, float beamWi
 		return new ConicalBeam(sphereRadius, beamWidthDegrees);
 	case BeamType::Phased:
 		return new PhasedArrayBeam(sphereRadius, beamWidthDegrees);
+	case BeamType::Sinc:
+		return new SincBeam(sphereRadius, beamWidthDegrees);
 	case BeamType::Shaped:
 		// For now, return conical but could implement shaped beam later
 		return new ConicalBeam(sphereRadius, beamWidthDegrees);
