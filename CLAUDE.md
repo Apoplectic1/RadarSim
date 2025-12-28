@@ -109,7 +109,7 @@ WireframeTarget (base)
 
 Factory method for target creation:
 ```cpp
-WireframeTarget* WireframeTarget::createTarget(WireframeType type);
+std::unique_ptr<WireframeTarget> WireframeTarget::createTarget(WireframeType type);
 ```
 
 WireframeTarget uses solid surface rendering (GL_TRIANGLES) with indexed drawing (EBO). Vertex format is `[x, y, z, nx, ny, nz]` where the normal vector supports diffuse + ambient lighting. Face culling (`GL_CULL_FACE`) ensures only outside surfaces are drawn. Geometry is designed for radar cross-section (RCS) calculations.
@@ -216,7 +216,7 @@ void RadarSim::closeEvent(QCloseEvent* event) {
 ### OpenGL Patterns
 - Use `QOpenGLFunctions_4_5_Core` for type-safe GL calls
 - VAO/VBO/EBO pattern for geometry
-- Shaders defined as raw strings in constructors
+- Shader sources stored as `std::string_view` members (type-safe string literals)
 - `QMatrix4x4` for all matrix operations
 
 ### Dynamic Geometry Buffers
@@ -589,6 +589,10 @@ All compile-time constants are centralized in `Constants.h` under the `RadarSim:
 
 ```cpp
 namespace RadarSim::Constants {
+    // Mathematical Constants
+    kPi, kPiF, kTwoPi, kTwoPiF,
+    kDegToRad, kDegToRadF, kRadToDeg, kRadToDegF
+
     // Compute Shader Configuration
     kComputeWorkgroupSize, kDefaultNumRays, kRaysPerRing
 
