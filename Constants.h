@@ -104,6 +104,14 @@ constexpr float kLobeMinIntensity = 0.05f;      // Minimum intensity to display 
 constexpr float kLobeBRDFDiffuse = 0.3f;        // BRDF diffuse coefficient
 constexpr float kLobeBRDFSpecular = 0.7f;       // BRDF specular coefficient
 constexpr float kLobeBRDFShininess = 32.0f;     // BRDF specular exponent
+constexpr float kLobeScaleLengthMin = 0.5f;     // Min length scale at zero intensity
+constexpr float kLobeScaleRadiusMin = 0.3f;     // Min radius scale at zero intensity
+constexpr float kLobeColorThreshold = 0.5f;     // Intensity threshold for color interpolation
+
+// =============================================================================
+// Geometry Constants
+// =============================================================================
+constexpr float kGimbalLockThreshold = 0.99f;   // Dot product threshold for gimbal lock avoidance
 
 // =============================================================================
 // Default Values (used when no config loaded)

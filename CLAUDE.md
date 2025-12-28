@@ -664,7 +664,11 @@ namespace RadarSim::Constants {
     // Reflection Lobe Visualization
     kMaxReflectionLobes, kLobeClusterAngle, kLobeClusterDist,
     kLobeConeLength, kLobeConeRadius, kLobeConeSegments,
-    kLobeMinIntensity, kLobeBRDFDiffuse, kLobeBRDFSpecular, kLobeBRDFShininess
+    kLobeMinIntensity, kLobeBRDFDiffuse, kLobeBRDFSpecular, kLobeBRDFShininess,
+    kLobeScaleLengthMin, kLobeScaleRadiusMin, kLobeColorThreshold
+
+    // Geometry Constants
+    kGimbalLockThreshold
 
     namespace Defaults {
         kCameraDistance, kCameraAzimuth, kCameraElevation,

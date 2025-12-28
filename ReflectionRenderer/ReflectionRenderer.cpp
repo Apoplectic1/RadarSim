@@ -241,9 +241,11 @@ void ReflectionRenderer::generateLobeGeometry() {
 }
 
 void ReflectionRenderer::generateConeGeometry(const ReflectionLobe& lobe) {
-    // Cone parameters scaled by intensity
-    float length = kLobeConeLength * lobeScale_ * (0.5f + 0.5f * lobe.intensity);
-    float radius = kLobeConeRadius * lobeScale_ * (0.3f + 0.7f * lobe.intensity);
+    // Cone parameters scaled by intensity (min + range * intensity)
+    float lengthScale = kLobeScaleLengthMin + (1.0f - kLobeScaleLengthMin) * lobe.intensity;
+    float radiusScale = kLobeScaleRadiusMin + (1.0f - kLobeScaleRadiusMin) * lobe.intensity;
+    float length = kLobeConeLength * lobeScale_ * lengthScale;
+    float radius = kLobeConeRadius * lobeScale_ * radiusScale;
     int segments = kLobeConeSegments;
 
     QVector3D apex = lobe.position;
@@ -255,7 +257,7 @@ void ReflectionRenderer::generateConeGeometry(const ReflectionLobe& lobe) {
 
     // Find perpendicular vectors for cone base
     QVector3D up(0.0f, 0.0f, 1.0f);
-    if (std::abs(QVector3D::dotProduct(dir, up)) > 0.99f) {
+    if (std::abs(QVector3D::dotProduct(dir, up)) > kGimbalLockThreshold) {
         up = QVector3D(1.0f, 0.0f, 0.0f);
     }
     QVector3D right = QVector3D::crossProduct(dir, up).normalized();
@@ -326,15 +328,15 @@ void ReflectionRenderer::generateConeGeometry(const ReflectionLobe& lobe) {
 QVector3D ReflectionRenderer::intensityToColor(float intensity) {
     // Blue (low) -> Yellow (mid) -> Red (high)
     using namespace Colors;
-    if (intensity < 0.5f) {
-        float t = intensity * 2.0f;
+    if (intensity < kLobeColorThreshold) {
+        float t = intensity / kLobeColorThreshold;
         return QVector3D(
             kLobeLowIntensity[0] * (1.0f - t) + kLobeMidIntensity[0] * t,
             kLobeLowIntensity[1] * (1.0f - t) + kLobeMidIntensity[1] * t,
             kLobeLowIntensity[2] * (1.0f - t) + kLobeMidIntensity[2] * t
         );
     } else {
-        float t = (intensity - 0.5f) * 2.0f;
+        float t = (intensity - kLobeColorThreshold) / (1.0f - kLobeColorThreshold);
         return QVector3D(
             kLobeMidIntensity[0] * (1.0f - t) + kLobeHighIntensity[0] * t,
             kLobeMidIntensity[1] * (1.0f - t) + kLobeHighIntensity[1] * t,

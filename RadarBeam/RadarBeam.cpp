@@ -565,7 +565,7 @@ void RadarBeam::calculateBeamVertices(const QVector3D& apex, const QVector3D& di
 
 	// Find perpendicular vectors to create the base circle
 	QVector3D up(0.0f, 1.0f, 0.0f);
-	if (qAbs(QVector3D::dotProduct(normDirection, up)) > 0.99f) {
+	if (qAbs(QVector3D::dotProduct(normDirection, up)) > kGimbalLockThreshold) {
 		// If direction is nearly parallel to up, use a different vector
 		up = QVector3D(1.0f, 0.0f, 0.0f);
 	}

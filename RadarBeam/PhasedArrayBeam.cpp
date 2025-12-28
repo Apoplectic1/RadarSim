@@ -104,7 +104,7 @@ void PhasedArrayBeam::createBeamGeometry() {
 
         // Get perpendicular vectors
         QVector3D up(0.0f, 1.0f, 0.0f);
-        if (qAbs(QVector3D::dotProduct(normDirection, up)) > 0.99f) {
+        if (qAbs(QVector3D::dotProduct(normDirection, up)) > kGimbalLockThreshold) {
             up = QVector3D(1.0f, 0.0f, 0.0f);
         }
 
@@ -135,7 +135,7 @@ void PhasedArrayBeam::createBeamGeometry() {
 
     // Find perpendicular vectors to create the base ellipse
     QVector3D up(0.0f, 1.0f, 0.0f);
-    if (qAbs(QVector3D::dotProduct(normDirection, up)) > 0.99f) {
+    if (qAbs(QVector3D::dotProduct(normDirection, up)) > kGimbalLockThreshold) {
         // If direction is nearly parallel to up, use a different vector
         up = QVector3D(1.0f, 0.0f, 0.0f);
     }
