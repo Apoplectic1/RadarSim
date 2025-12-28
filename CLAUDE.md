@@ -56,6 +56,8 @@ RadarSim/
 │   ├── CubeWireframe.h/.cpp    # Solid cube (6 faces, 12 triangles)
 │   ├── CylinderWireframe.h/.cpp# Solid cylinder (caps + sides)
 │   └── AircraftWireframe.h/.cpp# Solid fighter jet model
+├── ReflectionRenderer/         # RCS reflection lobe visualization
+│   └── ReflectionRenderer.h/.cpp  # Colored cone visualization of reflected energy
 └── RCSCompute/                 # GPU ray tracing for RCS calculations
     ├── RCSTypes.h              # GPU-aligned structs (Ray, BVHNode, Triangle, HitResult)
     ├── BVHBuilder.h/.cpp       # SAH-based Bounding Volume Hierarchy construction
@@ -124,10 +126,10 @@ GPU-accelerated ray tracing module for computing radar cross-section (RCS) via b
 
 **Data Structures (GPU-aligned):**
 ```cpp
-struct Ray       { vec4 origin, direction; };           // 32 bytes
-struct BVHNode   { vec4 boundsMin, boundsMax; };        // 32 bytes
-struct Triangle  { vec4 v0, v1, v2; };                  // 48 bytes
-struct HitResult { vec4 hitPoint, normal; uint ids; };  // 32 bytes
+struct Ray       { vec4 origin, direction; };                    // 32 bytes
+struct BVHNode   { vec4 boundsMin, boundsMax; };                  // 32 bytes
+struct Triangle  { vec4 v0, v1, v2; };                            // 48 bytes
+struct HitResult { vec4 hitPoint, normal, reflection; uint ids; };// 64 bytes
 ```
 
 **BVH Construction:**
@@ -147,7 +149,39 @@ rcsCompute_->compute();
 
 **Current Output:** Hit count and occlusion ratio logged to debug console every 60 frames.
 
-**Future Work:** Calculate actual RCS values from hit geometry, add UI display, visualize ray hits.
+**Future Work:** Calculate actual RCS values from hit geometry, add UI display.
+
+### ReflectionRenderer (Lobe Visualization)
+
+Visualizes RCS reflected energy as colored cone lobes emanating from target surface.
+
+**Features:**
+- Colored cones show reflection directions from ray-target hits
+- Color gradient: Red (high intensity) → Yellow → Blue (low intensity)
+- BRDF-based intensity calculation (diffuse + specular)
+- CPU-side clustering aggregates ~10K hits into ~100 lobes
+- Toggle via right-click context menu ("Toggle Reflection Lobes")
+
+**Clustering Algorithm:**
+- Groups hits by spatial proximity (kLobeClusterDist = 5 units)
+- Groups by angular similarity (kLobeClusterAngle = 10°)
+- Weighted average of position, direction, and intensity
+- Filters low-intensity lobes (< 5% threshold)
+
+**Rendering:**
+- Cone geometry per lobe (12 segments)
+- Alpha blending for transparency (opacity = 0.7)
+- Fresnel-based edge glow effect
+- Rendered last in pipeline (after beam)
+
+**Integration:**
+```cpp
+// In RadarGLWidget::paintGL()
+rcsCompute_->compute();
+rcsCompute_->readHitBuffer();  // GPU → CPU transfer
+reflectionRenderer_->updateLobes(rcsCompute_->getHitResults());
+reflectionRenderer_->render(projection, view, model);
+```
 
 ### Settings/Configuration System
 
@@ -299,6 +333,7 @@ Without this connection, timer-based animations will appear stuttery because `up
 | Sphere geometry | `SphereRenderer.cpp` |
 | Target transforms | `WireframeTargetController.cpp`, `RadarSim.cpp` (target slots) |
 | RCS ray tracing | `RCSCompute/RCSCompute.cpp`, `RCSCompute/BVHBuilder.cpp` |
+| Reflection lobes | `ReflectionRenderer/ReflectionRenderer.cpp`, `RCSCompute/RCSCompute.cpp` |
 | Add compile-time constant | `Constants.h` |
 | Add saved setting | `Config/*Config.h`, `AppSettings.cpp`, `RadarSim.cpp` (read/apply methods) |
 | Profile management | `Config/AppSettings.cpp`, `RadarSim.cpp` (profile slots) |
@@ -312,13 +347,17 @@ RadarGLWidget::paintGL()
   ├── ModelManager::render(projection, view, model)
   ├── WireframeTargetController::render(projection, view, model)  # Solid target
   ├── RCSCompute::compute()                                       # GPU ray tracing + shadow map
-  │   └── Generates shadow map texture from ray hit distances
+  │   ├── Generates shadow map texture from ray hit distances
+  │   └── Calculates reflection directions and BRDF intensities
+  ├── RCSCompute::readHitBuffer()                                 # GPU → CPU for lobe clustering
+  ├── ReflectionRenderer::updateLobes()                           # Cluster hits into lobes
   ├── BeamController::render(projection, view, model)             # Semi-transparent, GPU shadow
   │   └── Fragment shader samples shadow map, discards behind hits
+  ├── ReflectionRenderer::render(projection, view, model)         # Transparent lobe cones
   └── (implicit buffer swap)
 ```
 
-Note: Solid targets render before beam so they are visible through semi-transparent beam. Target rendering explicitly sets depth test, disables blending, and enables face culling for correct opaque solid rendering. RCSCompute generates both RCS data and shadow map texture which BeamController uses for accurate beam occlusion.
+Note: Solid targets render before beam so they are visible through semi-transparent beam. Target rendering explicitly sets depth test, disables blending, and enables face culling for correct opaque solid rendering. RCSCompute generates both RCS data and shadow map texture which BeamController uses for accurate beam occlusion. ReflectionRenderer renders last with alpha blending for proper transparency.
 
 ## Common Modifications
 

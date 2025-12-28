@@ -91,6 +91,21 @@ constexpr int kShadowMapHeight = 157;           // Shadow map texture height (el
 constexpr float kShadowMapNoHit = -1.0f;        // Value indicating no shadow hit
 
 // =============================================================================
+// Reflection Lobe Visualization
+// =============================================================================
+constexpr int kMaxReflectionLobes = 100;        // Maximum aggregated lobe clusters
+constexpr int kMaxTargets = 16;                 // Maximum simultaneous targets
+constexpr float kLobeClusterAngle = 10.0f;      // Clustering angle threshold (degrees)
+constexpr float kLobeClusterDist = 5.0f;        // Clustering spatial distance threshold
+constexpr float kLobeConeLength = 15.0f;        // Length of visualization cones
+constexpr float kLobeConeRadius = 3.0f;         // Base radius of visualization cones
+constexpr int kLobeConeSegments = 12;           // Segments around cone circumference
+constexpr float kLobeMinIntensity = 0.05f;      // Minimum intensity to display lobe
+constexpr float kLobeBRDFDiffuse = 0.3f;        // BRDF diffuse coefficient
+constexpr float kLobeBRDFSpecular = 0.7f;       // BRDF specular coefficient
+constexpr float kLobeBRDFShininess = 32.0f;     // BRDF specular exponent
+
+// =============================================================================
 // Default Values (used when no config loaded)
 // =============================================================================
 namespace Defaults {
@@ -133,6 +148,11 @@ namespace Colors {
     // Grid special lines
     constexpr float kEquatorGreen[3] = {0.0f, 0.8f, 0.0f};
     constexpr float kPrimeMeridianBlue[3] = {0.0f, 0.0f, 0.8f};
+
+    // Reflection lobe intensity gradient (high to low)
+    constexpr float kLobeHighIntensity[3] = {1.0f, 0.0f, 0.0f};   // Red (high energy)
+    constexpr float kLobeMidIntensity[3] = {1.0f, 1.0f, 0.0f};    // Yellow (medium)
+    constexpr float kLobeLowIntensity[3] = {0.0f, 0.0f, 1.0f};    // Blue (low energy)
 }
 
 // =============================================================================

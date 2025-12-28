@@ -5,6 +5,7 @@
 #include <QOpenGLContext>
 #include <QDebug>
 #include <cmath>
+#include <cstring>
 
 using namespace RadarSim::Constants;
 
@@ -40,8 +41,10 @@ void main() {
     uint ring = rayId / raysPerRing;
     uint posInRing = rayId % raysPerRing;
 
-    // Angle within beam cone (0 = center, beamWidthRad = edge)
-    float ringAngle = beamWidthRad * float(ring + 1) / float(numRings);
+    // Angle within beam cone (0 = center, beamWidthRad/2 = edge)
+    // beamWidthRad is the full cone angle, so half-angle is the max from center
+    float halfAngle = beamWidthRad * 0.5;
+    float ringAngle = halfAngle * float(ring + 1) / float(numRings);
     float azimuth = 2.0 * 3.14159265 * float(posInRing) / float(raysPerRing);
 
     // Calculate ray direction using beam coordinate system
@@ -87,10 +90,11 @@ struct BVHNode {
 struct HitResult {
     vec4 hitPoint;   // xyz = position, w = distance
     vec4 normal;     // xyz = normal, w = material
+    vec4 reflection; // xyz = reflection direction, w = intensity
     uint triangleId;
     uint rayId;
+    uint targetId;
     float rcsContribution;
-    float pad;
 };
 
 layout(std430, binding = 0) readonly buffer RayBuffer { Ray rays[]; };
@@ -152,10 +156,11 @@ void main() {
     HitResult hit;
     hit.hitPoint = vec4(0.0, 0.0, 0.0, -1.0);  // -1 = no hit
     hit.normal = vec4(0.0);
+    hit.reflection = vec4(0.0);
     hit.triangleId = 0xFFFFFFFF;
     hit.rayId = rayId;
+    hit.targetId = 0u;  // Single target for now
     hit.rcsContribution = 0.0;
-    hit.pad = 0.0;
 
     if (numNodes == 0) {
         hits[rayId] = hit;
@@ -211,13 +216,41 @@ void main() {
         }
     }
 
-    // Write result
-    hits[rayId] = hit;
-
-    // Increment hit counter if we hit something
+    // Calculate reflection and intensity if we hit something
     if (hit.hitPoint.w > 0.0) {
+        vec3 incident = normalize(dir);
+        vec3 n = normalize(hit.normal.xyz);
+
+        // Check if surface is facing the radar (front-facing)
+        // dot(n, -incident) > 0 means normal points toward radar
+        float facing = dot(n, -incident);
+
+        if (facing > 0.0) {
+            // Front-facing surface - calculate reflection
+            vec3 reflectDir = reflect(incident, n);
+
+            // BRDF-based intensity calculation
+            float k_d = 0.3;  // Diffuse coefficient
+            float k_s = 0.7;  // Specular coefficient
+            float shininess = 32.0;
+
+            float cosTheta = facing;  // Already computed above
+            float diffuse = k_d * cosTheta;
+            float specular = k_s * pow(cosTheta, shininess);
+            float intensity = clamp(diffuse + specular, 0.0, 1.0);
+
+            hit.reflection = vec4(reflectDir, intensity);
+        } else {
+            // Back-facing surface - no reflection (intensity = 0)
+            hit.reflection = vec4(0.0, 0.0, 0.0, 0.0);
+        }
+
+        // Increment hit counter
         atomicAdd(hitCounter, 1u);
     }
+
+    // Write result
+    hits[rayId] = hit;
 }
 )";
 
@@ -229,10 +262,11 @@ layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 struct HitResult {
     vec4 hitPoint;   // xyz = position, w = distance (-1 = miss)
     vec4 normal;     // xyz = normal, w = material
+    vec4 reflection; // xyz = reflection direction, w = intensity
     uint triangleId;
     uint rayId;
+    uint targetId;
     float rcsContribution;
-    float pad;
 };
 
 layout(std430, binding = 3) readonly buffer HitBuffer { HitResult hits[]; };
@@ -466,15 +500,19 @@ void RCSCompute::uploadBVH() {
 
     if (!nodes.empty()) {
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, bvhBuffer_);
-        glBufferData(GL_SHADER_STORAGE_BUFFER, nodes.size() * sizeof(BVHNode), nodes.data(), GL_STATIC_DRAW);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, nodes.size() * sizeof(BVHNode), nodes.data(), GL_DYNAMIC_DRAW);
     }
 
     if (!triangles.empty()) {
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, triangleBuffer_);
-        glBufferData(GL_SHADER_STORAGE_BUFFER, triangles.size() * sizeof(Triangle), triangles.data(), GL_STATIC_DRAW);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, triangles.size() * sizeof(Triangle), triangles.data(), GL_DYNAMIC_DRAW);
     }
 
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+    // Memory barrier to ensure buffer updates are visible to compute shaders
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_BUFFER_UPDATE_BARRIER_BIT);
+
     bvhDirty_ = false;
 }
 
@@ -526,6 +564,19 @@ void RCSCompute::dispatchTracing() {
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, counterBuffer_);
     glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(GLuint), &zero);
 
+    // Clear hit buffer to ensure no stale data (set all hitPoint.w to -1)
+    // Use pre-allocated buffer to avoid per-frame allocation
+    if (static_cast<int>(hitClearBuffer_.size()) != numRays_) {
+        hitClearBuffer_.resize(numRays_);
+        for (auto& hit : hitClearBuffer_) {
+            hit.hitPoint = QVector4D(0, 0, 0, -1.0f);  // w=-1 means no hit
+            hit.reflection = QVector4D(0, 0, 0, 0);
+        }
+    }
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, hitBuffer_);
+    glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, numRays_ * sizeof(HitResult), hitClearBuffer_.data());
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
     // Dispatch
     int numGroups = (numRays_ + kComputeWorkgroupSize - 1) / kComputeWorkgroupSize;
     glDispatchCompute(numGroups, 1, 1);
@@ -542,6 +593,24 @@ void RCSCompute::readResults() {
     GLuint* counter = static_cast<GLuint*>(glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, sizeof(GLuint), GL_MAP_READ_BIT));
     if (counter) {
         hitCount_ = static_cast<int>(*counter);
+        glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+    }
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+}
+
+void RCSCompute::readHitBuffer() {
+    if (!hitBuffer_ || numRays_ <= 0) {
+        hitResults_.clear();
+        return;
+    }
+
+    hitResults_.resize(numRays_);
+
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, hitBuffer_);
+    void* ptr = glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0,
+                                  numRays_ * sizeof(HitResult), GL_MAP_READ_BIT);
+    if (ptr) {
+        std::memcpy(hitResults_.data(), ptr, numRays_ * sizeof(HitResult));
         glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
     }
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);

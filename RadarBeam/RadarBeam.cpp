@@ -68,10 +68,12 @@ RadarBeam::RadarBeam(float sphereRadius, float beamWidthDegrees)
 		vec2 worldToShadowMapUV(vec3 localPos) {
 			vec3 toFrag = normalize(localPos - radarPos);
 
-			// Elevation from beam axis (0 = on axis, beamWidthRad = at edge)
+			// Elevation from beam axis (0 = on axis, halfAngle = at edge)
+			// beamWidthRad is full cone angle, half-angle is max from center
+			float halfAngle = beamWidthRad * 0.5;
 			float cosElev = dot(toFrag, beamAxis);
 			float elevation = acos(clamp(cosElev, -1.0, 1.0));
-			float elevNorm = elevation / beamWidthRad;  // [0, 1] within beam
+			float elevNorm = elevation / halfAngle;  // [0, 1] within beam
 
 			// Azimuth around beam axis
 			vec3 perpComponent = toFrag - beamAxis * cosElev;
@@ -90,7 +92,7 @@ RadarBeam::RadarBeam(float sphereRadius, float beamWidthDegrees)
 			if (azimuth < 0.0) azimuth += 2.0 * 3.14159265;
 			float azNorm = azimuth / (2.0 * 3.14159265);  // [0, 1)
 
-			// Ray ring r has elevation = beamWidthRad * (r + 1) / numRings
+			// Ray ring r has elevation = halfAngle * (r + 1) / numRings
 			// So elevNorm = (r + 1) / numRings, and texel Y = r
 			// To map elevNorm to texel Y correctly:
 			// texel Y = elevNorm * numRings - 1

@@ -42,6 +42,7 @@ RadarGLWidget::~RadarGLWidget() {
 	modelManager_.reset();
 	wireframeController_.reset();
 	rcsCompute_.reset();
+	reflectionRenderer_.reset();
 
 	doneCurrent();
 
@@ -70,6 +71,11 @@ void RadarGLWidget::cleanupGL() {
 	// Clean up RCS compute resources
 	if (rcsCompute_) {
 		rcsCompute_->cleanup();
+	}
+
+	// Clean up reflection renderer
+	if (reflectionRenderer_) {
+		reflectionRenderer_->cleanup();
 	}
 
 	// Clean up component resources
@@ -179,6 +185,13 @@ void RadarGLWidget::initializeGL() {
 			rcsCompute_->setSphereRadius(radius_);
 		}
 
+		// Initialize reflection lobe renderer
+		reflectionRenderer_ = std::make_unique<ReflectionRenderer>(this);
+		if (!reflectionRenderer_->initialize()) {
+			qWarning() << "ReflectionRenderer initialization failed";
+			reflectionRenderer_.reset();
+		}
+
 		// Force beam geometry creation with initial position
 		if (beamController_) {
 			QVector3D initialPos = sphericalToCartesian(radius_, theta_, phi_);
@@ -278,6 +291,12 @@ void RadarGLWidget::paintGL() {
 				rcsCompute_->setRadarPosition(radarPos);
 				rcsCompute_->setBeamDirection(-radarPos.normalized());
 				rcsCompute_->compute();
+
+				// Read hit results and update reflection lobes
+				if (reflectionRenderer_ && reflectionRenderer_->isVisible()) {
+					rcsCompute_->readHitBuffer();
+					reflectionRenderer_->updateLobes(rcsCompute_->getHitResults());
+				}
 			}
 		}
 
@@ -295,6 +314,11 @@ void RadarGLWidget::paintGL() {
 			}
 
 			beamController_->render(projectionMatrix, viewMatrix, modelMatrix);
+		}
+
+		// Render reflection lobes (transparent, so render last)
+		if (reflectionRenderer_ && reflectionRenderer_->isVisible()) {
+			reflectionRenderer_->render(projectionMatrix, viewMatrix, modelMatrix);
 		}
 	}
 	catch (const std::exception& e) {
@@ -509,6 +533,17 @@ void RadarGLWidget::setupContextMenu() {
 			beamController_->setBeamVisible(checked);
 		}
 
+		update();
+		});
+
+	// Toggle reflection lobes
+	QAction* toggleLobesAction = contextMenu_->addAction("Toggle Reflection Lobes");
+	toggleLobesAction->setCheckable(true);
+	toggleLobesAction->setChecked(true);
+	connect(toggleLobesAction, &QAction::toggled, [this](bool checked) {
+		if (reflectionRenderer_) {
+			reflectionRenderer_->setVisible(checked);
+		}
 		update();
 		});
 

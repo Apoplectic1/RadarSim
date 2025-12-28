@@ -43,6 +43,8 @@ public:
     // Results
     int getHitCount() const { return hitCount_; }
     float getOcclusionRatio() const;
+    const std::vector<HitResult>& getHitResults() const { return hitResults_; }
+    void readHitBuffer();  // Read hit results from GPU to CPU
 
     // Shadow map for beam visualization
     GLuint getShadowMapTexture() const { return shadowMapTexture_; }
@@ -89,6 +91,8 @@ private:
 
     // Results
     int hitCount_ = 0;
+    std::vector<HitResult> hitResults_;  // CPU-side copy of hit buffer
+    std::vector<HitResult> hitClearBuffer_;  // Pre-allocated buffer for clearing
 
     // Shader source
     bool compileShaders();

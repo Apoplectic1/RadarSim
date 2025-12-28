@@ -25,14 +25,22 @@ struct alignas(16) Triangle {
     QVector4D v2;          // xyz = vertex 2, w = unused
 };
 
-// Hit result structure - 32 bytes
+// Hit result structure - 64 bytes (extended for reflection visualization)
 struct alignas(16) HitResult {
     QVector4D hitPoint;    // xyz = world position, w = distance (-1 = miss)
     QVector4D normal;      // xyz = surface normal, w = material ID
+    QVector4D reflection;  // xyz = reflection direction, w = intensity (0-1)
     uint32_t triangleId;   // Index of hit triangle
     uint32_t rayId;        // Index of ray that produced this hit
-    float rcsContribution; // RCS contribution (Phase 2)
-    float pad;             // Alignment padding
+    uint32_t targetId;     // Index of target that was hit (multi-target support)
+    float rcsContribution; // RCS contribution value
+};
+
+// Reflection lobe cluster - 48 bytes (for GPU clustering)
+struct alignas(16) ReflectionCluster {
+    QVector4D position;    // xyz = average hit position, w = hit count
+    QVector4D direction;   // xyz = average reflection direction (normalized), w = unused
+    QVector4D properties;  // x = average intensity, y = spread angle, z = targetId, w = unused
 };
 
 // Axis-Aligned Bounding Box

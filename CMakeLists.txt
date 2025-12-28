@@ -57,6 +57,12 @@ set(RCS_COMPUTE_SOURCES
     RCSCompute/RCSCompute.h
 )
 
+# ReflectionRenderer sources (RCS lobe visualization)
+set(REFLECTION_RENDERER_SOURCES
+    ReflectionRenderer/ReflectionRenderer.cpp
+    ReflectionRenderer/ReflectionRenderer.h
+)
+
 # WireframeTarget sources
 set(WIREFRAME_TARGET_SOURCES
     WireframeTarget/WireframeShapes.h
@@ -132,6 +138,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         ${MODEL_MANAGER_SOURCES}
         ${WIREFRAME_TARGET_SOURCES}
         ${RCS_COMPUTE_SOURCES}
+        ${REFLECTION_RENDERER_SOURCES}
         ${CONFIG_SOURCES}
     )
 else()
@@ -142,6 +149,7 @@ else()
         ${MODEL_MANAGER_SOURCES}
         ${WIREFRAME_TARGET_SOURCES}
         ${RCS_COMPUTE_SOURCES}
+        ${REFLECTION_RENDERER_SOURCES}
         ${CONFIG_SOURCES}
     )
 endif()
@@ -154,6 +162,7 @@ target_include_directories(RadarSim PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/ModelManager
     ${CMAKE_CURRENT_SOURCE_DIR}/WireframeTarget
     ${CMAKE_CURRENT_SOURCE_DIR}/RCSCompute
+    ${CMAKE_CURRENT_SOURCE_DIR}/ReflectionRenderer
     ${CMAKE_CURRENT_SOURCE_DIR}/Config
 )
 

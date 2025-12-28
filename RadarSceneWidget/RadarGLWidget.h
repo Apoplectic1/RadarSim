@@ -17,6 +17,7 @@
 #include "ModelManager/ModelManager.h"
 #include "WireframeTargetController.h"
 #include "RCSCompute/RCSCompute.h"
+#include "ReflectionRenderer/ReflectionRenderer.h"
 
 class RadarGLWidget : public QOpenGLWidget, protected QOpenGLFunctions_4_5_Core {
     Q_OBJECT
@@ -79,6 +80,9 @@ private:
 
     // RCS computation (owned by this widget)
     std::unique_ptr<RCS::RCSCompute> rcsCompute_;
+
+    // Reflection lobe visualization
+    std::unique_ptr<ReflectionRenderer> reflectionRenderer_;
 
     // Context menu
     QMenu* contextMenu_ = nullptr;
