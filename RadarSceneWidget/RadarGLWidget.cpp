@@ -434,9 +434,8 @@ void RadarGLWidget::contextMenuEvent(QContextMenuEvent* event) {
 }
 
 QVector3D RadarGLWidget::sphericalToCartesian(float r, float thetaDeg, float phiDeg) {
-	const float toRad = float(M_PI / 180.0);
-	float theta = thetaDeg * toRad;
-	float phi = phiDeg * toRad;
+	float theta = thetaDeg * kDegToRadF;
+	float phi = phiDeg * kDegToRadF;
 	return QVector3D(
 		r * cos(phi) * cos(theta),
 		r * cos(phi) * sin(theta),  // Y is now horizontal

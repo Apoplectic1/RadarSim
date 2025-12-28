@@ -11,6 +11,7 @@
 #include <QElapsedTimer>
 #include <vector>
 #include <memory>
+#include <string_view>
 #include <QQuaternion>
 
 class SphereRenderer : public QObject, protected QOpenGLFunctions_4_5_Core {
@@ -95,13 +96,13 @@ private:
     bool showGridLines_ = true;
     bool showAxes_ = true;
 
-    // Shader sources
-    const char* vertexShaderSource_;
-    const char* fragmentShaderSource_;
-    const char* axesVertexShaderSource_;
-    const char* axesFragmentShaderSource_;
-    const char* dotVertexShaderSource_;
-    const char* dotFragmentShaderSource_;
+    // Shader sources (string_view for type-safe literals)
+    std::string_view vertexShaderSource_;
+    std::string_view fragmentShaderSource_;
+    std::string_view axesVertexShaderSource_;
+    std::string_view axesFragmentShaderSource_;
+    std::string_view dotVertexShaderSource_;
+    std::string_view dotFragmentShaderSource_;
 
     // Helper methods
     void createSphere(int latDivisions = 64, int longDivisions = 64);

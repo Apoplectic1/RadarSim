@@ -149,7 +149,7 @@ bool WireframeTargetController::isVisible() const {
 
 void WireframeTargetController::createTarget() {
     // Create new target using factory (unique_ptr automatically deletes old target)
-    target_.reset(WireframeTarget::createTarget(currentType_));
+    target_ = WireframeTarget::createTarget(currentType_);
 
     if (target_) {
         target_->initialize();

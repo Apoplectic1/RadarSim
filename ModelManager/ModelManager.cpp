@@ -18,7 +18,7 @@ ModelManager::ModelManager(QObject* parent)
     : QObject(parent)
 {
     // Initialize shader sources
-    vertexShaderSource = R"(
+    vertexShaderSource_ = R"(
         #version 330 core
         layout (location = 0) in vec3 aPos;
         layout (location = 1) in vec3 aNormal;
@@ -40,7 +40,7 @@ ModelManager::ModelManager(QObject* parent)
         }
     )";
 
-    fragmentShaderSource = R"(
+    fragmentShaderSource_ = R"(
         #version 330 core
         in vec3 FragPos;
         in vec3 Normal;
@@ -113,10 +113,11 @@ bool ModelManager::loadModel(const std::string& filename, const QVector3D& posit
 }
 
 void ModelManager::removeModel(int index) {
-    if (index >= 0 && index < models_.size()) {
+    if (index < 0) return;
+    if (static_cast<size_t>(index) < models_.size()) {
         models_.erase(models_.begin() + index);
         emit modelRemoved(index);
-        emit modelCountChanged(models_.size());
+        emit modelCountChanged(static_cast<int>(models_.size()));
     }
 }
 
@@ -126,19 +127,22 @@ void ModelManager::clearAllModels() {
 }
 
 void ModelManager::setModelPosition(int index, const QVector3D& position) {
-    if (index >= 0 && index < models_.size()) {
+    if (index < 0) return;
+    if (static_cast<size_t>(index) < models_.size()) {
         models_[index]->position = position;
     }
 }
 
 void ModelManager::setModelRotation(int index, const QVector3D& eulerAngles) {
-    if (index >= 0 && index < models_.size()) {
+    if (index < 0) return;
+    if (static_cast<size_t>(index) < models_.size()) {
         models_[index]->rotation = eulerAngles;
     }
 }
 
 void ModelManager::setModelScale(int index, float scale) {
-    if (index >= 0 && index < models_.size()) {
+    if (index < 0) return;
+    if (static_cast<size_t>(index) < models_.size()) {
         models_[index]->scale = scale;
     }
 }
@@ -186,20 +190,20 @@ bool ModelManager::checkBeamIntersection(const QVector3D& beamOrigin, const QVec
 }
 
 bool ModelManager::setupShaders() {
-    if (!vertexShaderSource || !fragmentShaderSource) {
+    if (vertexShaderSource_.empty() || fragmentShaderSource_.empty()) {
         qCritical() << "ModelManager: Shader sources not initialized!";
         return false;
     }
 
     modelShaderProgram_ = std::make_unique<QOpenGLShaderProgram>();
 
-    if (!modelShaderProgram_->addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShaderSource)) {
+    if (!modelShaderProgram_->addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShaderSource_.data())) {
         qCritical() << "ModelManager: Failed to compile vertex shader:" << modelShaderProgram_->log();
         modelShaderProgram_.reset();
         return false;
     }
 
-    if (!modelShaderProgram_->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource)) {
+    if (!modelShaderProgram_->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource_.data())) {
         qCritical() << "ModelManager: Failed to compile fragment shader:" << modelShaderProgram_->log();
         modelShaderProgram_.reset();
         return false;

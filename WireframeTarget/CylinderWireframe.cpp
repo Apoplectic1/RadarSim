@@ -4,10 +4,6 @@
 #include "Constants.h"
 #include <cmath>
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
-
 using namespace RadarSim::Constants;
 
 CylinderWireframe::CylinderWireframe()
@@ -34,7 +30,7 @@ void CylinderWireframe::generateGeometry() {
     // Rim vertices for top cap
     GLuint topRimStart = getVertexCount();
     for (int i = 0; i <= segments; i++) {
-        float theta = 2.0f * static_cast<float>(M_PI) * static_cast<float>(i) / static_cast<float>(segments);
+        float theta = kTwoPiF * static_cast<float>(i) / static_cast<float>(segments);
         float x = radius * cos(theta);
         float y = radius * sin(theta);
         addVertex(QVector3D(x, y, halfHeight), QVector3D(0, 0, 1));
@@ -53,7 +49,7 @@ void CylinderWireframe::generateGeometry() {
     // Rim vertices for bottom cap
     GLuint bottomRimStart = getVertexCount();
     for (int i = 0; i <= segments; i++) {
-        float theta = 2.0f * static_cast<float>(M_PI) * static_cast<float>(i) / static_cast<float>(segments);
+        float theta = kTwoPiF * static_cast<float>(i) / static_cast<float>(segments);
         float x = radius * cos(theta);
         float y = radius * sin(theta);
         addVertex(QVector3D(x, y, -halfHeight), QVector3D(0, 0, -1));
@@ -68,7 +64,7 @@ void CylinderWireframe::generateGeometry() {
     // Top ring vertices with radial normals
     GLuint sideTopStart = getVertexCount();
     for (int i = 0; i <= segments; i++) {
-        float theta = 2.0f * static_cast<float>(M_PI) * static_cast<float>(i) / static_cast<float>(segments);
+        float theta = kTwoPiF * static_cast<float>(i) / static_cast<float>(segments);
         float x = radius * cos(theta);
         float y = radius * sin(theta);
         QVector3D normal(cos(theta), sin(theta), 0);
@@ -78,7 +74,7 @@ void CylinderWireframe::generateGeometry() {
     // Bottom ring vertices with radial normals
     GLuint sideBottomStart = getVertexCount();
     for (int i = 0; i <= segments; i++) {
-        float theta = 2.0f * static_cast<float>(M_PI) * static_cast<float>(i) / static_cast<float>(segments);
+        float theta = kTwoPiF * static_cast<float>(i) / static_cast<float>(segments);
         float x = radius * cos(theta);
         float y = radius * sin(theta);
         QVector3D normal(cos(theta), sin(theta), 0);

@@ -99,8 +99,8 @@ void PhasedArrayBeam::createBeamGeometry() {
     // Apply phased array offsets (convert from degrees to radians)
     if (azimuthOffset_ != 0.0f || elevationOffset_ != 0.0f) {
         // Create rotation quaternions for azimuth and elevation offsets
-        float azRadians = azimuthOffset_ * M_PI / 180.0f;
-        float elRadians = elevationOffset_ * M_PI / 180.0f;
+        float azRadians = azimuthOffset_ * kDegToRadF;
+        float elRadians = elevationOffset_ * kDegToRadF;
 
         // Get perpendicular vectors
         QVector3D up(0.0f, 1.0f, 0.0f);
@@ -130,8 +130,8 @@ void PhasedArrayBeam::createBeamGeometry() {
 
     // Calculate horizontal and vertical radii for the elliptical base
     // We're using beam width for horizontal and a narrower width for vertical
-    float horizontalRadius = tan(beamWidthDegrees_ * M_PI / 180.0f / 2.0f) * beamLength;
-    float verticalRadius = tan(beamWidthDegrees_ * 0.5f * M_PI / 180.0f / 2.0f) * beamLength; // Half the width
+    float horizontalRadius = tan(beamWidthDegrees_ * kDegToRadF / 2.0f) * beamLength;
+    float verticalRadius = tan(beamWidthDegrees_ * 0.5f * kDegToRadF / 2.0f) * beamLength; // Half the width
 
     // Find perpendicular vectors to create the base ellipse
     QVector3D up(0.0f, 1.0f, 0.0f);
@@ -161,7 +161,7 @@ void PhasedArrayBeam::createBeamGeometry() {
     // Store the outer rim vertices on the sphere (where cone meets sphere)
     std::vector<QVector3D> outerRimPoints;
     for (int i = 0; i < segments; i++) {
-        float angle = 2.0f * M_PI * i / segments;
+        float angle = kTwoPiF * i / segments;
         float cA = cos(angle);
         float sA = sin(angle);
 

@@ -269,12 +269,12 @@ bool SphereRenderer::initializeShaders() {
 	// Create the dot shader program
 	dotShaderProgram_ = std::make_unique<QOpenGLShaderProgram>();
 
-	if (!dotShaderProgram_->addShaderFromSourceCode(QOpenGLShader::Vertex, dotVertexShaderSource_)) {
+	if (!dotShaderProgram_->addShaderFromSourceCode(QOpenGLShader::Vertex, dotVertexShaderSource_.data())) {
 		qWarning() << "Failed to compile dot vertex shader:" << dotShaderProgram_->log();
 		return false;
 	}
 
-	if (!dotShaderProgram_->addShaderFromSourceCode(QOpenGLShader::Fragment, dotFragmentShaderSource_)) {
+	if (!dotShaderProgram_->addShaderFromSourceCode(QOpenGLShader::Fragment, dotFragmentShaderSource_.data())) {
 		qWarning() << "Failed to compile dot fragment shader:" << dotShaderProgram_->log();
 		return false;
 	}
@@ -285,13 +285,13 @@ bool SphereRenderer::initializeShaders() {
 	}
 
 	// Load and compile vertex shader
-	if (!shaderProgram_->addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShaderSource_)) {
+	if (!shaderProgram_->addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShaderSource_.data())) {
 		qWarning() << "Failed to compile vertex shader:" << shaderProgram_->log();
 		return false;
 	}
 
 	// Load and compile fragment shader
-	if (!shaderProgram_->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource_)) {
+	if (!shaderProgram_->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource_.data())) {
 		qWarning() << "Failed to compile fragment shader:" << shaderProgram_->log();
 		return false;
 	}
@@ -306,13 +306,13 @@ bool SphereRenderer::initializeShaders() {
 	axesShaderProgram_ = std::make_unique<QOpenGLShaderProgram>();
 
 	// Load and compile axes vertex shader
-	if (!axesShaderProgram_->addShaderFromSourceCode(QOpenGLShader::Vertex, axesVertexShaderSource_)) {
+	if (!axesShaderProgram_->addShaderFromSourceCode(QOpenGLShader::Vertex, axesVertexShaderSource_.data())) {
 		qWarning() << "Failed to compile axes vertex shader:" << axesShaderProgram_->log();
 		return false;
 	}
 
 	// Load and compile axes fragment shader
-	if (!axesShaderProgram_->addShaderFromSourceCode(QOpenGLShader::Fragment, axesFragmentShaderSource_)) {
+	if (!axesShaderProgram_->addShaderFromSourceCode(QOpenGLShader::Fragment, axesFragmentShaderSource_.data())) {
 		qWarning() << "Failed to compile axes fragment shader:" << axesShaderProgram_->log();
 		return false;
 	}
@@ -800,7 +800,7 @@ void SphereRenderer::createAxesLines() {
 
 		// Create circle points
 		for (int i = 0; i < segments; i++) {
-			float angle = 2.0f * M_PI * i / segments;
+			float angle = kTwoPiF * i / segments;
 			QVector3D point = center +
 				(perp1 * cos(angle) + perp2 * sin(angle)) * arrowRadius;
 			circlePoints.push_back(point);
@@ -891,12 +891,12 @@ void SphereRenderer::createSphere(int latDivisions, int longDivisions) {
 
 	// Generate vertices
 	for (int lat = 0; lat <= latDivisions; lat++) {
-		float phi = M_PI * float(lat) / float(latDivisions);
+		float phi = kPiF * float(lat) / float(latDivisions);
 		float sinPhi = sin(phi);
 		float cosPhi = cos(phi);
 
 		for (int lon = 0; lon <= longDivisions; lon++) {
-			float theta = 2.0f * M_PI * float(lon) / float(longDivisions);
+			float theta = kTwoPiF * float(lon) / float(longDivisions);
 			float sinTheta = sin(theta);
 			float cosTheta = cos(theta);
 
@@ -973,7 +973,7 @@ void SphereRenderer::createGridLines() {
 	latLongLines_.clear();
 
 	// Constants for grid generation
-	const float degToRad = float(M_PI / 180.0f);
+	const float degToRad = kDegToRadF;
 	const int latitudeSegments = kSphereLatSegments;  // Higher number for smoother circles
 	const int longitudeSegments = kSphereLongSegments; // Higher number for smoother arcs
 
@@ -1003,7 +1003,7 @@ void SphereRenderer::createGridLines() {
 
 		// Create a complete circle for this latitude
 		for (int i = 0; i <= latitudeSegments; i++) {
-			float theta = 2.0f * M_PI * float(i) / float(latitudeSegments);
+			float theta = kTwoPiF * float(i) / float(latitudeSegments);
 			float x = rLat * cos(theta);
 			float y = rLat * sin(theta);  // Y is now horizontal
 
@@ -1035,7 +1035,7 @@ void SphereRenderer::createGridLines() {
 		// Create a line from south pole to north pole
 		for (int i = 0; i <= longitudeSegments; i++) {
 			// Generate points from south pole to north pole
-			float phi = M_PI * float(i) / float(longitudeSegments) - M_PI / 2.0f;
+			float phi = kPiF * float(i) / float(longitudeSegments) - kPiF / 2.0f;
 			float rLat = gridRadiusOffset * cos(phi);  // Use offset radius
 			float z = gridRadiusOffset * sin(phi);  // Z is now vertical
 			float x = rLat * cos(theta);
@@ -1071,7 +1071,7 @@ void SphereRenderer::createGridLines() {
 
 // Helper method for spherical to cartesian conversion (Z-up convention)
 QVector3D SphereRenderer::sphericalToCartesian(float r, float thetaDeg, float phiDeg) const {
-	const float toRad = float(M_PI / 180.0);
+	const float toRad = kDegToRadF;
 	float theta = thetaDeg * toRad;
 	float phi = phiDeg * toRad;
 	return QVector3D(

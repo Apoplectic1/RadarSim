@@ -10,6 +10,7 @@
 #include <QOpenGLVertexArrayObject>
 #include <vector>
 #include <string>
+#include <string_view>
 #include <memory>
 
 // Forward declaration for model class
@@ -54,9 +55,9 @@ private:
     // Collection of models
     std::vector<std::shared_ptr<Model>> models_;
 
-    // Shader sources
-    const char* vertexShaderSource;
-    const char* fragmentShaderSource;
+    // Shader sources (string_view for type-safe literals)
+    std::string_view vertexShaderSource_;
+    std::string_view fragmentShaderSource_;
 
     // Helper methods
     bool setupShaders();

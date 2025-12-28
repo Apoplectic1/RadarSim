@@ -21,7 +21,7 @@ RadarBeam::RadarBeam(float sphereRadius, float beamWidthDegrees)
 	customDirection_(0.0f, 0.0f, 0.0f)
 {
 	// Vertex shader for beam
-	beamVertexShaderSource = R"(
+	beamVertexShaderSource_ = R"(
         #version 330 core
         layout (location = 0) in vec3 aPos;
         layout (location = 1) in vec3 aNormal;
@@ -43,7 +43,7 @@ RadarBeam::RadarBeam(float sphereRadius, float beamWidthDegrees)
     )";
 
 	// Fragment shader for beam with GPU shadow map lookup
-	beamFragmentShaderSource = R"(
+	beamFragmentShaderSource_ = R"(
 		#version 330 core
 		in vec3 FragPos;
 		in vec3 Normal;
@@ -262,7 +262,7 @@ void RadarBeam::initialize() {
 
 void RadarBeam::setupShaders() {
 	// Check if shader sources are properly initialized
-	if (!beamVertexShaderSource || !beamFragmentShaderSource) {
+	if (beamVertexShaderSource_.empty() || beamFragmentShaderSource_.empty()) {
 		qCritical() << "Shader sources not initialized!";
 		return;
 	}
@@ -271,12 +271,12 @@ void RadarBeam::setupShaders() {
 	beamShaderProgram_ = std::make_unique<QOpenGLShaderProgram>();
 
 	// Debug shader compilation
-	if (!beamShaderProgram_->addShaderFromSourceCode(QOpenGLShader::Vertex, beamVertexShaderSource)) {
+	if (!beamShaderProgram_->addShaderFromSourceCode(QOpenGLShader::Vertex, beamVertexShaderSource_.data())) {
 		qCritical() << "Failed to compile vertex shader:" << beamShaderProgram_->log();
 		return;
 	}
 
-	if (!beamShaderProgram_->addShaderFromSourceCode(QOpenGLShader::Fragment, beamFragmentShaderSource)) {
+	if (!beamShaderProgram_->addShaderFromSourceCode(QOpenGLShader::Fragment, beamFragmentShaderSource_.data())) {
 		qCritical() << "Failed to compile fragment shader:" << beamShaderProgram_->log();
 		return;
 	}
@@ -537,7 +537,7 @@ void RadarBeam::createBeamGeometry() {
 
 	// Calculate beam length and base radius
 	float beamLength = (endPoint - currentRadarPosition_).length();
-	float baseRadius = tan(beamWidthDegrees_ * M_PI / 180.0f / 2.0f) * beamLength;
+	float baseRadius = tan(beamWidthDegrees_ * kDegToRadF / 2.0f) * beamLength;
 
 	// Generate beam vertices (simple cone for base class)
 	calculateBeamVertices(currentRadarPosition_, direction, beamLength, baseRadius);
@@ -591,7 +591,7 @@ void RadarBeam::calculateBeamVertices(const QVector3D& apex, const QVector3D& di
 	// These will be vertices 1 to segments
 	std::vector<QVector3D> outerRimPoints;
 	for (int i = 0; i < segments; i++) {
-		float angle = 2.0f * M_PI * i / segments;
+		float angle = kTwoPiF * i / segments;
 		float cA = cos(angle);
 		float sA = sin(angle);
 

@@ -6,10 +6,6 @@
 #include <QDebug>
 #include <cmath>
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
-
 using namespace RadarSim::Constants;
 
 namespace RCS {
@@ -488,7 +484,7 @@ void RCSCompute::dispatchRayGeneration() {
     // Set uniforms
     rayGenShader_->setUniformValue("radarPosition", radarPosition_);
     rayGenShader_->setUniformValue("beamDirection", beamDirection_);
-    rayGenShader_->setUniformValue("beamWidthRad", static_cast<float>(beamWidthDegrees_ * M_PI / 180.0));
+    rayGenShader_->setUniformValue("beamWidthRad", beamWidthDegrees_ * kDegToRadF);
     rayGenShader_->setUniformValue("maxDistance", sphereRadius_ * kMaxRayDistanceMultiplier);
     rayGenShader_->setUniformValue("numRays", numRays_);
 
@@ -600,7 +596,7 @@ void RCSCompute::dispatchShadowMapGeneration() {
 }
 
 float RCSCompute::getBeamWidthRadians() const {
-    return static_cast<float>(beamWidthDegrees_ * M_PI / 180.0);
+    return beamWidthDegrees_ * kDegToRadF;
 }
 
 void RCSCompute::compute() {

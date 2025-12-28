@@ -8,6 +8,18 @@ namespace RadarSim {
 namespace Constants {
 
 // =============================================================================
+// Mathematical Constants
+// =============================================================================
+constexpr double kPi = 3.14159265358979323846;
+constexpr float kPiF = 3.14159265358979323846f;  // Float version for GPU/OpenGL code
+constexpr double kTwoPi = 2.0 * kPi;
+constexpr float kTwoPiF = 2.0f * kPiF;
+constexpr double kDegToRad = kPi / 180.0;
+constexpr float kDegToRadF = kPiF / 180.0f;
+constexpr double kRadToDeg = 180.0 / kPi;
+constexpr float kRadToDegF = 180.0f / kPiF;
+
+// =============================================================================
 // Compute Shader Configuration
 // =============================================================================
 constexpr int kComputeWorkgroupSize = 64;       // GPU workgroup size for compute shaders

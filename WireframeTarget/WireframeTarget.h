@@ -9,6 +9,7 @@
 #include <QQuaternion>
 #include <vector>
 #include <memory>
+#include <string_view>
 
 #include "WireframeShapes.h"
 
@@ -56,7 +57,7 @@ public:
     QMatrix4x4 getModelMatrix() const { return buildModelMatrix(); }
 
     // Factory method
-    static WireframeTarget* createTarget(WireframeType type);
+    static std::unique_ptr<WireframeTarget> createTarget(WireframeType type);
 
 protected:
     // OpenGL resources for target geometry
@@ -82,9 +83,9 @@ protected:
     QVector3D color_ = QVector3D(0.0f, 1.0f, 0.0f);  // Default: green
     bool visible_ = true;
 
-    // Shader sources
-    const char* vertexShaderSource_;
-    const char* fragmentShaderSource_;
+    // Shader sources (string_view for type-safe literals)
+    std::string_view vertexShaderSource_;
+    std::string_view fragmentShaderSource_;
 
     // Abstract method for derived classes
     virtual void generateGeometry() = 0;

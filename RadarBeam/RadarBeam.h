@@ -10,6 +10,7 @@
 #include <QMatrix4x4>
 #include <vector>
 #include <memory>
+#include <string_view>
 
 // Enum for different beam types
 enum class BeamType {
@@ -107,9 +108,9 @@ protected:
     std::vector<unsigned int> indices_;
     bool geometryDirty_ = false;  // Flag to defer GPU upload until valid context
 
-    // Shader sources
-    const char* beamVertexShaderSource;
-    const char* beamFragmentShaderSource;
+    // Shader sources (string_view for type-safe literals)
+    std::string_view beamVertexShaderSource_;
+    std::string_view beamFragmentShaderSource_;
 
     // Helper methods
     virtual void createBeamGeometry();

@@ -127,19 +127,19 @@ void WireframeTarget::initialize() {
 }
 
 void WireframeTarget::setupShaders() {
-    if (!vertexShaderSource_ || !fragmentShaderSource_) {
+    if (vertexShaderSource_.empty() || fragmentShaderSource_.empty()) {
         qCritical() << "WireframeTarget: Shader sources not initialized!";
         return;
     }
 
     shaderProgram_ = std::make_unique<QOpenGLShaderProgram>();
 
-    if (!shaderProgram_->addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShaderSource_)) {
+    if (!shaderProgram_->addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShaderSource_.data())) {
         qCritical() << "WireframeTarget: Failed to compile vertex shader:" << shaderProgram_->log();
         return;
     }
 
-    if (!shaderProgram_->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource_)) {
+    if (!shaderProgram_->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource_.data())) {
         qCritical() << "WireframeTarget: Failed to compile fragment shader:" << shaderProgram_->log();
         return;
     }
@@ -333,15 +333,15 @@ void WireframeTarget::setVisible(bool visible) {
 }
 
 // Factory method
-WireframeTarget* WireframeTarget::createTarget(WireframeType type) {
+std::unique_ptr<WireframeTarget> WireframeTarget::createTarget(WireframeType type) {
     switch (type) {
     case WireframeType::Cube:
-        return new CubeWireframe();
+        return std::make_unique<CubeWireframe>();
     case WireframeType::Cylinder:
-        return new CylinderWireframe();
+        return std::make_unique<CylinderWireframe>();
     case WireframeType::Aircraft:
-        return new AircraftWireframe();
+        return std::make_unique<AircraftWireframe>();
     default:
-        return new CubeWireframe();
+        return std::make_unique<CubeWireframe>();
     }
 }
