@@ -22,6 +22,10 @@ SincBeam::~SincBeam() {
     // Base class destructor handles cleanup
 }
 
+float SincBeam::getVisualExtentMultiplier() const {
+    return kSincSideLobeMultiplier;  // 4.0 - beam geometry extends 4× main lobe
+}
+
 // Bessel function J₁(x) - polynomial approximation from Numerical Recipes
 float SincBeam::besselJ1(float x) {
     float ax = std::abs(x);
@@ -135,8 +139,9 @@ void SincBeam::setupShaders() {
         uniform float beamWidthRad;
         uniform int numRings;
 
-        // Footprint-only mode uniforms
+        // Footprint-only mode and shadow visibility uniforms
         uniform bool footprintOnly;
+        uniform bool showShadow;
         uniform float sphereRadius;
 
         // Visibility constants (passed from C++)
@@ -187,6 +192,15 @@ void SincBeam::setupShaders() {
                 float surfaceThreshold = sphereRadius * 0.05;  // 5% tolerance
                 if (distFromOrigin < sphereRadius - surfaceThreshold) {
                     discard;  // Fragment is inside sphere, not on surface
+                }
+            }
+
+            // Hide shadow (cap on sphere) when showShadow is disabled
+            if (!showShadow) {
+                float distFromOrigin = length(LocalPos);
+                float surfaceThreshold = sphereRadius * 0.05;  // 5% tolerance
+                if (distFromOrigin >= sphereRadius - surfaceThreshold) {
+                    discard;  // Fragment is on sphere surface (cap), hide it
                 }
             }
 
@@ -516,8 +530,9 @@ void SincBeam::render(QOpenGLShaderProgram* program, const QMatrix4x4& projectio
         beamShaderProgram_->setUniformValue("shadowMap", 0);
     }
 
-    // Set footprint-only mode uniforms
+    // Set footprint-only mode and shadow visibility uniforms
     beamShaderProgram_->setUniformValue("footprintOnly", footprintOnly_);
+    beamShaderProgram_->setUniformValue("showShadow", showShadow_);
     beamShaderProgram_->setUniformValue("sphereRadius", sphereRadius_);
 
     // Set visibility constants from Constants.h

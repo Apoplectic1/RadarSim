@@ -11,6 +11,7 @@ struct SceneConfig {
     bool showSphere = true;
     bool showGrid = true;
     bool showAxes = true;
+    bool showShadow = true;  // Show beam projection (shadow) on sphere
 
     void loadFromJson(const QJsonObject& obj) {
         sphereRadius = static_cast<float>(obj.value("sphereRadius").toDouble(sphereRadius));
@@ -19,6 +20,7 @@ struct SceneConfig {
         showSphere = obj.value("showSphere").toBool(showSphere);
         showGrid = obj.value("showGrid").toBool(showGrid);
         showAxes = obj.value("showAxes").toBool(showAxes);
+        showShadow = obj.value("showShadow").toBool(showShadow);
     }
 
     QJsonObject toJson() const {
@@ -29,6 +31,7 @@ struct SceneConfig {
         obj["showSphere"] = showSphere;
         obj["showGrid"] = showGrid;
         obj["showAxes"] = showAxes;
+        obj["showShadow"] = showShadow;
         return obj;
     }
 };

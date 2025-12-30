@@ -70,8 +70,9 @@ RadarBeam::RadarBeam(float sphereRadius, float beamWidthDegrees)
 		uniform float beamWidthRad;
 		uniform int numRings;  // For correct UV mapping
 
-		// Footprint-only mode
+		// Footprint-only mode and shadow visibility
 		uniform bool footprintOnly;
+		uniform bool showShadow;
 		uniform float sphereRadius;
 
 		// Visibility constants (passed from C++)
@@ -132,6 +133,15 @@ RadarBeam::RadarBeam(float sphereRadius, float beamWidthDegrees)
 				float surfaceThreshold = sphereRadius * 0.05;  // 5% tolerance
 				if (distFromOrigin < sphereRadius - surfaceThreshold) {
 					discard;  // Fragment is inside sphere, not on surface
+				}
+			}
+
+			// Hide shadow (cap on sphere) when showShadow is disabled
+			if (!showShadow) {
+				float distFromOrigin = length(LocalPos);
+				float surfaceThreshold = sphereRadius * 0.05;  // 5% tolerance
+				if (distFromOrigin >= sphereRadius - surfaceThreshold) {
+					discard;  // Fragment is on sphere surface (cap), hide it
 				}
 			}
 
@@ -402,8 +412,9 @@ void RadarBeam::render(QOpenGLShaderProgram* program, const QMatrix4x4& projecti
 	beamShaderProgram_->setUniformValue("beamWidthRad", beamWidthRadians_);
 	beamShaderProgram_->setUniformValue("numRings", numRings_);
 
-	// Set footprint-only mode uniforms
+	// Set footprint-only mode and shadow visibility uniforms
 	beamShaderProgram_->setUniformValue("footprintOnly", footprintOnly_);
+	beamShaderProgram_->setUniformValue("showShadow", showShadow_);
 	beamShaderProgram_->setUniformValue("sphereRadius", sphereRadius_);
 
 	// Set visibility constants from member variables (set per beam type)
@@ -499,6 +510,10 @@ void RadarBeam::setVisible(bool visible) {
 
 void RadarBeam::setFootprintOnly(bool footprintOnly) {
 	footprintOnly_ = footprintOnly;
+}
+
+void RadarBeam::setShowShadow(bool show) {
+	showShadow_ = show;
 }
 
 void RadarBeam::setBeamLength(float length) {

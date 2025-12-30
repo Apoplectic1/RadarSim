@@ -31,6 +31,7 @@ public:
 
     void setBeamWidth(float degrees);
     float getBeamWidth() const;
+    float getVisualExtentDegrees() const;  // Beam width × visual extent multiplier
 
     void setBeamColor(const QVector3D& color);
     QVector3D getBeamColor() const;
@@ -43,6 +44,9 @@ public:
 
     void setFootprintOnly(bool footprintOnly);
     bool isFootprintOnly() const;
+
+    void setShowShadow(bool show);
+    bool isShowShadow() const;
 
     // Beam position
     void updateBeamPosition(const QVector3D& position);

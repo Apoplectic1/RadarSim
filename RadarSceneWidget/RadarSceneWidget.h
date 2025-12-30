@@ -44,6 +44,10 @@ public:
     bool areGridLinesVisible() const;
     bool isInertiaEnabled() const;
 
+    // Shadow visibility (beam projection on sphere)
+    void setShowShadow(bool show);
+    bool isShowShadow() const;
+
     // Component access
     SphereRenderer* getSphereRenderer() const { return sphereRenderer_; }
     BeamController* getBeamController() const { return beamController_; }

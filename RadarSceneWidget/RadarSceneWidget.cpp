@@ -170,3 +170,13 @@ bool RadarSceneWidget::areGridLinesVisible() const {
 bool RadarSceneWidget::isInertiaEnabled() const {
     return cameraController_ ? cameraController_->isInertiaEnabled() : false;
 }
+
+void RadarSceneWidget::setShowShadow(bool show) {
+    if (radarGLWidget_) {
+        radarGLWidget_->setShowShadow(show);
+    }
+}
+
+bool RadarSceneWidget::isShowShadow() const {
+    return radarGLWidget_ ? radarGLWidget_->isShowShadow() : true;
+}

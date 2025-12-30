@@ -839,6 +839,7 @@ void RadarSim::readSettingsFromScene() {
     appSettings_->scene.showAxes = radarSceneView_->areAxesVisible();
     appSettings_->scene.showSphere = radarSceneView_->isSphereVisible();
     appSettings_->scene.showGrid = radarSceneView_->areGridLinesVisible();
+    appSettings_->scene.showShadow = radarSceneView_->isShowShadow();
 }
 
 void RadarSim::applySettingsToScene() {
@@ -968,6 +969,7 @@ void RadarSim::applySettingsToScene() {
     radarSceneView_->setAxesVisible(appSettings_->scene.showAxes);
     radarSceneView_->setSphereVisible(appSettings_->scene.showSphere);
     radarSceneView_->setGridLinesVisible(appSettings_->scene.showGrid);
+    radarSceneView_->setShowShadow(appSettings_->scene.showShadow);
 
     // Sync context menu checkmarks with controller state (after visibility is applied)
     radarSceneView_->syncBeamMenu();

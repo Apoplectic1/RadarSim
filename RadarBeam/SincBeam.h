@@ -11,6 +11,7 @@ public:
     ~SincBeam() override;
 
     BeamType getBeamType() const override { return BeamType::Sinc; }
+    float getVisualExtentMultiplier() const override;  // 4× for side lobes
 
     // Airy pattern for circular aperture: [2·J₁(x)/x]²
     // theta: angle from beam axis (radians)

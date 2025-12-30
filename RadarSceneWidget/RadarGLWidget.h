@@ -43,6 +43,10 @@ public:
     // Sync context menu checkmarks with controller state
     void syncBeamMenu();
 
+    // Shadow visibility (beam projection on sphere)
+    void setShowShadow(bool show);
+    bool isShowShadow() const;
+
     // Event handlers - override from QOpenGLWidget
     void mousePressEvent(QMouseEvent* event) override;
     void mouseMoveEvent(QMouseEvent* event) override;
@@ -100,6 +104,7 @@ private:
     QAction* toggleAxesAction_ = nullptr;
     QAction* toggleSphereAction_ = nullptr;
     QAction* toggleGridAction_ = nullptr;
+    QAction* showShadowAction_ = nullptr;
 
     // Helper methods
     void syncBeamTypeMenuToController();

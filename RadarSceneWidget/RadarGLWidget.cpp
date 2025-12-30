@@ -298,6 +298,9 @@ void RadarGLWidget::paintGL() {
 				);
 				rcsCompute_->setRadarPosition(radarPos);
 				rcsCompute_->setBeamDirection(-radarPos.normalized());
+				// Set beam width for ray generation to cover full visual extent (4× for SincBeam side lobes)
+				float visualExtent = beamController_ ? beamController_->getVisualExtentDegrees() : 15.0f;
+				rcsCompute_->setBeamWidth(visualExtent);
 				rcsCompute_->compute();
 
 				// Read hit results and update reflection lobes
@@ -434,6 +437,27 @@ void RadarGLWidget::syncBeamMenu() {
 		toggleGridAction_->setChecked(sphereRenderer_->areGridLinesVisible());
 		toggleGridAction_->blockSignals(false);
 	}
+	if (showShadowAction_ && beamController_) {
+		showShadowAction_->blockSignals(true);
+		showShadowAction_->setChecked(beamController_->isShowShadow());
+		showShadowAction_->blockSignals(false);
+	}
+}
+
+void RadarGLWidget::setShowShadow(bool show) {
+	if (beamController_) {
+		beamController_->setShowShadow(show);
+	}
+	if (showShadowAction_) {
+		showShadowAction_->blockSignals(true);
+		showShadowAction_->setChecked(show);
+		showShadowAction_->blockSignals(false);
+	}
+	update();
+}
+
+bool RadarGLWidget::isShowShadow() const {
+	return beamController_ ? beamController_->isShowShadow() : true;
 }
 
 void RadarGLWidget::setRadius(float radius) {
@@ -619,6 +643,17 @@ void RadarGLWidget::setupContextMenu() {
 		if (beamController_) {
 			// Beam is always visible, but footprintOnly controls what's shown
 			beamController_->setFootprintOnly(!checked);
+		}
+		update();
+		});
+
+	// Show Shadow toggle (second item)
+	showShadowAction_ = beamMenu->addAction("Show Shadow");
+	showShadowAction_->setCheckable(true);
+	showShadowAction_->setChecked(true);
+	connect(showShadowAction_, &QAction::toggled, [this](bool checked) {
+		if (beamController_) {
+			beamController_->setShowShadow(checked);
 		}
 		update();
 		});

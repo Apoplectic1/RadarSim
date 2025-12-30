@@ -102,9 +102,10 @@ RadarBeam (base)
 **SincBeam Details:**
 - Intensity follows sinc²(πθ/θmax) pattern (realistic electromagnetic field)
 - 7-float vertex format: `[x, y, z, nx, ny, nz, intensity]`
-- Extended geometry (2.5× main lobe) for visible side lobes
+- Extended geometry (4× main lobe via `kSincSideLobeMultiplier`) for visible side lobes
 - Per-vertex intensity drives color blending and alpha modulation
 - Side lobes at ~1.43× (−13dB) and ~2.46× (−18dB) main lobe angle
+- `getVisualExtentMultiplier()` returns 4.0 for proper shadow ray coverage
 
 Factory method for beam creation:
 ```cpp
@@ -206,7 +207,7 @@ Config/
 ├── BeamConfig        - Beam parameters (type, width, opacity, color)
 ├── CameraConfig      - Camera state (distance, azimuth, elevation, focus)
 ├── TargetConfig      - Target parameters (type, position, rotation, scale)
-└── SceneConfig       - Scene options (sphere radius, radar position)
+└── SceneConfig       - Scene options (sphere radius, radar position, visibility toggles)
 ```
 
 **Features:**
@@ -226,7 +227,11 @@ Config/
     "beam": { "type": 0, "width": 15.0, "opacity": 0.3 },
     "camera": { "distance": 300.0, "azimuth": 0.0, "elevation": 0.4 },
     "target": { "position": [0,0,0], "rotation": [0,0,0], "scale": 20.0 },
-    "scene": { "sphereRadius": 100.0, "radarTheta": 45.0, "radarPhi": 45.0 }
+    "scene": {
+        "sphereRadius": 100.0, "radarTheta": 45.0, "radarPhi": 45.0,
+        "showSphere": true, "showAxes": true, "showGridLines": true,
+        "showShadow": true, "enableInertia": false
+    }
 }
 ```
 
@@ -336,7 +341,7 @@ Without this connection, timer-based animations will appear stuttery because `up
 
 | Task | Files |
 |------|-------|
-| Add new beam type | `RadarBeam/RadarBeam.h` (enum), new class inheriting `RadarBeam` |
+| Add new beam type | `RadarBeam/RadarBeam.h` (enum), new class inheriting `RadarBeam`, override `getVisualExtentMultiplier()` if beam has side lobes |
 | Add new solid target | `WireframeTarget/WireframeShapes.h` (enum), new class inheriting `WireframeTarget` |
 | Modify UI controls | `RadarSim.cpp` (`setupTabs()`, slot methods) |
 | Change rendering | `RadarGLWidget.cpp` (`paintGL()`), component `render()` methods |
@@ -530,6 +535,30 @@ if (gpuShadowEnabled) {
 - `shadowMapReady_` flag prevents using shadow before first compute completes
 - Uses `LocalPos` (untransformed vertex position) for UV calculation to match ray coordinates
 
+### Show Shadow Toggle
+
+The beam projection (cap) on the sphere surface can be toggled via the "Show Shadow" menu option.
+
+**Implementation:**
+- `showShadow_` member in `RadarBeam` controls visibility
+- Fragment shader discards fragments on sphere surface when disabled:
+```glsl
+if (!showShadow) {
+    float distFromOrigin = length(LocalPos);
+    float surfaceThreshold = sphereRadius * 0.05;
+    if (distFromOrigin >= sphereRadius - surfaceThreshold) {
+        discard;  // Fragment is on sphere surface (cap)
+    }
+}
+```
+
+**Files Involved:**
+- `RadarBeam/RadarBeam.cpp` - showShadow uniform and shader logic
+- `RadarBeam/SincBeam.cpp` - Same shader logic for Sinc beams
+- `Config/SceneConfig.h` - Persistence field
+- `RadarGLWidget.cpp` - Context menu action
+- `RadarSim.cpp` - Settings read/apply
+
 ### RCS Ray Tracing Future Work
 
 See [RCSCompute (GPU Ray Tracing)](#rcscompute-gpu-ray-tracing) section for implementation details. Remaining work:
@@ -626,6 +655,31 @@ The 3D scene uses orbit camera controls via `CameraController`:
 - Inertia can be enabled for smooth rotation continuation after mouse release
 - Elevation clamped to ±85° to avoid gimbal lock
 
+## Context Menu (Right-Click)
+
+The 3D scene provides a context menu for quick access to visualization options:
+
+```
+├── Beam >
+│   ├── Show Beam         [checkable]
+│   ├── Show Shadow       [checkable]  # Beam projection on sphere
+│   └── Type >
+│       ├── Conical       [radio]
+│       ├── Sinc          [radio]
+│       └── Phased Array  [radio]
+├── Toggle Axes           [checkable]
+├── Toggle Sphere         [checkable]
+├── Toggle Grid           [checkable]
+├── Toggle Inertia        [checkable]
+├── Toggle Reflection Lobes [checkable]
+└── Target >
+    ├── Cube              [radio]
+    ├── Cylinder          [radio]
+    └── Aircraft          [radio]
+```
+
+**Implementation:** `RadarGLWidget::setupContextMenu()` creates actions with `blockSignals()` used in `syncBeamMenu()` to prevent circular updates when syncing checkbox state from code.
+
 ## Coordinate System
 
 - **World Coordinates**: Z-up (mathematical convention)
@@ -665,9 +719,14 @@ namespace RadarSim::Constants {
     kGridLineWidthNormal, kGridLineWidthSpecial, kGridRadiusOffset,
     kRadarDotRadius, kRadarDotVertices
 
-    // Shader Visual Constants
+    // Shader Visual Constants (base)
     kFresnelMin, kFresnelMax, kMinBeamOpacity,
     kAmbientStrength, kSpecularStrength, kShininess
+
+    // Beam-Type-Specific Visibility Constants
+    // Conical: kConicalFresnelBase, kConicalFresnelRange, kConicalRimLow/High/Strength, kConicalAlphaMin/Max
+    // Phased: kPhasedFresnelBase, kPhasedFresnelRange, kPhasedRimLow/High/Strength, kPhasedAlphaMin/Max
+    // Sinc: kSincFresnelBase, kSincFresnelRange, kSincRimLow/High/Strength, kSincAlphaMin/Max
 
     // Shadow Map
     kShadowMapWidth, kShadowMapHeight, kShadowMapNoHit

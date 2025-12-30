@@ -57,6 +57,7 @@ public:
     void setOpacity(float opacity);
     void setVisible(bool visible);
     void setFootprintOnly(bool footprintOnly);
+    void setShowShadow(bool show);  // Show/hide beam projection on sphere surface
     void setBeamLength(float length);  // Length as fraction of sphere diameter
 
     // GPU shadow map (from RCS compute)
@@ -68,6 +69,7 @@ public:
 
     // Property getters
     float getBeamWidth() const { return beamWidthDegrees_; }
+    virtual float getVisualExtentMultiplier() const { return 1.0f; }  // Override for beams with side lobes
     float getSphereRadius() const { return sphereRadius_; }
     BeamDirection getBeamDirection() const { return beamDirection_; }
     QVector3D getCustomDirection() const { return customDirection_; }
@@ -75,6 +77,7 @@ public:
     float getOpacity() const { return opacity_; }
     bool isVisible() const { return visible_; }
     bool isFootprintOnly() const { return footprintOnly_; }
+    bool isShowShadow() const { return showShadow_; }
     float getBeamLength() const { return beamLengthFactor_; }
     const std::vector<float>& getVertices() const { return vertices_; }
 
@@ -95,6 +98,7 @@ protected:
     float opacity_;
     bool visible_;
     bool footprintOnly_ = false;  // Show only sphere surface intersection
+    bool showShadow_ = true;      // Show beam projection (cap) on sphere surface
     float beamLengthFactor_; // How far the beam extends (1.0 = to opposite side)
     BeamDirection beamDirection_;
     QVector3D customDirection_;

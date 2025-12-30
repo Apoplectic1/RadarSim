@@ -78,6 +78,11 @@ float BeamController::getBeamWidth() const {
     return radarBeam_ ? radarBeam_->getBeamWidth() : Defaults::kBeamWidth;
 }
 
+float BeamController::getVisualExtentDegrees() const {
+    if (!radarBeam_) return Defaults::kBeamWidth;
+    return radarBeam_->getBeamWidth() * radarBeam_->getVisualExtentMultiplier();
+}
+
 void BeamController::setBeamColor(const QVector3D& color) {
     if (radarBeam_) {
         QVector3D currentColor = radarBeam_->getColor();
@@ -139,6 +144,16 @@ void BeamController::setFootprintOnly(bool footprintOnly) {
 
 bool BeamController::isFootprintOnly() const {
     return radarBeam_ ? radarBeam_->isFootprintOnly() : false;
+}
+
+void BeamController::setShowShadow(bool show) {
+    if (radarBeam_) {
+        radarBeam_->setShowShadow(show);
+    }
+}
+
+bool BeamController::isShowShadow() const {
+    return radarBeam_ ? radarBeam_->isShowShadow() : true;
 }
 
 void BeamController::updateBeamPosition(const QVector3D& position) {
