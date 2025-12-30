@@ -138,6 +138,17 @@ constexpr float kLobeScaleRadiusMin = 0.3f;     // Min radius scale at zero inte
 constexpr float kLobeColorThreshold = 0.5f;     // Intensity threshold for color interpolation
 
 // =============================================================================
+// Heat Map Visualization
+// =============================================================================
+constexpr int kHeatMapLatBins = 64;             // Latitude bins for spherical accumulation
+constexpr int kHeatMapLonBins = 64;             // Longitude bins for spherical accumulation
+constexpr float kHeatMapMinIntensity = 0.05f;   // Minimum intensity threshold to display
+constexpr float kHeatMapOpacity = 0.7f;         // Default heat map opacity
+constexpr float kHeatMapRadiusOffset = 1.02f;   // Render slightly above sphere surface
+constexpr int kHeatMapLatSegments = 64;         // Sphere mesh latitude segments
+constexpr int kHeatMapLonSegments = 64;         // Sphere mesh longitude segments
+
+// =============================================================================
 // Geometry Constants
 // =============================================================================
 constexpr float kGimbalLockThreshold = 0.99f;   // Dot product threshold for gimbal lock avoidance

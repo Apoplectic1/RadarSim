@@ -57,8 +57,9 @@ RadarSim/
 │   ├── CubeWireframe.h/.cpp    # Solid cube (6 faces, 12 triangles)
 │   ├── CylinderWireframe.h/.cpp# Solid cylinder (caps + sides)
 │   └── AircraftWireframe.h/.cpp# Solid fighter jet model
-├── ReflectionRenderer/         # RCS reflection lobe visualization
-│   └── ReflectionRenderer.h/.cpp  # Colored cone visualization of reflected energy
+├── ReflectionRenderer/         # RCS reflection visualization
+│   ├── ReflectionRenderer.h/.cpp  # Colored cone visualization of reflected energy
+│   └── HeatMapRenderer.h/.cpp     # Smooth gradient heat map on radar sphere
 └── RCSCompute/                 # GPU ray tracing for RCS calculations
     ├── RCSTypes.h              # GPU-aligned structs (Ray, BVHNode, Triangle, HitResult)
     ├── BVHBuilder.h/.cpp       # SAH-based Bounding Volume Hierarchy construction
@@ -72,10 +73,13 @@ RadarSim/
 The project uses a component-based architecture where `RadarGLWidget` owns and coordinates multiple components:
 
 - **SphereRenderer**: Renders the sphere, grid lines, axes, and radar position dot
-- **BeamController**: Manages radar beam creation and rendering
+- **BeamController**: Manages radar beam creation and rendering (Conical, Sinc, Phased)
 - **CameraController**: Handles view transformations, mouse interaction, inertia
 - **ModelManager**: Loads and renders 3D models
 - **WireframeTargetController**: Manages solid target shapes with transforms (for RCS)
+- **RCSCompute**: GPU ray tracing for radar cross-section calculations
+- **ReflectionRenderer**: Visualizes RCS as colored cone lobes from hit points
+- **HeatMapRenderer**: Visualizes RCS as smooth gradient heat map on radar sphere
 
 Components are initialized after OpenGL context is ready:
 ```cpp
@@ -193,6 +197,43 @@ rcsCompute_->compute();
 rcsCompute_->readHitBuffer();  // GPU → CPU transfer
 reflectionRenderer_->updateLobes(rcsCompute_->getHitResults());
 reflectionRenderer_->render(projection, view, model);
+```
+
+### HeatMapRenderer (Sphere Heat Map)
+
+Alternative RCS visualization showing reflection intensity as a smooth gradient heat map on the radar sphere surface.
+
+**Features:**
+- Maps reflection directions to spherical coordinates on radar sphere
+- Blue (low) → Yellow (mid) → Red (high) intensity gradient
+- Smooth per-vertex interpolation for gradient appearance
+- Spherical binning (64×64 lat/lon bins) for intensity accumulation
+- Toggle via right-click context menu ("Toggle RCS Heat Map")
+
+**Coordinate Mapping:**
+```cpp
+// Reflection direction → spherical coordinates
+QVector3D dir = hit.reflection.toVector3D().normalized();
+float theta = atan2(dir.y(), dir.x());   // azimuth [-π, π]
+float phi = asin(dir.z());               // elevation [-π/2, π/2]
+
+// Spherical coords → bin index (north pole = lat 0, south pole = lat max)
+int latBin = (π/2 - phi) / π * latBins;  // +π/2 → 0, -π/2 → max
+int lonBin = (theta + π) / 2π * lonBins;
+```
+
+**Rendering:**
+- Sphere mesh at `radius * 1.02` (slightly above main sphere)
+- Alpha blending with intensity-modulated opacity
+- Rendered after sphere, before beam for proper layering
+
+**Integration:**
+```cpp
+// In RadarGLWidget::paintGL()
+if (heatMapRenderer_ && heatMapRenderer_->isVisible()) {
+    heatMapRenderer_->updateFromHits(rcsCompute_->getHitResults(), radius_);
+    heatMapRenderer_->render(projection, view, model);
+}
 ```
 
 ### Settings/Configuration System
@@ -350,6 +391,7 @@ Without this connection, timer-based animations will appear stuttery because `up
 | Target transforms | `WireframeTargetController.cpp`, `RadarSim.cpp` (target slots) |
 | RCS ray tracing | `RCSCompute/RCSCompute.cpp`, `RCSCompute/BVHBuilder.cpp` |
 | Reflection lobes | `ReflectionRenderer/ReflectionRenderer.cpp`, `RCSCompute/RCSCompute.cpp` |
+| RCS heat map | `ReflectionRenderer/HeatMapRenderer.cpp`, `RCSCompute/RCSCompute.cpp` |
 | Add compile-time constant | `Constants.h` |
 | Add saved setting | `Config/*Config.h`, `AppSettings.cpp`, `RadarSim.cpp` (read/apply methods) |
 | Profile management | `Config/AppSettings.cpp`, `RadarSim.cpp` (profile slots) |
@@ -365,11 +407,11 @@ RadarGLWidget::paintGL()
   ├── RCSCompute::compute()                                       # GPU ray tracing + shadow map
   │   ├── Generates shadow map texture from ray hit distances
   │   └── Calculates reflection directions and BRDF intensities
-  ├── RCSCompute::readHitBuffer()                                 # GPU → CPU for lobe clustering
-  ├── ReflectionRenderer::updateLobes()                           # Cluster hits into lobes
+  ├── RCSCompute::readHitBuffer()                                 # GPU → CPU for visualization
+  ├── HeatMapRenderer::updateFromHits() + render()                # Heat map on sphere (if enabled)
   ├── BeamController::render(projection, view, model)             # Semi-transparent, GPU shadow
   │   └── Fragment shader samples shadow map, discards behind hits
-  ├── ReflectionRenderer::render(projection, view, model)         # Transparent lobe cones
+  ├── ReflectionRenderer::render(projection, view, model)         # Transparent lobe cones (if enabled)
   └── (implicit buffer swap)
 ```
 
@@ -671,7 +713,8 @@ The 3D scene provides a context menu for quick access to visualization options:
 ├── Toggle Sphere         [checkable]
 ├── Toggle Grid           [checkable]
 ├── Toggle Inertia        [checkable]
-├── Toggle Reflection Lobes [checkable]
+├── Toggle Reflection Lobes [checkable]  # Cone lobe visualization
+├── Toggle RCS Heat Map   [checkable]    # Sphere gradient visualization
 └── Target >
     ├── Cube              [radio]
     ├── Cylinder          [radio]
@@ -736,6 +779,10 @@ namespace RadarSim::Constants {
     kLobeConeLength, kLobeConeRadius, kLobeConeSegments,
     kLobeMinIntensity, kLobeBRDFDiffuse, kLobeBRDFSpecular, kLobeBRDFShininess,
     kLobeScaleLengthMin, kLobeScaleRadiusMin, kLobeColorThreshold
+
+    // Heat Map Visualization
+    kHeatMapLatBins, kHeatMapLonBins, kHeatMapMinIntensity,
+    kHeatMapOpacity, kHeatMapRadiusOffset, kHeatMapLatSegments, kHeatMapLonSegments
 
     // Geometry Constants
     kGimbalLockThreshold

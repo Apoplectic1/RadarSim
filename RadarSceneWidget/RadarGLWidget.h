@@ -18,6 +18,7 @@
 #include "WireframeTargetController.h"
 #include "RCSCompute/RCSCompute.h"
 #include "ReflectionRenderer/ReflectionRenderer.h"
+#include "ReflectionRenderer/HeatMapRenderer.h"
 
 class RadarGLWidget : public QOpenGLWidget, protected QOpenGLFunctions_4_5_Core {
     Q_OBJECT
@@ -91,6 +92,9 @@ private:
     // Reflection lobe visualization
     std::unique_ptr<ReflectionRenderer> reflectionRenderer_;
 
+    // Heat map visualization
+    std::unique_ptr<HeatMapRenderer> heatMapRenderer_;
+
     // Context menu
     QMenu* contextMenu_ = nullptr;
 
@@ -105,6 +109,7 @@ private:
     QAction* toggleSphereAction_ = nullptr;
     QAction* toggleGridAction_ = nullptr;
     QAction* showShadowAction_ = nullptr;
+    QAction* toggleHeatMapAction_ = nullptr;
 
     // Helper methods
     void syncBeamTypeMenuToController();

@@ -4,6 +4,15 @@
 
 ## Recently Completed
 
+- [x] **HeatMapRenderer** - RCS heat map visualization on radar sphere surface
+  - Smooth gradient (Blue→Yellow→Red) based on reflection intensity
+  - Spherical binning (64×64 lat/lon) for intensity accumulation
+  - Per-vertex interpolation for smooth appearance
+  - Toggle via "Toggle RCS Heat Map" context menu
+- [x] **SincBeam** - Realistic sinc² intensity pattern with visible side lobes
+- [x] **Show Shadow toggle** - Control beam footprint visibility on sphere
+- [x] **GPU ray-traced shadows** - Accurate beam occlusion from RCS ray tracing
+- [x] **ReflectionRenderer** - Colored cone lobes showing reflection directions
 - [x] Solid surface rendering for WireframeTarget (GL_TRIANGLES with EBO)
 - [x] Cube, Cylinder, and Aircraft solid target shapes
 - [x] Diffuse + ambient lighting for targets
@@ -12,35 +21,25 @@
 - [x] Target Controls connected to WireframeTargetController (scene updates on slider change)
 - [x] Compact UI layout for Radar Controls and Target Controls (setSpacing(2), setContentsMargins(6,6,6,6))
 - [x] Context menu for target type selection (Cube, Cylinder, Aircraft)
-- [x] Beam type switching via context menu (Conical, Phased Array)
+- [x] Beam type switching via context menu (Conical, Sinc, Phased Array)
 
 ## In Progress / Known Issues
 
-### Shadow Volume (Deferred)
-
-The shadow volume system for beam occlusion behind targets has issues:
-
-- [ ] **Shadow does NOT follow scene rotations** - When the scene is rotated via mouse drag, the shadow doesn't track correctly
-- [ ] **Depth cap disabled** - The Z-fail algorithm depth cap causes target/beam to become invisible; currently disabled
-- [ ] **Far hemisphere issue** - Shadow doesn't work when radar is on the far side of the sphere
-
-**Status:** Deferred for later investigation. Core functionality works for basic cases.
-
-**Attempted fix (Dec 2024):** Changed `renderShadowVolume()` to use identity matrix instead of `sceneModel`, reasoning that shadow vertices are already in world space. This did NOT fix the issue - the problem may be deeper in the coordinate space chain (possibly in `generateShadowVolume()` or how radar position is transformed).
+No critical issues at present. GPU ray-traced shadows replaced the problematic shadow volume approach.
 
 ## Future Work
 
 ### High Priority
 
-- [ ] Fix shadow volume scene rotation tracking
-- [ ] Investigate depth cap visibility issues for proper Z-fail algorithm
-- [ ] Add more target shapes (Pyramid, Sphere, Ship) - optional
+- [ ] Calculate actual RCS values from hit geometry (currently just visualization)
+- [ ] Add RCS value display in UI (dBsm readout)
+- [ ] Add more target shapes (Pyramid, Sphere, Ship)
 
 ### Medium Priority
 
-- [ ] Radar Cross Section (RCS) calculations using shadow volume geometry
 - [ ] Diffraction effects for realistic radar simulation
 - [ ] Material properties for targets (reflectivity, absorption)
+- [ ] Heat map persistence/settings save
 
 ### Low Priority / Technical Debt
 
@@ -64,11 +63,14 @@ The shadow volume system for beam occlusion behind targets has issues:
 
 ```
 RadarGLWidget
-├── SphereRenderer      - Sphere, grid, axes, radar dot
-├── BeamController      - Conical/Phased beam rendering
-├── CameraController    - Mouse interaction, view transforms, inertia
-├── ModelManager        - 3D model loading (placeholder)
-└── WireframeTargetController - Solid target shapes with transforms
+├── SphereRenderer           - Sphere, grid, axes, radar dot
+├── BeamController           - Conical/Sinc/Phased beam rendering
+├── CameraController         - Mouse interaction, view transforms, inertia
+├── ModelManager             - 3D model loading (placeholder)
+├── WireframeTargetController- Solid target shapes with transforms
+├── RCSCompute               - GPU ray tracing for RCS calculations
+├── ReflectionRenderer       - Colored cone lobes (RCS visualization)
+└── HeatMapRenderer          - Sphere heat map (RCS visualization)
 ```
 
 ### Build Notes

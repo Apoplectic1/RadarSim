@@ -61,6 +61,8 @@ set(RCS_COMPUTE_SOURCES
 set(REFLECTION_RENDERER_SOURCES
     ReflectionRenderer/ReflectionRenderer.cpp
     ReflectionRenderer/ReflectionRenderer.h
+    ReflectionRenderer/HeatMapRenderer.cpp
+    ReflectionRenderer/HeatMapRenderer.h
 )
 
 # WireframeTarget sources

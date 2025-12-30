@@ -43,6 +43,7 @@ RadarGLWidget::~RadarGLWidget() {
 	wireframeController_.reset();
 	rcsCompute_.reset();
 	reflectionRenderer_.reset();
+	heatMapRenderer_.reset();
 
 	doneCurrent();
 
@@ -76,6 +77,11 @@ void RadarGLWidget::cleanupGL() {
 	// Clean up reflection renderer
 	if (reflectionRenderer_) {
 		reflectionRenderer_->cleanup();
+	}
+
+	// Clean up heat map renderer
+	if (heatMapRenderer_) {
+		heatMapRenderer_->cleanup();
 	}
 
 	// Clean up component resources
@@ -200,6 +206,15 @@ void RadarGLWidget::initializeGL() {
 			reflectionRenderer_.reset();
 		}
 
+		// Initialize heat map renderer
+		heatMapRenderer_ = std::make_unique<HeatMapRenderer>(this);
+		if (!heatMapRenderer_->initialize()) {
+			qWarning() << "HeatMapRenderer initialization failed";
+			heatMapRenderer_.reset();
+		} else {
+			heatMapRenderer_->setSphereRadius(radius_);
+		}
+
 		// Force beam geometry creation with initial position
 		if (beamController_) {
 			QVector3D initialPos = sphericalToCartesian(radius_, theta_, phi_);
@@ -303,12 +318,28 @@ void RadarGLWidget::paintGL() {
 				rcsCompute_->setBeamWidth(visualExtent);
 				rcsCompute_->compute();
 
-				// Read hit results and update reflection lobes
-				if (reflectionRenderer_ && reflectionRenderer_->isVisible()) {
+				// Read hit results for visualization
+				bool needHitResults = (reflectionRenderer_ && reflectionRenderer_->isVisible()) ||
+				                       (heatMapRenderer_ && heatMapRenderer_->isVisible());
+				if (needHitResults) {
 					rcsCompute_->readHitBuffer();
-					reflectionRenderer_->updateLobes(rcsCompute_->getHitResults());
+
+					// Update reflection lobes
+					if (reflectionRenderer_ && reflectionRenderer_->isVisible()) {
+						reflectionRenderer_->updateLobes(rcsCompute_->getHitResults());
+					}
+
+					// Update heat map
+					if (heatMapRenderer_ && heatMapRenderer_->isVisible()) {
+						heatMapRenderer_->updateFromHits(rcsCompute_->getHitResults(), radius_);
+					}
 				}
 			}
+		}
+
+		// Render heat map (semi-transparent, render after sphere before beam)
+		if (heatMapRenderer_ && heatMapRenderer_->isVisible()) {
+			heatMapRenderer_->render(projectionMatrix, viewMatrix, modelMatrix);
 		}
 
 		if (beamController_) {
@@ -623,6 +654,17 @@ void RadarGLWidget::setupContextMenu() {
 	connect(toggleLobesAction, &QAction::toggled, [this](bool checked) {
 		if (reflectionRenderer_) {
 			reflectionRenderer_->setVisible(checked);
+		}
+		update();
+		});
+
+	// Toggle RCS heat map
+	toggleHeatMapAction_ = contextMenu_->addAction("Toggle RCS Heat Map");
+	toggleHeatMapAction_->setCheckable(true);
+	toggleHeatMapAction_->setChecked(false);  // Off by default (lobes are default)
+	connect(toggleHeatMapAction_, &QAction::toggled, [this](bool checked) {
+		if (heatMapRenderer_) {
+			heatMapRenderer_->setVisible(checked);
 		}
 		update();
 		});
