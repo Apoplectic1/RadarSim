@@ -139,6 +139,17 @@ void SincBeam::setupShaders() {
         uniform bool footprintOnly;
         uniform float sphereRadius;
 
+        // Visibility constants (passed from C++)
+        uniform float fresnelBase;
+        uniform float fresnelRange;
+        uniform float rimLow;
+        uniform float rimHigh;
+        uniform float rimStrength;
+        uniform float intensityAlphaMin;
+        uniform float opacityMult;
+        uniform float alphaMin;
+        uniform float alphaMax;
+
         out vec4 FragColor;
 
         // Convert LOCAL position to shadow map UV coordinates
@@ -224,17 +235,17 @@ void SincBeam::setupShaders() {
             // Fresnel effect for viewing angle
             vec3 norm = normalize(Normal);
             vec3 viewDir = normalize(viewPos - FragPos);
-            float fresnel = 0.4 + 0.6 * pow(1.0 - abs(dot(norm, viewDir)), 2.0);
+            float fresnel = fresnelBase + fresnelRange * pow(1.0 - abs(dot(norm, viewDir)), 2.0);
 
             // Rim lighting for edge visibility
             float rim = 1.0 - abs(dot(norm, viewDir));
-            rim = smoothstep(0.4, 0.8, rim);
+            rim = smoothstep(rimLow, rimHigh, rim);
 
             // Final alpha: higher minimum for better visibility
             // Boost alpha at intersection for more visible highlight
-            float intensityAlpha = mix(0.35, 1.0, pow(Intensity, 0.4));
-            float finalAlpha = opacity * (fresnel + rim * 0.3) * intensityAlpha;
-            finalAlpha = clamp(finalAlpha + intersectionGlow * 0.4, 0.15, 1.0);
+            float intensityAlpha = mix(intensityAlphaMin, 1.0, pow(Intensity, 0.4));
+            float finalAlpha = opacity * opacityMult * (fresnel + rim * rimStrength) * intensityAlpha;
+            finalAlpha = clamp(finalAlpha + intersectionGlow * 0.4, alphaMin, alphaMax);
 
             FragColor = vec4(intensityColor, finalAlpha);
         }
@@ -460,16 +471,15 @@ void SincBeam::render(QOpenGLShaderProgram* program, const QMatrix4x4& projectio
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // Enable depth testing but disable depth writing for transparent objects
+    // SincBeam: disable face culling because extended geometry (2.5x for side lobes)
+    // wraps around sphere, causing triangle winding to flip on front hemisphere
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
     glDepthMask(GL_FALSE);
+    glDisable(GL_CULL_FACE);
 
     glDisable(GL_STENCIL_TEST);
-
-    // Enable face culling
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
+    glDisable(GL_POLYGON_OFFSET_FILL);
 
     // Use the beam shader program
     beamShaderProgram_->bind();
@@ -510,6 +520,17 @@ void SincBeam::render(QOpenGLShaderProgram* program, const QMatrix4x4& projectio
     beamShaderProgram_->setUniformValue("footprintOnly", footprintOnly_);
     beamShaderProgram_->setUniformValue("sphereRadius", sphereRadius_);
 
+    // Set visibility constants from Constants.h
+    beamShaderProgram_->setUniformValue("fresnelBase", kSincFresnelBase);
+    beamShaderProgram_->setUniformValue("fresnelRange", kSincFresnelRange);
+    beamShaderProgram_->setUniformValue("rimLow", kSincRimLow);
+    beamShaderProgram_->setUniformValue("rimHigh", kSincRimHigh);
+    beamShaderProgram_->setUniformValue("rimStrength", kSincRimStrength);
+    beamShaderProgram_->setUniformValue("intensityAlphaMin", kSincIntensityAlphaMin);
+    beamShaderProgram_->setUniformValue("opacityMult", kSincOpacityMult);
+    beamShaderProgram_->setUniformValue("alphaMin", kSincAlphaMin);
+    beamShaderProgram_->setUniformValue("alphaMax", kSincAlphaMax);
+
     // Bind VAO and draw
     beamVAO_.bind();
     glBindBuffer(GL_ARRAY_BUFFER, vboId_);
@@ -525,7 +546,6 @@ void SincBeam::render(QOpenGLShaderProgram* program, const QMatrix4x4& projectio
 
     // Restore previous OpenGL state
     glDepthMask(depthMaskPrevious);
-    glDisable(GL_CULL_FACE);
     glDisable(GL_STENCIL_TEST);
     if (!blendPrevious) {
         glDisable(GL_BLEND);

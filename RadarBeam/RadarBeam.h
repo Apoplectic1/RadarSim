@@ -116,6 +116,15 @@ protected:
     std::string_view beamVertexShaderSource_;
     std::string_view beamFragmentShaderSource_;
 
+    // Visibility constants (set by derived classes, used by shader)
+    float visFresnelBase_ = 0.1f;
+    float visFresnelRange_ = 0.2f;
+    float visRimLow_ = 0.6f;
+    float visRimHigh_ = 0.95f;
+    float visRimStrength_ = 0.1f;
+    float visAlphaMin_ = 0.03f;
+    float visAlphaMax_ = 0.6f;
+
     // Helper methods
     virtual void createBeamGeometry();
     virtual void setupShaders();

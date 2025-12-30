@@ -96,6 +96,11 @@ private:
     QAction* phasedBeamAction_ = nullptr;
     QAction* sincBeamAction_ = nullptr;
 
+    // Visibility toggle actions (for syncing checked state)
+    QAction* toggleAxesAction_ = nullptr;
+    QAction* toggleSphereAction_ = nullptr;
+    QAction* toggleGridAction_ = nullptr;
+
     // Helper methods
     void syncBeamTypeMenuToController();
     QVector3D sphericalToCartesian(float r, float thetaDeg, float phiDeg);

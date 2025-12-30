@@ -834,6 +834,11 @@ void RadarSim::readSettingsFromScene() {
         appSettings_->beam.opacity = beam->getBeamOpacity();
         appSettings_->beam.footprintOnly = beam->isFootprintOnly();
     }
+
+    // Read visibility settings
+    appSettings_->scene.showAxes = radarSceneView_->areAxesVisible();
+    appSettings_->scene.showSphere = radarSceneView_->isSphereVisible();
+    appSettings_->scene.showGrid = radarSceneView_->areGridLinesVisible();
 }
 
 void RadarSim::applySettingsToScene() {
@@ -959,7 +964,12 @@ void RadarSim::applySettingsToScene() {
         beamTypeComboBox_->blockSignals(false);
     }
 
-    // Sync context menu checkmarks with beam controller state
+    // Apply visibility settings
+    radarSceneView_->setAxesVisible(appSettings_->scene.showAxes);
+    radarSceneView_->setSphereVisible(appSettings_->scene.showSphere);
+    radarSceneView_->setGridLinesVisible(appSettings_->scene.showGrid);
+
+    // Sync context menu checkmarks with controller state (after visibility is applied)
     radarSceneView_->syncBeamMenu();
 
     radarSceneView_->updateScene();

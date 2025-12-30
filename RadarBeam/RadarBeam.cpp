@@ -19,7 +19,15 @@ RadarBeam::RadarBeam(float sphereRadius, float beamWidthDegrees)
 	visible_(true),
 	beamLengthFactor_(1.0f), // Default to full sphere diameter
 	beamDirection_(BeamDirection::ToOrigin),
-	customDirection_(0.0f, 0.0f, 0.0f)
+	customDirection_(0.0f, 0.0f, 0.0f),
+	// Initialize visibility constants with Conical defaults
+	visFresnelBase_(kConicalFresnelBase),
+	visFresnelRange_(kConicalFresnelRange),
+	visRimLow_(kConicalRimLow),
+	visRimHigh_(kConicalRimHigh),
+	visRimStrength_(kConicalRimStrength),
+	visAlphaMin_(kConicalAlphaMin),
+	visAlphaMax_(kConicalAlphaMax)
 {
 	// Vertex shader for beam
 	beamVertexShaderSource_ = R"(
@@ -61,6 +69,19 @@ RadarBeam::RadarBeam(float sphereRadius, float beamWidthDegrees)
 		uniform vec3 beamAxis;
 		uniform float beamWidthRad;
 		uniform int numRings;  // For correct UV mapping
+
+		// Footprint-only mode
+		uniform bool footprintOnly;
+		uniform float sphereRadius;
+
+		// Visibility constants (passed from C++)
+		uniform float fresnelBase;
+		uniform float fresnelRange;
+		uniform float rimLow;
+		uniform float rimHigh;
+		uniform float rimStrength;
+		uniform float alphaMin;
+		uniform float alphaMax;
 
 		out vec4 FragColor;
 
@@ -105,6 +126,15 @@ RadarBeam::RadarBeam(float sphereRadius, float beamWidthDegrees)
 		}
 
 		void main() {
+			// Footprint-only mode: only show fragments on/near the sphere surface
+			if (footprintOnly) {
+				float distFromOrigin = length(LocalPos);
+				float surfaceThreshold = sphereRadius * 0.05;  // 5% tolerance
+				if (distFromOrigin < sphereRadius - surfaceThreshold) {
+					discard;  // Fragment is inside sphere, not on surface
+				}
+			}
+
 			// GPU shadow map lookup - discard fragments where target blocks the beam
 			// Use LocalPos (untransformed) to match ray tracing coordinate system
 			if (gpuShadowEnabled) {
@@ -128,18 +158,18 @@ RadarBeam::RadarBeam(float sphereRadius, float beamWidthDegrees)
 			vec3 norm = normalize(Normal);
 			vec3 viewDir = normalize(viewPos - FragPos);
 
-			// Very subtle Fresnel effect
-			float fresnel = 0.1 + 0.2 * pow(1.0 - abs(dot(norm, viewDir)), 2.0);
+			// Fresnel effect using constants
+			float fresnel = fresnelBase + fresnelRange * pow(1.0 - abs(dot(norm, viewDir)), 2.0);
 
-			// Minimal rim lighting
+			// Rim lighting using constants
 			float rim = 1.0 - max(dot(norm, viewDir), 0.0);
-			rim = smoothstep(0.6, 0.95, rim);
+			rim = smoothstep(rimLow, rimHigh, rim);
 
-			// Final color with further reduced opacity
-			vec4 finalColor = vec4(beamColor, opacity * (fresnel + rim * 0.1));
+			// Final color with configurable opacity
+			vec4 finalColor = vec4(beamColor, opacity * (fresnel + rim * rimStrength));
 
-			// Very low minimum opacity for subtle appearance
-			finalColor.a = clamp(finalColor.a, 0.03, 0.6);
+			// Clamp alpha using constants
+			finalColor.a = clamp(finalColor.a, alphaMin, alphaMax);
 
 			FragColor = finalColor;
 		}
@@ -342,12 +372,13 @@ void RadarBeam::render(QOpenGLShaderProgram* program, const QMatrix4x4& projecti
 	glDepthFunc(GL_LESS);
 	glDepthMask(GL_FALSE);
 
-	// No stencil test - shadow occlusion handled via fragment shader cone test
-	glDisable(GL_STENCIL_TEST);
-
-	// Enable face culling - only render front faces of beam cone
+	// Face culling for Conical/PhasedArray (SincBeam overrides this)
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
+
+	// No stencil test - shadow occlusion handled via fragment shader cone test
+	glDisable(GL_STENCIL_TEST);
+	glDisable(GL_POLYGON_OFFSET_FILL);
 
 	// Use the beam shader program
 	beamShaderProgram_->bind();
@@ -370,6 +401,19 @@ void RadarBeam::render(QOpenGLShaderProgram* program, const QMatrix4x4& projecti
 	beamShaderProgram_->setUniformValue("beamAxis", beamAxis_);
 	beamShaderProgram_->setUniformValue("beamWidthRad", beamWidthRadians_);
 	beamShaderProgram_->setUniformValue("numRings", numRings_);
+
+	// Set footprint-only mode uniforms
+	beamShaderProgram_->setUniformValue("footprintOnly", footprintOnly_);
+	beamShaderProgram_->setUniformValue("sphereRadius", sphereRadius_);
+
+	// Set visibility constants from member variables (set per beam type)
+	beamShaderProgram_->setUniformValue("fresnelBase", visFresnelBase_);
+	beamShaderProgram_->setUniformValue("fresnelRange", visFresnelRange_);
+	beamShaderProgram_->setUniformValue("rimLow", visRimLow_);
+	beamShaderProgram_->setUniformValue("rimHigh", visRimHigh_);
+	beamShaderProgram_->setUniformValue("rimStrength", visRimStrength_);
+	beamShaderProgram_->setUniformValue("alphaMin", visAlphaMin_);
+	beamShaderProgram_->setUniformValue("alphaMax", visAlphaMax_);
 
 	// Bind shadow map texture if enabled
 	if (gpuShadowEnabled_ && gpuShadowMapTexture_ != 0) {

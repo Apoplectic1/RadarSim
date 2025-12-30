@@ -83,6 +83,35 @@ constexpr float kSpecularStrength = 0.5f;       // Specular highlight strength
 constexpr float kShininess = 32.0f;             // Specular shininess exponent
 constexpr float kNormalBlendFactor = 0.25f;     // Normal blending factor for phased array beam
 
+// Conical Beam Visibility Constants
+constexpr float kConicalFresnelBase = 0.1f;     // Base fresnel for Conical beam
+constexpr float kConicalFresnelRange = 0.2f;    // Fresnel range multiplier
+constexpr float kConicalRimLow = 0.6f;          // Rim lighting smoothstep low
+constexpr float kConicalRimHigh = 0.95f;        // Rim lighting smoothstep high
+constexpr float kConicalRimStrength = 0.1f;     // Rim contribution to final alpha
+constexpr float kConicalAlphaMin = 0.03f;       // Minimum final alpha clamp
+constexpr float kConicalAlphaMax = 0.6f;        // Maximum final alpha clamp
+
+// Phased Array Beam Visibility Constants
+constexpr float kPhasedFresnelBase = 0.1f;      // Base fresnel for Phased Array beam
+constexpr float kPhasedFresnelRange = 0.2f;     // Fresnel range multiplier
+constexpr float kPhasedRimLow = 0.6f;           // Rim lighting smoothstep low
+constexpr float kPhasedRimHigh = 0.95f;         // Rim lighting smoothstep high
+constexpr float kPhasedRimStrength = 0.1f;      // Rim contribution to final alpha
+constexpr float kPhasedAlphaMin = 0.03f;        // Minimum final alpha clamp
+constexpr float kPhasedAlphaMax = 0.6f;         // Maximum final alpha clamp
+
+// SincBeam Visibility Constants
+constexpr float kSincFresnelBase = 0.6f;        // Base fresnel for Sinc beam
+constexpr float kSincFresnelRange = 0.4f;       // Fresnel range multiplier
+constexpr float kSincRimLow = 0.3f;             // Rim lighting smoothstep low
+constexpr float kSincRimHigh = 0.7f;            // Rim lighting smoothstep high
+constexpr float kSincRimStrength = 0.4f;        // Rim contribution to final alpha
+constexpr float kSincIntensityAlphaMin = 0.5f;  // Minimum intensity-based alpha
+constexpr float kSincOpacityMult = 1.5f;        // Opacity multiplier for beam visibility
+constexpr float kSincAlphaMin = 0.3f;           // Minimum final alpha clamp
+constexpr float kSincAlphaMax = 1.0f;           // Maximum final alpha clamp
+
 // =============================================================================
 // Shadow Map Configuration
 // =============================================================================

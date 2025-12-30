@@ -417,6 +417,23 @@ void RadarGLWidget::updateBeamPosition() {
 
 void RadarGLWidget::syncBeamMenu() {
 	syncBeamTypeMenuToController();
+
+	// Sync visibility toggles with current state
+	if (toggleAxesAction_ && sphereRenderer_) {
+		toggleAxesAction_->blockSignals(true);
+		toggleAxesAction_->setChecked(sphereRenderer_->areAxesVisible());
+		toggleAxesAction_->blockSignals(false);
+	}
+	if (toggleSphereAction_ && sphereRenderer_) {
+		toggleSphereAction_->blockSignals(true);
+		toggleSphereAction_->setChecked(sphereRenderer_->isSphereVisible());
+		toggleSphereAction_->blockSignals(false);
+	}
+	if (toggleGridAction_ && sphereRenderer_) {
+		toggleGridAction_->blockSignals(true);
+		toggleGridAction_->setChecked(sphereRenderer_->areGridLinesVisible());
+		toggleGridAction_->blockSignals(false);
+	}
 }
 
 void RadarGLWidget::setRadius(float radius) {
@@ -516,18 +533,27 @@ void RadarGLWidget::setupContextMenu() {
 	connect(resetAction, &QAction::triggered, [this]() {
 		if (cameraController_) {
 			cameraController_->resetView();
-			update();
 		}
+		// Reset visibility toggles to default (all visible)
+		if (sphereRenderer_) {
+			sphereRenderer_->setAxesVisible(true);
+			sphereRenderer_->setSphereVisible(true);
+			sphereRenderer_->setGridLinesVisible(true);
+		}
+		if (toggleAxesAction_) toggleAxesAction_->setChecked(true);
+		if (toggleSphereAction_) toggleSphereAction_->setChecked(true);
+		if (toggleGridAction_) toggleGridAction_->setChecked(true);
+		update();
 		});
 
 	// Add separator
 	contextMenu_->addSeparator();
 
 	// Toggle axes
-	QAction* toggleAxesAction = contextMenu_->addAction("Toggle Axes");
-	toggleAxesAction->setCheckable(true);
-	toggleAxesAction->setChecked(true);
-	connect(toggleAxesAction, &QAction::toggled, [this](bool checked) {
+	toggleAxesAction_ = contextMenu_->addAction("Toggle Axes");
+	toggleAxesAction_->setCheckable(true);
+	toggleAxesAction_->setChecked(true);
+	connect(toggleAxesAction_, &QAction::toggled, [this](bool checked) {
 		if (sphereRenderer_) {
 			sphereRenderer_->setAxesVisible(checked);
 			update();
@@ -535,10 +561,10 @@ void RadarGLWidget::setupContextMenu() {
 		});
 
 	// Toggle sphere
-	QAction* toggleSphereAction = contextMenu_->addAction("Toggle Sphere");
-	toggleSphereAction->setCheckable(true);
-	toggleSphereAction->setChecked(true);
-	connect(toggleSphereAction, &QAction::toggled, [this](bool checked) {
+	toggleSphereAction_ = contextMenu_->addAction("Toggle Sphere");
+	toggleSphereAction_->setCheckable(true);
+	toggleSphereAction_->setChecked(true);
+	connect(toggleSphereAction_, &QAction::toggled, [this](bool checked) {
 		if (sphereRenderer_) {
 			sphereRenderer_->setSphereVisible(checked);
 			update();
@@ -546,10 +572,10 @@ void RadarGLWidget::setupContextMenu() {
 		});
 
 	// Toggle grid lines
-	QAction* toggleGridLinesAction = contextMenu_->addAction("Toggle Grid");
-	toggleGridLinesAction->setCheckable(true);
-	toggleGridLinesAction->setChecked(true);
-	connect(toggleGridLinesAction, &QAction::toggled, [this](bool checked) {
+	toggleGridAction_ = contextMenu_->addAction("Toggle Grid");
+	toggleGridAction_->setCheckable(true);
+	toggleGridAction_->setChecked(true);
+	connect(toggleGridAction_, &QAction::toggled, [this](bool checked) {
 		if (sphereRenderer_) {
 			sphereRenderer_->setGridLinesVisible(checked);
 			update();

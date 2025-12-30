@@ -18,6 +18,15 @@ PhasedArrayBeam::PhasedArrayBeam(float sphereRadius, float mainLobeWidthDegrees)
     showSideLobes_(true),
     sideLobeIntensity_(0.3f)
 {
+    // Override visibility constants with Phased Array values
+    visFresnelBase_ = kPhasedFresnelBase;
+    visFresnelRange_ = kPhasedFresnelRange;
+    visRimLow_ = kPhasedRimLow;
+    visRimHigh_ = kPhasedRimHigh;
+    visRimStrength_ = kPhasedRimStrength;
+    visAlphaMin_ = kPhasedAlphaMin;
+    visAlphaMax_ = kPhasedAlphaMax;
+
     // Default pattern function (uniform)
     patternFunction_ = [](float azimuth, float elevation) {
         return 1.0f;  // Uniform gain
