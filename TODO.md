@@ -34,28 +34,70 @@ No critical issues at present. GPU ray-traced shadows replaced the problematic s
 - [ ] Calculate actual RCS values from hit geometry (currently just visualization)
 - [ ] Add RCS value display in UI (dBsm readout)
 - [ ] Add more target shapes (Pyramid, Sphere, Ship)
+- [ ] Implement ModelManager intersection testing (currently placeholder - impacts accuracy)
 
 ### Medium Priority
 
-- [ ] Diffraction effects for realistic radar simulation
+- [ ] Diffraction effects for realistic radar simulation (significant RCS impact for certain geometries)
 - [ ] Material properties for targets (reflectivity, absorption)
 - [ ] Heat map persistence/settings save
+- [ ] RCS Validation: Compare calculated RCS against known analytical solutions (sphere, cylinder, flat plate)
 
 ### Low Priority / Technical Debt
 
 - [x] Remove legacy SphereWidget (keep only component-based RadarGLWidget)
 - [x] Consolidate magic numbers into Constants.h (Colors, Lighting, View, UI namespaces)
 - [ ] Unify memory management (raw pointers vs std::shared_ptr)
-- [ ] Implement ModelManager intersection testing (currently placeholder)
 - [ ] Add unit test coverage
 - [x] Remove excessive qDebug() logging
+
+## Important Enhancements
+
+### Beam Steering / Scanning
+
+- [ ] Add controls for azimuth and elevation angles of the beam
+- [ ] Implement basic scanning patterns (sector scan, raster scan)
+- [ ] Animate beam scanning with configurable rate
+
+### Range Resolution
+
+- [ ] Define and implement range resolution limit
+- [ ] Handle closely spaced reflecting surfaces appropriately
+
+### Performance Optimization
+
+- [ ] Profile application to identify performance bottlenecks
+- [ ] Optimize ray tracing for complex target geometries
+- [ ] Consider LOD (Level of Detail) for distant targets
+
+### Radar Configuration
+
+- [ ] Allow radar settings to be configured (frequency, pulse width, PRF)
+- [ ] Save/load radar configuration profiles
+- [ ] Display radar parameters in UI
+
+### Documentation
+
+- [ ] Expand architecture documentation
+- [ ] Document RCS calculation methods and algorithms
+- [ ] Document public API for each component
+- [ ] Add inline code comments for complex algorithms
+
+### Testing & Validation
+
+- [ ] Define test scenarios for RCS accuracy verification
+- [ ] Create reference test cases with known analytical solutions
+- [ ] Implement automated regression tests
+- [ ] Add error handling and logging throughout application
 
 ## UI Improvements
 
 - [x] Tightened vertical spacing in control group boxes
 - [x] Main window minimum size adjusted (1024x900)
-- [ ] Consider adding target color picker
-- [ ] Consider adding beam color/opacity controls to UI (currently only via code)
+- [ ] Target color picker
+- [ ] Beam color/opacity controls in UI (currently only via code)
+- [ ] RCS results panel with numerical readouts
+- [ ] Radar configuration panel
 
 ## Architecture Notes
 
