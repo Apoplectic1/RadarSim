@@ -135,6 +135,10 @@ void SincBeam::setupShaders() {
         uniform float beamWidthRad;
         uniform int numRings;
 
+        // Footprint-only mode uniforms
+        uniform bool footprintOnly;
+        uniform float sphereRadius;
+
         out vec4 FragColor;
 
         // Convert LOCAL position to shadow map UV coordinates
@@ -166,6 +170,15 @@ void SincBeam::setupShaders() {
         }
 
         void main() {
+            // Footprint-only mode: only show fragments on/near the sphere surface
+            if (footprintOnly) {
+                float distFromOrigin = length(LocalPos);
+                float surfaceThreshold = sphereRadius * 0.05;  // 5% tolerance
+                if (distFromOrigin < sphereRadius - surfaceThreshold) {
+                    discard;  // Fragment is inside sphere, not on surface
+                }
+            }
+
             // Track intersection highlight
             float intersectionGlow = 0.0;
 
@@ -492,6 +505,10 @@ void SincBeam::render(QOpenGLShaderProgram* program, const QMatrix4x4& projectio
         glBindTexture(GL_TEXTURE_2D, gpuShadowMapTexture_);
         beamShaderProgram_->setUniformValue("shadowMap", 0);
     }
+
+    // Set footprint-only mode uniforms
+    beamShaderProgram_->setUniformValue("footprintOnly", footprintOnly_);
+    beamShaderProgram_->setUniformValue("sphereRadius", sphereRadius_);
 
     // Bind VAO and draw
     beamVAO_.bind();

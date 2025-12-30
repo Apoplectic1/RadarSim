@@ -128,18 +128,18 @@ RadarBeam::RadarBeam(float sphereRadius, float beamWidthDegrees)
 			vec3 norm = normalize(Normal);
 			vec3 viewDir = normalize(viewPos - FragPos);
 
-			// Improved Fresnel effect that's more consistent during rotation
-			float fresnel = 0.3 + 0.7 * pow(1.0 - abs(dot(norm, viewDir)), 2.0);
+			// Very subtle Fresnel effect
+			float fresnel = 0.1 + 0.2 * pow(1.0 - abs(dot(norm, viewDir)), 2.0);
 
-			// Add rim lighting for better edge definition
+			// Minimal rim lighting
 			float rim = 1.0 - max(dot(norm, viewDir), 0.0);
-			rim = smoothstep(0.4, 0.8, rim);
+			rim = smoothstep(0.6, 0.95, rim);
 
-			// Final color with opacity
-			vec4 finalColor = vec4(beamColor, opacity * (fresnel + rim * 0.3));
+			// Final color with further reduced opacity
+			vec4 finalColor = vec4(beamColor, opacity * (fresnel + rim * 0.1));
 
-			// Ensure a minimum opacity to prevent the beam from disappearing
-			finalColor.a = clamp(finalColor.a, 0.1, 1.0);
+			// Very low minimum opacity for subtle appearance
+			finalColor.a = clamp(finalColor.a, 0.03, 0.6);
 
 			FragColor = finalColor;
 		}
@@ -451,6 +451,10 @@ void RadarBeam::setOpacity(float opacity) {
 
 void RadarBeam::setVisible(bool visible) {
 	visible_ = visible;
+}
+
+void RadarBeam::setFootprintOnly(bool footprintOnly) {
+	footprintOnly_ = footprintOnly;
 }
 
 void RadarBeam::setBeamLength(float length) {

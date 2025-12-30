@@ -56,6 +56,7 @@ public:
     void setColor(const QVector3D& color);
     void setOpacity(float opacity);
     void setVisible(bool visible);
+    void setFootprintOnly(bool footprintOnly);
     void setBeamLength(float length);  // Length as fraction of sphere diameter
 
     // GPU shadow map (from RCS compute)
@@ -73,6 +74,7 @@ public:
     QVector3D getColor() const { return color_; }
     float getOpacity() const { return opacity_; }
     bool isVisible() const { return visible_; }
+    bool isFootprintOnly() const { return footprintOnly_; }
     float getBeamLength() const { return beamLengthFactor_; }
     const std::vector<float>& getVertices() const { return vertices_; }
 
@@ -92,6 +94,7 @@ protected:
     QVector3D color_;
     float opacity_;
     bool visible_;
+    bool footprintOnly_ = false;  // Show only sphere surface intersection
     float beamLengthFactor_; // How far the beam extends (1.0 = to opposite side)
     BeamDirection beamDirection_;
     QVector3D customDirection_;

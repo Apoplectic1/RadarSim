@@ -12,6 +12,7 @@ struct BeamConfig {
     float opacity = 0.3f;
     QVector3D color{1.0f, 0.5f, 0.0f};
     bool visible = true;
+    bool footprintOnly = false; // Show only sphere surface footprint (hide cone)
     int direction = 0;          // 0=ToOrigin, 1=Away, 2=Custom
 
     void loadFromJson(const QJsonObject& obj) {
@@ -19,6 +20,7 @@ struct BeamConfig {
         beamWidth = static_cast<float>(obj.value("width").toDouble(beamWidth));
         opacity = static_cast<float>(obj.value("opacity").toDouble(opacity));
         visible = obj.value("visible").toBool(visible);
+        footprintOnly = obj.value("footprintOnly").toBool(footprintOnly);
         direction = obj.value("direction").toInt(direction);
 
         if (obj.contains("color")) {
@@ -39,6 +41,7 @@ struct BeamConfig {
         obj["width"] = static_cast<double>(beamWidth);
         obj["opacity"] = static_cast<double>(opacity);
         obj["visible"] = visible;
+        obj["footprintOnly"] = footprintOnly;
         obj["direction"] = direction;
         obj["color"] = QJsonArray{
             static_cast<double>(color.x()),

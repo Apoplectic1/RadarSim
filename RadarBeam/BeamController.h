@@ -41,6 +41,9 @@ public:
     void setBeamVisible(bool visible);
     bool isBeamVisible() const;
 
+    void setFootprintOnly(bool footprintOnly);
+    bool isFootprintOnly() const;
+
     // Beam position
     void updateBeamPosition(const QVector3D& position);
     void setSphereRadius(float radius);

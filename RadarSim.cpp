@@ -753,14 +753,15 @@ void RadarSim::onDeleteProfile() {
 void RadarSim::onResetToDefaults() {
     QMessageBox::StandardButton reply = QMessageBox::question(this,
         "Reset to Defaults",
-        "Are you sure you want to reset view settings to their default values?",
+        "Are you sure?",
         QMessageBox::Yes | QMessageBox::No);
 
     if (reply == QMessageBox::Yes) {
-        // Preserve beam type during reset
+        // Preserve beam type during reset, but show full beam
         int savedBeamType = appSettings_->beam.beamType;
         appSettings_->resetToDefaults();
         appSettings_->beam.beamType = savedBeamType;
+        appSettings_->beam.footprintOnly = false;  // Reset shows full beam
         applySettingsToScene();
     }
 }
@@ -831,6 +832,7 @@ void RadarSim::readSettingsFromScene() {
         appSettings_->beam.beamType = static_cast<int>(beam->getBeamType());
         appSettings_->beam.beamWidth = beam->getBeamWidth();
         appSettings_->beam.opacity = beam->getBeamOpacity();
+        appSettings_->beam.footprintOnly = beam->isFootprintOnly();
     }
 }
 
@@ -947,6 +949,7 @@ void RadarSim::applySettingsToScene() {
         beam->setBeamType(static_cast<BeamType>(appSettings_->beam.beamType));
         beam->setBeamWidth(appSettings_->beam.beamWidth);
         beam->setBeamOpacity(appSettings_->beam.opacity);
+        beam->setFootprintOnly(appSettings_->beam.footprintOnly);
     }
 
     // Update beam type combo box UI
@@ -955,6 +958,9 @@ void RadarSim::applySettingsToScene() {
         beamTypeComboBox_->setCurrentIndex(appSettings_->beam.beamType);
         beamTypeComboBox_->blockSignals(false);
     }
+
+    // Sync context menu checkmarks with beam controller state
+    radarSceneView_->syncBeamMenu();
 
     radarSceneView_->updateScene();
 }

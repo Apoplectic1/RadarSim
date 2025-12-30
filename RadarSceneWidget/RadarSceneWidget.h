@@ -54,6 +54,9 @@ public:
     // Force update of the OpenGL scene
     void updateScene();
 
+    // Sync beam menu checkmarks with controller state
+    void syncBeamMenu();
+
 signals:
     void radarPositionChanged(float radius, float theta, float phi);
     void beamTypeChanged(BeamType type);

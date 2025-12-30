@@ -40,6 +40,9 @@ public:
     float getTheta() const { return theta_; }
     float getPhi() const { return phi_; }
 
+    // Sync context menu checkmarks with controller state
+    void syncBeamMenu();
+
     // Event handlers - override from QOpenGLWidget
     void mousePressEvent(QMouseEvent* event) override;
     void mouseMoveEvent(QMouseEvent* event) override;
@@ -87,7 +90,8 @@ private:
     // Context menu
     QMenu* contextMenu_ = nullptr;
 
-    // Beam type menu actions (for syncing checked state)
+    // Beam menu actions (for syncing checked state)
+    QAction* showBeamAction_ = nullptr;
     QAction* conicalBeamAction_ = nullptr;
     QAction* phasedBeamAction_ = nullptr;
     QAction* sincBeamAction_ = nullptr;

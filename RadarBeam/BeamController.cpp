@@ -131,6 +131,16 @@ bool BeamController::isBeamVisible() const {
     return showBeam_;
 }
 
+void BeamController::setFootprintOnly(bool footprintOnly) {
+    if (radarBeam_) {
+        radarBeam_->setFootprintOnly(footprintOnly);
+    }
+}
+
+bool BeamController::isFootprintOnly() const {
+    return radarBeam_ ? radarBeam_->isFootprintOnly() : false;
+}
+
 void BeamController::updateBeamPosition(const QVector3D& position) {
     currentPosition_ = position;  // Store position for beam recreation
     if (radarBeam_) {
