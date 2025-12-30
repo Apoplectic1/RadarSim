@@ -1,5 +1,5 @@
 // ---- SincBeam.cpp ----
-// Sinc² beam pattern with intensity falloff and side lobes
+// Airy beam pattern (circular aperture) with intensity falloff and side lobes
 
 #include "SincBeam.h"
 #include "Constants.h"
@@ -7,6 +7,9 @@
 #include <cmath>
 
 using namespace RadarSim::Constants;
+
+// First null of Bessel J1 occurs at x ≈ 3.8317
+constexpr float kAiryFirstNull = 3.8317f;
 
 SincBeam::SincBeam(float sphereRadius, float beamWidthDegrees)
     : RadarBeam(sphereRadius, beamWidthDegrees)
@@ -19,6 +22,57 @@ SincBeam::~SincBeam() {
     // Base class destructor handles cleanup
 }
 
+// Bessel function J₁(x) - polynomial approximation from Numerical Recipes
+float SincBeam::besselJ1(float x) {
+    float ax = std::abs(x);
+
+    // For very small x, J1(x) ≈ x/2
+    if (ax < 0.001f) {
+        return x * 0.5f;
+    }
+
+    if (ax < 8.0f) {
+        // Polynomial approximation for |x| < 8
+        float y = x * x;
+        float ans1 = x * (72362614232.0f + y * (-7895059235.0f + y * (242396853.1f
+            + y * (-2972611.439f + y * (15704.48260f + y * (-30.16036606f))))));
+        float ans2 = 144725228442.0f + y * (2300535178.0f + y * (18583304.74f
+            + y * (99447.43394f + y * (376.9991397f + y * 1.0f))));
+        return ans1 / ans2;
+    } else {
+        // Asymptotic approximation for |x| >= 8
+        float z = 8.0f / ax;
+        float y = z * z;
+        float xx = ax - 2.356194491f;  // x - 3π/4
+        float ans1 = 1.0f + y * (0.183105e-2f + y * (-0.3516396496e-4f + y * (0.2457520174e-5f
+            + y * (-0.240337019e-6f))));
+        float ans2 = 0.04687499995f + y * (-0.2002690873e-3f + y * (0.8449199096e-5f
+            + y * (-0.88228987e-6f + y * 0.105787412e-6f)));
+        float ans = std::sqrt(0.636619772f / ax) * (std::cos(xx) * ans1 - z * std::sin(xx) * ans2);
+        return (x < 0.0f) ? -ans : ans;
+    }
+}
+
+// Airy pattern: [2·J₁(x)/x]² where x = kAiryFirstNull * θ/θmax
+// This places the first null at θ = θmax
+float SincBeam::getAiryIntensity(float theta, float thetaMax) {
+    if (thetaMax <= 0.0f) return 1.0f;
+
+    // Scale so first null occurs at theta = thetaMax
+    float x = kAiryFirstNull * theta / thetaMax;
+
+    // At center (x=0), Airy pattern = 1.0
+    if (std::abs(x) < 0.0001f) {
+        return 1.0f;
+    }
+
+    // Airy pattern: [2·J₁(x)/x]²
+    float j1 = besselJ1(x);
+    float airy = 2.0f * j1 / x;
+    return airy * airy;
+}
+
+// Legacy sinc² calculation (kept for RCS ray weighting compatibility)
 float SincBeam::getSincSquaredIntensity(float theta, float thetaMax) {
     if (thetaMax <= 0.0f) return 1.0f;
 
@@ -112,6 +166,9 @@ void SincBeam::setupShaders() {
         }
 
         void main() {
+            // Track intersection highlight
+            float intersectionGlow = 0.0;
+
             // GPU shadow map lookup
             if (gpuShadowEnabled) {
                 vec2 uv = worldToShadowMapUV(LocalPos);
@@ -119,33 +176,52 @@ void SincBeam::setupShaders() {
                     float hitDistance = texture(shadowMap, uv).r;
                     if (hitDistance > 0.0) {
                         float fragDistance = length(LocalPos - radarPos);
+
+                        // Discard fragments behind the target
                         if (fragDistance > hitDistance) {
                             discard;
+                        }
+
+                        // Intersection highlight: glow when close to hit surface
+                        // Highlight zone is ~5% of hit distance (adjustable)
+                        float highlightZone = hitDistance * 0.08;
+                        float distToHit = hitDistance - fragDistance;
+                        if (distToHit < highlightZone) {
+                            // Smooth falloff from 1.0 at surface to 0.0 at zone edge
+                            intersectionGlow = 1.0 - (distToHit / highlightZone);
+                            intersectionGlow = intersectionGlow * intersectionGlow; // Quadratic for sharper edge
                         }
                     }
                 }
             }
 
-            // Intensity-based color interpolation
-            // Main lobe (Intensity > 0.1): use beamColor
-            // Side lobes (Intensity < 0.1): blend toward sideLobeColor
-            float lobeBlend = smoothstep(0.0, 0.15, Intensity);
-            vec3 intensityColor = mix(sideLobeColor, beamColor, lobeBlend);
+            // Intensity-based color - use intensity directly for brightness
+            // Nulls (Intensity ~ 0) should appear dark, peaks should be bright
+            // Use pow(x, 0.4) for brighter overall appearance while preserving pattern
+            float brightnessFactor = pow(Intensity, 0.4);
+
+            // Color: interpolate from dark (nulls) to beamColor (peaks)
+            // Boost the low end for better visibility
+            vec3 intensityColor = mix(sideLobeColor * 0.5, beamColor, brightnessFactor);
+
+            // Apply intersection highlight - bright white/yellow glow at target surface
+            vec3 highlightColor = vec3(1.0, 0.95, 0.7); // Warm white highlight
+            intensityColor = mix(intensityColor, highlightColor, intersectionGlow * 0.8);
 
             // Fresnel effect for viewing angle
             vec3 norm = normalize(Normal);
             vec3 viewDir = normalize(viewPos - FragPos);
-            float fresnel = 0.3 + 0.7 * pow(1.0 - abs(dot(norm, viewDir)), 2.0);
+            float fresnel = 0.4 + 0.6 * pow(1.0 - abs(dot(norm, viewDir)), 2.0);
 
             // Rim lighting for edge visibility
             float rim = 1.0 - abs(dot(norm, viewDir));
             rim = smoothstep(0.4, 0.8, rim);
 
-            // Final alpha modulated by intensity
-            // Ensure some minimum visibility even for side lobes
-            float intensityAlpha = max(Intensity, 0.02);
+            // Final alpha: higher minimum for better visibility
+            // Boost alpha at intersection for more visible highlight
+            float intensityAlpha = mix(0.35, 1.0, pow(Intensity, 0.4));
             float finalAlpha = opacity * (fresnel + rim * 0.3) * intensityAlpha;
-            finalAlpha = clamp(finalAlpha, 0.01, 1.0);
+            finalAlpha = clamp(finalAlpha + intersectionGlow * 0.4, 0.15, 1.0);
 
             FragColor = vec4(intensityColor, finalAlpha);
         }
@@ -213,12 +289,22 @@ void SincBeam::generateSincBeamVertices(const QVector3D& apex,
 
     // Generate concentric rings from center to extended edge
     for (int ring = 1; ring <= radialSegments; ++ring) {
-        float t = float(ring) / float(radialSegments);
+        float t = float(ring) / float(radialSegments);  // 0 to 1 from center to edge
         float ringRadius = extendedRadius * t;
 
         // Calculate angle from beam axis at this radius
         float theta = atan(ringRadius / length);
-        float intensity = getSincSquaredIntensity(theta, halfAngleRad);
+        float airyIntensity = getAiryIntensity(theta, halfAngleRad);
+
+        // Edge fade: smooth falloff in outer 25% of geometry (3x to 4x main lobe)
+        // This prevents the hard cutoff at the geometry boundary
+        float edgeFade = 1.0f;
+        if (t > 0.75f) {
+            edgeFade = 1.0f - (t - 0.75f) / 0.25f;  // Linear fade from 1 to 0
+            edgeFade = edgeFade * edgeFade;  // Quadratic for smoother fade
+        }
+
+        float intensity = airyIntensity * edgeFade;
 
         for (int seg = 0; seg < azimuthSegments; ++seg) {
             float azimuth = kTwoPiF * float(seg) / float(azimuthSegments);

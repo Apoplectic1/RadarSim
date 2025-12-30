@@ -118,6 +118,14 @@ void RadarGLWidget::initialize(SphereRenderer* sphereRenderer, BeamController* b
 			this, QOverload<>::of(&QWidget::update));
 	}
 
+	// Connect beam type changed signal and sync menu checkmarks
+	if (beamController_) {
+		connect(beamController_.get(), &BeamController::beamTypeChanged,
+			this, &RadarGLWidget::syncBeamTypeMenuToController);
+		// Initial sync now that beamController_ exists
+		syncBeamTypeMenuToController();
+	}
+
 	// Enable context menu for right-click
 	setContextMenuPolicy(Qt::CustomContextMenu);
 	connect(this, &QWidget::customContextMenuRequested,
@@ -366,6 +374,29 @@ void RadarGLWidget::paintGL() {
 	}
 }
 
+void RadarGLWidget::syncBeamTypeMenuToController() {
+	if (!beamController_) return;
+
+	BeamType currentType = beamController_->getBeamType();
+
+	// Block signals to prevent triggering setBeamType again
+	if (conicalBeamAction_) {
+		conicalBeamAction_->blockSignals(true);
+		conicalBeamAction_->setChecked(currentType == BeamType::Conical);
+		conicalBeamAction_->blockSignals(false);
+	}
+	if (phasedBeamAction_) {
+		phasedBeamAction_->blockSignals(true);
+		phasedBeamAction_->setChecked(currentType == BeamType::Phased);
+		phasedBeamAction_->blockSignals(false);
+	}
+	if (sincBeamAction_) {
+		sincBeamAction_->blockSignals(true);
+		sincBeamAction_->setChecked(currentType == BeamType::Sinc);
+		sincBeamAction_->blockSignals(false);
+	}
+}
+
 void RadarGLWidget::updateBeamPosition() {
 	if (beamController_) {
 		// Convert spherical coordinates to Cartesian
@@ -550,25 +581,27 @@ void RadarGLWidget::setupContextMenu() {
 	// Add beam type submenu
 	QMenu* beamTypeMenu = contextMenu_->addMenu("Beam Type");
 
-	QAction* conicalBeamAction = beamTypeMenu->addAction("Conical");
-	conicalBeamAction->setCheckable(true);
-	conicalBeamAction->setChecked(true);
+	conicalBeamAction_ = beamTypeMenu->addAction("Conical");
+	conicalBeamAction_->setCheckable(true);
 
-	QAction* phasedBeamAction = beamTypeMenu->addAction("Phased Array");
-	phasedBeamAction->setCheckable(true);
+	phasedBeamAction_ = beamTypeMenu->addAction("Phased Array");
+	phasedBeamAction_->setCheckable(true);
 
-	QAction* sincBeamAction = beamTypeMenu->addAction("Sinc Pattern");
-	sincBeamAction->setCheckable(true);
+	sincBeamAction_ = beamTypeMenu->addAction("Sinc Pattern");
+	sincBeamAction_->setCheckable(true);
 
 	// Make them exclusive
 	QActionGroup* beamTypeGroup = new QActionGroup(this);
-	beamTypeGroup->addAction(conicalBeamAction);
-	beamTypeGroup->addAction(phasedBeamAction);
-	beamTypeGroup->addAction(sincBeamAction);
+	beamTypeGroup->addAction(conicalBeamAction_);
+	beamTypeGroup->addAction(phasedBeamAction_);
+	beamTypeGroup->addAction(sincBeamAction_);
 	beamTypeGroup->setExclusive(true);
 
+	// Sync checkmarks with current beam type
+	syncBeamTypeMenuToController();
+
 	// Connect beam type actions
-	connect(conicalBeamAction, &QAction::triggered, [this]() {
+	connect(conicalBeamAction_, &QAction::triggered, [this]() {
 		if (beamController_) {
 			beamController_->setBeamType(BeamType::Conical);
 			beamDirty_ = true;  // Force geometry rebuild with GL context
@@ -576,7 +609,7 @@ void RadarGLWidget::setupContextMenu() {
 		}
 		});
 
-	connect(phasedBeamAction, &QAction::triggered, [this]() {
+	connect(phasedBeamAction_, &QAction::triggered, [this]() {
 		if (beamController_) {
 			beamController_->setBeamType(BeamType::Phased);
 			beamDirty_ = true;  // Force geometry rebuild with GL context
@@ -584,13 +617,16 @@ void RadarGLWidget::setupContextMenu() {
 		}
 		});
 
-	connect(sincBeamAction, &QAction::triggered, [this]() {
+	connect(sincBeamAction_, &QAction::triggered, [this]() {
 		if (beamController_) {
 			beamController_->setBeamType(BeamType::Sinc);
 			beamDirty_ = true;  // Force geometry rebuild with GL context
 			update();
 		}
 		});
+
+	// Note: Signal connection for beamTypeChanged is set up in initialize()
+	// because beamController_ doesn't exist yet when setupContextMenu() runs
 
 	// Add separator before target menu
 	contextMenu_->addSeparator();

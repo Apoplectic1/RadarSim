@@ -117,7 +117,7 @@ constexpr float kGimbalLockThreshold = 0.99f;   // Dot product threshold for gim
 // Sinc Beam Pattern Configuration
 // =============================================================================
 constexpr int kSincBeamNumSideLobes = 3;        // Number of side lobes to render
-constexpr float kSincSideLobeMultiplier = 2.5f; // Geometry extends 2.5x main lobe for side lobes
+constexpr float kSincSideLobeMultiplier = 4.0f; // Geometry extends 4x main lobe for side lobes + edge fade
 constexpr int kSincBeamRadialSegments = 64;     // Radial resolution for intensity gradient
 
 // =============================================================================

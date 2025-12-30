@@ -6,12 +6,12 @@ mcp = FastMCP("gemini")
 
 # UPDATED LINE: Use the specific "002" stable version
 @mcp.tool()
-def ask_gemini(prompt: str, model: str = "gemini-1.5-flash-002") -> str:
+def ask_gemini(prompt: str, model: str = "gemini-pro") -> str:
     """
     Ask Gemini to analyze code.
     Args:
         prompt: The text to analyze.
-        model: "gemini-1.5-flash-002" (stable) or "gemini-2.0-flash-exp" (experimental).
+        model: "gemini-pro".
     """
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:

@@ -7,7 +7,7 @@
 namespace RSConfig {
 
 struct BeamConfig {
-    int beamType = 0;           // 0=Conical, 1=Phased
+    int beamType = 3;           // 0=Conical, 1=Shaped, 2=Phased, 3=Sinc (default)
     float beamWidth = 15.0f;    // degrees
     float opacity = 0.3f;
     QVector3D color{1.0f, 0.5f, 0.0f};

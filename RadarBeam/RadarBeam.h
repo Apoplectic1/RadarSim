@@ -39,7 +39,7 @@ public:
     // Clean up OpenGL resources (call before context is destroyed)
     virtual void cleanup();
 
-    void uploadGeometryToGPU();
+    virtual void uploadGeometryToGPU();
 
     // Core methods
     virtual void initialize();

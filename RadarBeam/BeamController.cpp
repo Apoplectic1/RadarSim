@@ -6,7 +6,7 @@ using namespace RadarSim::Constants;
 
 BeamController::BeamController(QObject* parent)
     : QObject(parent),
-    currentBeamType_(BeamType::Conical),
+    currentBeamType_(BeamType::Sinc),
     sphereRadius_(Defaults::kSphereRadius),
     showBeam_(true)
 {

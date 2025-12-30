@@ -87,7 +87,13 @@ private:
     // Context menu
     QMenu* contextMenu_ = nullptr;
 
+    // Beam type menu actions (for syncing checked state)
+    QAction* conicalBeamAction_ = nullptr;
+    QAction* phasedBeamAction_ = nullptr;
+    QAction* sincBeamAction_ = nullptr;
+
     // Helper methods
+    void syncBeamTypeMenuToController();
     QVector3D sphericalToCartesian(float r, float thetaDeg, float phiDeg);
     void setupContextMenu();
     void updateBeamPosition();

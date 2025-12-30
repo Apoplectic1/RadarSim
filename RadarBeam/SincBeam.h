@@ -1,5 +1,5 @@
 // ---- SincBeam.h ----
-// Sinc² beam pattern with intensity falloff and side lobes
+// Airy beam pattern (circular aperture) with intensity falloff and side lobes
 
 #pragma once
 
@@ -12,10 +12,17 @@ public:
 
     BeamType getBeamType() const override { return BeamType::Sinc; }
 
-    // Static utility for sinc² calculation (also used by RCS ray weighting)
+    // Airy pattern for circular aperture: [2·J₁(x)/x]²
     // theta: angle from beam axis (radians)
     // thetaMax: half-angle of main lobe (radians) - first null at theta = thetaMax
-    // Returns: sinc²(π * theta / thetaMax) = [sin(π * theta / thetaMax) / (π * theta / thetaMax)]²
+    // Returns: Airy intensity pattern normalized to 1.0 at center
+    static float getAiryIntensity(float theta, float thetaMax);
+
+    // Bessel function J₁(x) - first kind, order 1
+    // Uses polynomial approximation (Numerical Recipes)
+    static float besselJ1(float x);
+
+    // Legacy sinc² calculation (kept for RCS ray weighting compatibility)
     static float getSincSquaredIntensity(float theta, float thetaMax);
 
     // Override render to set sideLobeColor uniform
@@ -27,7 +34,7 @@ protected:
     void setupShaders() override;
 
     // Override for 7-float vertex format (pos + normal + intensity)
-    void uploadGeometryToGPU();
+    void uploadGeometryToGPU() override;
 
 private:
     // Generate vertices with per-vertex intensity for sinc² pattern

@@ -42,6 +42,9 @@ private slots:
     void onTargetRollChanged(int value);
     void onTargetScaleChanged(int value);
 
+    // Beam type slot
+    void onBeamTypeChanged(int index);
+
     // Profile management slots
     void onProfileSelected(int index);
     void onSaveProfile();
@@ -106,6 +109,7 @@ private:
     // Settings and profile management
     RSConfig::AppSettings* appSettings_;
     QComboBox* profileComboBox_;
+    QComboBox* beamTypeComboBox_ = nullptr;
 
     // Helper methods
     void readSettingsFromScene();

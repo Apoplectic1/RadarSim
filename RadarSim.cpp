@@ -163,10 +163,15 @@ void RadarSim::setupConfigurationTab() {
     QGroupBox* beamSettingsGroup = new QGroupBox("Beam Settings", configTabWidget_);
     QFormLayout* beamSettingsLayout = new QFormLayout(beamSettingsGroup);
 
-    QComboBox* beamTypeComboBox = new QComboBox(beamSettingsGroup);
-    beamTypeComboBox->addItem("Conical");
-    beamTypeComboBox->addItem("Phased Array");
-    beamSettingsLayout->addRow("Default Beam Type:", beamTypeComboBox);
+    beamTypeComboBox_ = new QComboBox(beamSettingsGroup);
+    beamTypeComboBox_->addItem("Conical");
+    beamTypeComboBox_->addItem("Shaped");
+    beamTypeComboBox_->addItem("Phased Array");
+    beamTypeComboBox_->addItem("Sinc (Airy)");
+    beamTypeComboBox_->setCurrentIndex(3);  // Default to Sinc
+    beamSettingsLayout->addRow("Beam Type:", beamTypeComboBox_);
+    connect(beamTypeComboBox_, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &RadarSim::onBeamTypeChanged);
 
     QDoubleSpinBox* beamWidthSpinBox = new QDoubleSpinBox(beamSettingsGroup);
     beamWidthSpinBox->setRange(1.0, 45.0);
@@ -662,6 +667,14 @@ void RadarSim::onTargetScaleChanged(int value) {
     }
 }
 
+// Beam type slot
+void RadarSim::onBeamTypeChanged(int index) {
+    if (auto* beam = radarSceneView_->getBeamController()) {
+        beam->setBeamType(static_cast<BeamType>(index));
+        radarSceneView_->update();
+    }
+}
+
 // Profile management slot implementations
 void RadarSim::onProfileSelected(int index) {
     if (index < 0 || !profileComboBox_) {
@@ -740,11 +753,14 @@ void RadarSim::onDeleteProfile() {
 void RadarSim::onResetToDefaults() {
     QMessageBox::StandardButton reply = QMessageBox::question(this,
         "Reset to Defaults",
-        "Are you sure you want to reset all settings to their default values?",
+        "Are you sure you want to reset view settings to their default values?",
         QMessageBox::Yes | QMessageBox::No);
 
     if (reply == QMessageBox::Yes) {
+        // Preserve beam type during reset
+        int savedBeamType = appSettings_->beam.beamType;
         appSettings_->resetToDefaults();
+        appSettings_->beam.beamType = savedBeamType;
         applySettingsToScene();
     }
 }
@@ -812,6 +828,7 @@ void RadarSim::readSettingsFromScene() {
 
     // Read beam settings from BeamController
     if (auto* beam = radarSceneView_->getBeamController()) {
+        appSettings_->beam.beamType = static_cast<int>(beam->getBeamType());
         appSettings_->beam.beamWidth = beam->getBeamWidth();
         appSettings_->beam.opacity = beam->getBeamOpacity();
     }
@@ -927,8 +944,16 @@ void RadarSim::applySettingsToScene() {
 
     // Apply beam settings
     if (auto* beam = radarSceneView_->getBeamController()) {
+        beam->setBeamType(static_cast<BeamType>(appSettings_->beam.beamType));
         beam->setBeamWidth(appSettings_->beam.beamWidth);
         beam->setBeamOpacity(appSettings_->beam.opacity);
+    }
+
+    // Update beam type combo box UI
+    if (beamTypeComboBox_) {
+        beamTypeComboBox_->blockSignals(true);
+        beamTypeComboBox_->setCurrentIndex(appSettings_->beam.beamType);
+        beamTypeComboBox_->blockSignals(false);
     }
 
     radarSceneView_->updateScene();
