@@ -221,7 +221,7 @@ Alternative RCS visualization showing reflection intensity as a smooth gradient 
 - Maps reflection directions to spherical coordinates on radar sphere
 - Blue (low) → Yellow (mid) → Red (high) intensity gradient
 - Smooth per-vertex interpolation for gradient appearance
-- Spherical binning (64×64 lat/lon bins) for intensity accumulation
+- Spherical binning (1024×1024 lat/lon bins) for intensity accumulation
 - Toggle via right-click context menu ("Toggle RCS Heat Map")
 
 **Coordinate Mapping:**

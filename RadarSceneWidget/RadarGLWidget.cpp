@@ -329,6 +329,7 @@ void RadarGLWidget::paintGL() {
 			// Run RCS ray tracing if available
 			if (rcsCompute_ && wireframeController_->getTarget()) {
 				auto* target = wireframeController_->getTarget();
+
 				rcsCompute_->setTargetGeometry(
 					target->getVertices(),
 					target->getIndices(),

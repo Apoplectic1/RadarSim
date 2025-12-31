@@ -4,6 +4,13 @@
 
 ## Recently Completed
 
+- [x] **RCS Polar Plot Angular Convention Legend** - Added axis reference below subtitle
+  - Shows "0°=+X  90°=+Y  180°=-X  270°=-Y  (CCW)" in compact format
+  - Helps interpret reflection direction angles on polar plot
+- [x] **Heat Map Bug Investigation** - Debugged incorrect heat map positioning
+  - Root cause: Saved session had incorrect radar phi value (4° instead of 45°)
+  - Heat map and RCS calculations were correct; issue was stale session data
+- [x] **HeatMapRenderer Binning Update** - Increased resolution to 1024×1024 lat/lon bins
 - [x] **2D Polar RCS Plot** - Real-time polar plot showing RCS vs angle
   - OpenGL-based PolarRCSPlot widget below 3D scene
   - AzimuthCutSampler and ElevationCutSampler for slicing RCS data
@@ -30,7 +37,7 @@
   - Context menu checkmarks sync with restored settings
 - [x] **HeatMapRenderer** - RCS heat map visualization on radar sphere surface
   - Smooth gradient (Blue→Yellow→Red) based on reflection intensity
-  - Spherical binning (64×64 lat/lon) for intensity accumulation
+  - Spherical binning (1024×1024 lat/lon) for intensity accumulation
   - Per-vertex interpolation for smooth appearance
   - Toggle via "Toggle RCS Heat Map" context menu
 - [x] **SincBeam** - Realistic sinc² intensity pattern with visible side lobes

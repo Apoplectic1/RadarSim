@@ -340,6 +340,14 @@ void PolarRCSPlot::drawAxisLabels() {
     painter.setPen(QColor(180, 180, 180));  // Light gray
     painter.drawText(QRectF(25, 28, viewWidth_ - 25, 16), Qt::AlignLeft, "dBsm");
 
+    // Draw angular convention legend
+    QFont legendFont = painter.font();
+    legendFont.setPointSize(8);
+    painter.setFont(legendFont);
+    painter.setPen(QColor(140, 140, 140));  // Darker gray
+    painter.drawText(QRectF(25, 46, viewWidth_ - 25, 12), Qt::AlignLeft,
+        QString::fromUtf8("0\u00B0=+X  90\u00B0=+Y  180\u00B0=-X  270\u00B0=-Y  (CCW)"));
+
     // Reset font for other labels
     QFont font = painter.font();
     font.setPointSize(10);
