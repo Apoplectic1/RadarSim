@@ -84,33 +84,43 @@ constexpr float kShininess = 32.0f;             // Specular shininess exponent
 constexpr float kNormalBlendFactor = 0.25f;     // Normal blending factor for phased array beam
 
 // Conical Beam Visibility Constants
-constexpr float kConicalFresnelBase = 0.1f;     // Base fresnel for Conical beam
-constexpr float kConicalFresnelRange = 0.2f;    // Fresnel range multiplier
-constexpr float kConicalRimLow = 0.6f;          // Rim lighting smoothstep low
-constexpr float kConicalRimHigh = 0.95f;        // Rim lighting smoothstep high
-constexpr float kConicalRimStrength = 0.1f;     // Rim contribution to final alpha
-constexpr float kConicalAlphaMin = 0.03f;       // Minimum final alpha clamp
-constexpr float kConicalAlphaMax = 0.6f;        // Maximum final alpha clamp
+// FresnelBase: opacity when viewing beam head-on (0=transparent, 1=opaque)
+// FresnelRange: how much more opaque edges become vs center (higher=more edge glow)
+// RimLow/RimHigh: view angle range where rim glow appears (0=head-on, 1=edge-on)
+// RimStrength: intensity of the bright edge outline (0=none, 1=very bright)
+// AlphaMin/Max: hard limits on final transparency (raise AlphaMin to prevent invisible areas)
+constexpr float kConicalFresnelBase = 0.51f;     // Base opacity at center
+constexpr float kConicalFresnelRange = 0.2f;    // Additional opacity at edges
+constexpr float kConicalRimLow = 0.6f;          // Rim starts appearing at this angle
+constexpr float kConicalRimHigh = 0.95f;        // Rim at full strength at this angle
+constexpr float kConicalRimStrength = 0.1f;     // Rim glow brightness
+constexpr float kConicalAlphaMin = 0.03f;       // Floor - beam never more transparent than this
+constexpr float kConicalAlphaMax = 0.6f;        // Ceiling - beam never more opaque than this
 
 // Phased Array Beam Visibility Constants
-constexpr float kPhasedFresnelBase = 0.1f;      // Base fresnel for Phased Array beam
-constexpr float kPhasedFresnelRange = 0.2f;     // Fresnel range multiplier
-constexpr float kPhasedRimLow = 0.6f;           // Rim lighting smoothstep low
-constexpr float kPhasedRimHigh = 0.95f;         // Rim lighting smoothstep high
-constexpr float kPhasedRimStrength = 0.1f;      // Rim contribution to final alpha
-constexpr float kPhasedAlphaMin = 0.03f;        // Minimum final alpha clamp
-constexpr float kPhasedAlphaMax = 0.6f;         // Maximum final alpha clamp
+// (Same meaning as Conical - see comments above)
+constexpr float kPhasedFresnelBase = 0.1f;      // Base opacity at center
+constexpr float kPhasedFresnelRange = 0.2f;     // Additional opacity at edges
+constexpr float kPhasedRimLow = 0.6f;           // Rim starts appearing at this angle
+constexpr float kPhasedRimHigh = 0.95f;         // Rim at full strength at this angle
+constexpr float kPhasedRimStrength = 0.1f;      // Rim glow brightness
+constexpr float kPhasedAlphaMin = 0.03f;        // Floor - beam never more transparent than this
+constexpr float kPhasedAlphaMax = 0.6f;         // Ceiling - beam never more opaque than this
 
 // SincBeam Visibility Constants
-constexpr float kSincFresnelBase = 0.6f;        // Base fresnel for Sinc beam
-constexpr float kSincFresnelRange = 0.4f;       // Fresnel range multiplier
-constexpr float kSincRimLow = 0.3f;             // Rim lighting smoothstep low
-constexpr float kSincRimHigh = 0.7f;            // Rim lighting smoothstep high
-constexpr float kSincRimStrength = 0.4f;        // Rim contribution to final alpha
-constexpr float kSincIntensityAlphaMin = 0.5f;  // Minimum intensity-based alpha
-constexpr float kSincOpacityMult = 1.5f;        // Opacity multiplier for beam visibility
-constexpr float kSincAlphaMin = 0.3f;           // Minimum final alpha clamp
-constexpr float kSincAlphaMax = 1.0f;           // Maximum final alpha clamp
+// Sinc beam has per-vertex intensity from the sinc² pattern, so it has extra controls.
+// FresnelBase/Range and Rim* work the same as Conical (see comments above).
+// IntensityAlphaMin: even low-intensity side lobes stay at least this visible (0-1)
+// OpacityMult: global multiplier applied after all other calculations (>1 = brighter)
+constexpr float kSincFresnelBase = 0.6f;        // Base opacity at center
+constexpr float kSincFresnelRange = 0.4f;       // Additional opacity at edges
+constexpr float kSincRimLow = 0.3f;             // Rim starts appearing at this angle
+constexpr float kSincRimHigh = 0.7f;            // Rim at full strength at this angle
+constexpr float kSincRimStrength = 0.4f;        // Rim glow brightness
+constexpr float kSincIntensityAlphaMin = 0.5f;  // Side lobes stay at least this visible
+constexpr float kSincOpacityMult = 1.5f;        // Final multiplier (>1 = more visible overall)
+constexpr float kSincAlphaMin = 0.3f;           // Floor - beam never more transparent than this
+constexpr float kSincAlphaMax = 1.0f;           // Ceiling - beam never more opaque than this
 
 // =============================================================================
 // Shadow Map Configuration
@@ -140,8 +150,8 @@ constexpr float kLobeColorThreshold = 0.5f;     // Intensity threshold for color
 // =============================================================================
 // Heat Map Visualization
 // =============================================================================
-constexpr int kHeatMapLatBins = 64;             // Latitude bins for spherical accumulation
-constexpr int kHeatMapLonBins = 64;             // Longitude bins for spherical accumulation
+constexpr int kHeatMapLatBins = 1024;             // Latitude bins for spherical accumulation
+constexpr int kHeatMapLonBins = 1024;             // Longitude bins for spherical accumulation
 constexpr float kHeatMapMinIntensity = 0.05f;   // Minimum intensity threshold to display
 constexpr float kHeatMapOpacity = 0.7f;         // Default heat map opacity
 constexpr float kHeatMapRadiusOffset = 1.02f;   // Render slightly above sphere surface
