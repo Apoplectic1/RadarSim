@@ -18,6 +18,12 @@
   - Target Position X/Y/Z use 0.5 unit increments
   - Target Pitch/Yaw/Roll use 0.5° increments
   - Target Scale uses 0.5 unit increments
+- [x] **Slider Double-Click Reset** - Left double-click resets any slider to default
+  - Uses Constants.h Defaults namespace for all default values
+  - Installed via Qt event filter pattern on all 12 sliders
+- [x] **RCS Polar Plot Labels** - Clean title/subtitle layout
+  - "RCS Polar Plot" title and "dBsm" subtitle (left-aligned, 25px margin)
+  - Ring labels show numeric values only (no "dBsm" suffix)
 - [x] **Profile Save/Restore** - New settings persisted to profiles
   - Target type (Cube/Cylinder/Aircraft/Sphere) saved and restored
   - RCS plane settings (cut type, offset, thickness, show fill) saved

@@ -324,6 +324,23 @@ void PolarRCSPlot::drawAxisLabels() {
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
 
+    // Draw title
+    QFont titleFont = painter.font();
+    titleFont.setPointSize(14);
+    titleFont.setBold(true);
+    painter.setFont(titleFont);
+    painter.setPen(Qt::white);
+    painter.drawText(QRectF(25, 8, viewWidth_ - 25, 20), Qt::AlignLeft, "RCS Polar Plot");
+
+    // Draw subtitle
+    QFont subtitleFont = painter.font();
+    subtitleFont.setPointSize(10);
+    subtitleFont.setBold(false);
+    painter.setFont(subtitleFont);
+    painter.setPen(QColor(180, 180, 180));  // Light gray
+    painter.drawText(QRectF(25, 28, viewWidth_ - 25, 16), Qt::AlignLeft, "dBsm");
+
+    // Reset font for other labels
     QFont font = painter.font();
     font.setPointSize(10);
     painter.setFont(font);
@@ -341,7 +358,7 @@ void PolarRCSPlot::drawAxisLabels() {
         painter.drawText(rect, Qt::AlignCenter, label);
     }
 
-    // Draw dBsm labels along the 90-degree line (pointing right from center)
+    // Draw dBsm values along the 45-degree line (just numbers, no unit)
     float dBsmRange = maxDBsm_ - minDBsm_;
     int numRings = static_cast<int>(dBsmRange / 10.0f);
 
@@ -352,8 +369,8 @@ void PolarRCSPlot::drawAxisLabels() {
         // Position label at 45 degrees for less clutter
         QPointF pos = polarToScreen(45.0f, radius);
 
-        QString label = QString::number(static_cast<int>(dBsm)) + " dBsm";
-        QRectF rect(pos.x() + 5, pos.y() - 8, 60, 16);
+        QString label = QString::number(static_cast<int>(dBsm));
+        QRectF rect(pos.x() + 5, pos.y() - 8, 40, 16);
         painter.drawText(rect, Qt::AlignLeft | Qt::AlignVCenter, label);
     }
 

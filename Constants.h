@@ -215,7 +215,16 @@ namespace Defaults {
     constexpr float kBeamOpacity = 0.3f;
 
     // Target
+    constexpr float kTargetPositionX = 0.0f;
+    constexpr float kTargetPositionY = 0.0f;
+    constexpr float kTargetPositionZ = 0.0f;
+    constexpr float kTargetPitch = 0.0f;
+    constexpr float kTargetYaw = 0.0f;
+    constexpr float kTargetRoll = 0.0f;
     constexpr float kTargetScale = 20.0f;
+
+    // RCS Plane
+    constexpr float kRCSPlaneOffset = 0.0f;
 }
 
 // =============================================================================

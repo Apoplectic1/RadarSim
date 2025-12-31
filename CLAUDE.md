@@ -748,6 +748,15 @@ The 3D scene uses orbit camera controls via `CameraController`:
 - Inertia can be enabled for smooth rotation continuation after mouse release
 - Elevation clamped to ±85° to avoid gimbal lock
 
+## Slider Controls
+
+All UI sliders support **left double-click to reset to default value**. This is implemented via Qt event filter in `RadarSim::eventFilter()`.
+
+Default values are defined in `Constants.h` under `RS::Constants::Defaults` namespace:
+- Sphere Radius: 100, Radar Theta: 45°, Radar Phi: 45°
+- Target Position: (0, 0, 0), Rotation: (0, 0, 0), Scale: 20
+- RCS Plane Offset: 0°, Thickness: 10° (index 32)
+
 ## Context Menu (Right-Click)
 
 The 3D scene provides a context menu for quick access to visualization options:
@@ -845,7 +854,10 @@ namespace RadarSim::Constants {
     namespace Defaults {
         kCameraDistance, kCameraAzimuth, kCameraElevation,
         kSphereRadius, kRadarTheta, kRadarPhi,
-        kBeamWidth, kBeamOpacity, kTargetScale
+        kBeamWidth, kBeamOpacity,
+        kTargetPositionX, kTargetPositionY, kTargetPositionZ,
+        kTargetPitch, kTargetYaw, kTargetRoll, kTargetScale,
+        kRCSPlaneOffset
     }
 
     namespace Colors {

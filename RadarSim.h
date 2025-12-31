@@ -73,6 +73,7 @@ private slots:
 
 protected:
     void closeEvent(QCloseEvent* event) override;
+    bool eventFilter(QObject* obj, QEvent* event) override;
 
 private:
     void setupUI();

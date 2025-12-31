@@ -40,6 +40,7 @@ namespace {
 #include <QFrame>
 #include <QSplitter>
 #include <QCloseEvent>
+#include <QMouseEvent>
 #include <QInputDialog>
 #include <QMessageBox>
 #include <QTimer>
@@ -334,6 +335,11 @@ void RadarSim::setupRadarControls(QWidget* parent, QVBoxLayout* layout) {
     phiLayout->addWidget(phiSlider_);
     phiLayout->addWidget(phiSpinBox_);
     controlsLayout->addLayout(phiLayout);
+
+    // Install event filters for double-click reset
+    radiusSlider_->installEventFilter(this);
+    thetaSlider_->installEventFilter(this);
+    phiSlider_->installEventFilter(this);
 }
 
 void RadarSim::setupTargetControls(QWidget* parent, QVBoxLayout* layout) {
@@ -489,6 +495,15 @@ void RadarSim::setupTargetControls(QWidget* parent, QVBoxLayout* layout) {
     targetScaleLayout->addWidget(targetScaleSlider_);
     targetScaleLayout->addWidget(targetScaleSpinBox_);
     targetControlsLayout->addLayout(targetScaleLayout);
+
+    // Install event filters for double-click reset
+    targetPosXSlider_->installEventFilter(this);
+    targetPosYSlider_->installEventFilter(this);
+    targetPosZSlider_->installEventFilter(this);
+    targetPitchSlider_->installEventFilter(this);
+    targetYawSlider_->installEventFilter(this);
+    targetRollSlider_->installEventFilter(this);
+    targetScaleSlider_->installEventFilter(this);
 }
 
 void RadarSim::setupRCSPlaneControls(QWidget* parent, QVBoxLayout* layout) {
@@ -552,6 +567,10 @@ void RadarSim::setupRCSPlaneControls(QWidget* parent, QVBoxLayout* layout) {
     rcsPlaneShowFillCheckBox_ = new QCheckBox("Show Plane Fill", rcsPlaneGroup);
     rcsPlaneShowFillCheckBox_->setChecked(true);
     rcsPlaneLayout->addWidget(rcsPlaneShowFillCheckBox_);
+
+    // Install event filters for double-click reset
+    rcsPlaneOffsetSlider_->installEventFilter(this);
+    rcsSliceThicknessSlider_->installEventFilter(this);
 }
 
 void RadarSim::connectSignals() {
@@ -991,6 +1010,72 @@ void RadarSim::closeEvent(QCloseEvent* event) {
     readSettingsFromScene();
     appSettings_->saveLastSession();
     event->accept();
+}
+
+bool RadarSim::eventFilter(QObject* obj, QEvent* event) {
+    using namespace RS::Constants::Defaults;
+
+    if (event->type() == QEvent::MouseButtonDblClick) {
+        auto* mouseEvent = static_cast<QMouseEvent*>(event);
+        if (mouseEvent->button() == Qt::LeftButton) {
+            // Radar controls
+            if (obj == radiusSlider_) {
+                radiusSlider_->setValue(static_cast<int>(kSphereRadius));
+                return true;
+            }
+            if (obj == thetaSlider_) {
+                // Slider is reversed and in half-degrees
+                thetaSlider_->setValue(static_cast<int>((359.0f - kRadarTheta) * 2));
+                return true;
+            }
+            if (obj == phiSlider_) {
+                // Slider is in half-degrees
+                phiSlider_->setValue(static_cast<int>(kRadarPhi * 2));
+                return true;
+            }
+            // Target position (sliders use 2x for 0.5 increments)
+            if (obj == targetPosXSlider_) {
+                targetPosXSlider_->setValue(static_cast<int>(kTargetPositionX * 2));
+                return true;
+            }
+            if (obj == targetPosYSlider_) {
+                targetPosYSlider_->setValue(static_cast<int>(kTargetPositionY * 2));
+                return true;
+            }
+            if (obj == targetPosZSlider_) {
+                targetPosZSlider_->setValue(static_cast<int>(kTargetPositionZ * 2));
+                return true;
+            }
+            // Target rotation (sliders use 2x for 0.5 degree increments)
+            if (obj == targetPitchSlider_) {
+                targetPitchSlider_->setValue(static_cast<int>(kTargetPitch * 2));
+                return true;
+            }
+            if (obj == targetYawSlider_) {
+                targetYawSlider_->setValue(static_cast<int>(kTargetYaw * 2));
+                return true;
+            }
+            if (obj == targetRollSlider_) {
+                targetRollSlider_->setValue(static_cast<int>(kTargetRoll * 2));
+                return true;
+            }
+            // Target scale (slider uses 2x for 0.5 increments)
+            if (obj == targetScaleSlider_) {
+                targetScaleSlider_->setValue(static_cast<int>(kTargetScale * 2));
+                return true;
+            }
+            // RCS plane controls
+            if (obj == rcsPlaneOffsetSlider_) {
+                rcsPlaneOffsetSlider_->setValue(static_cast<int>(kRCSPlaneOffset));
+                return true;
+            }
+            if (obj == rcsSliceThicknessSlider_) {
+                rcsSliceThicknessSlider_->setValue(RS::Constants::kDefaultThicknessIndex);
+                return true;
+            }
+        }
+    }
+    return QMainWindow::eventFilter(obj, event);
 }
 
 void RadarSim::refreshProfileList() {
