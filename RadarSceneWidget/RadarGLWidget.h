@@ -17,6 +17,10 @@
 #include "ModelManager/ModelManager.h"
 #include "WireframeTargetController.h"
 #include "RCSCompute/RCSCompute.h"
+#include "RCSCompute/RCSSampler.h"
+#include "RCSCompute/AzimuthCutSampler.h"
+#include "RCSCompute/ElevationCutSampler.h"
+#include "RCSCompute/SlicingPlaneRenderer.h"
 #include "ReflectionRenderer/ReflectionRenderer.h"
 #include "ReflectionRenderer/HeatMapRenderer.h"
 
@@ -48,6 +52,16 @@ public:
     void setShowShadow(bool show);
     bool isShowShadow() const;
 
+    // RCS slicing plane control
+    void setRCSCutType(CutType type);
+    CutType getRCSCutType() const { return currentCutType_; }
+    void setRCSPlaneOffset(float degrees);
+    float getRCSPlaneOffset() const;
+    void setRCSSliceThickness(float degrees);
+    float getRCSSliceThickness() const;
+    void setRCSPlaneShowFill(bool show);
+    bool isRCSPlaneShowFill() const;
+
     // Event handlers - override from QOpenGLWidget
     void mousePressEvent(QMouseEvent* event) override;
     void mouseMoveEvent(QMouseEvent* event) override;
@@ -59,6 +73,7 @@ public:
 signals:
     void radiusChanged(float radius);
     void anglesChanged(float theta, float phi);
+    void polarPlotDataReady(const std::vector<RCSDataPoint>& data);
 
 protected:
     // Override OpenGL functions
@@ -95,6 +110,16 @@ private:
     // Heat map visualization
     std::unique_ptr<HeatMapRenderer> heatMapRenderer_;
 
+    // Slicing plane visualization
+    std::unique_ptr<SlicingPlaneRenderer> slicingPlaneRenderer_;
+
+    // RCS sampling for polar plot
+    std::unique_ptr<AzimuthCutSampler> azimuthSampler_;
+    std::unique_ptr<ElevationCutSampler> elevationSampler_;
+    RCSSampler* currentSampler_ = nullptr;  // Points to active sampler
+    CutType currentCutType_ = CutType::Azimuth;
+    std::vector<RCSDataPoint> polarPlotData_;
+
     // Context menu
     QMenu* contextMenu_ = nullptr;
 
@@ -111,8 +136,15 @@ private:
     QAction* showShadowAction_ = nullptr;
     QAction* toggleHeatMapAction_ = nullptr;
 
+    // Target type menu actions (for syncing checked state)
+    QAction* cubeTargetAction_ = nullptr;
+    QAction* cylinderTargetAction_ = nullptr;
+    QAction* aircraftTargetAction_ = nullptr;
+    QAction* sphereTargetAction_ = nullptr;
+
     // Helper methods
     void syncBeamTypeMenuToController();
+    void syncTargetTypeMenu();
     QVector3D sphericalToCartesian(float r, float thetaDeg, float phiDeg);
     void setupContextMenu();
     void updateBeamPosition();

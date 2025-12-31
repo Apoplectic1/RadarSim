@@ -23,6 +23,8 @@ RadarSceneWidget::RadarSceneWidget(QWidget* parent)
         this, &RadarSceneWidget::onRadiusChanged);
     connect(radarGLWidget_, &RadarGLWidget::anglesChanged,
         this, &RadarSceneWidget::onAnglesChanged);
+    connect(radarGLWidget_, &RadarGLWidget::polarPlotDataReady,
+        this, &RadarSceneWidget::polarPlotDataReady);
 
     layout_->addWidget(radarGLWidget_);
     setLayout(layout_);
@@ -179,4 +181,45 @@ void RadarSceneWidget::setShowShadow(bool show) {
 
 bool RadarSceneWidget::isShowShadow() const {
     return radarGLWidget_ ? radarGLWidget_->isShowShadow() : true;
+}
+
+// RCS slicing plane forwarding methods
+void RadarSceneWidget::setRCSCutType(CutType type) {
+    if (radarGLWidget_) {
+        radarGLWidget_->setRCSCutType(type);
+    }
+}
+
+CutType RadarSceneWidget::getRCSCutType() const {
+    return radarGLWidget_ ? radarGLWidget_->getRCSCutType() : CutType::Azimuth;
+}
+
+void RadarSceneWidget::setRCSPlaneOffset(float degrees) {
+    if (radarGLWidget_) {
+        radarGLWidget_->setRCSPlaneOffset(degrees);
+    }
+}
+
+float RadarSceneWidget::getRCSPlaneOffset() const {
+    return radarGLWidget_ ? radarGLWidget_->getRCSPlaneOffset() : 0.0f;
+}
+
+void RadarSceneWidget::setRCSSliceThickness(float degrees) {
+    if (radarGLWidget_) {
+        radarGLWidget_->setRCSSliceThickness(degrees);
+    }
+}
+
+float RadarSceneWidget::getRCSSliceThickness() const {
+    return radarGLWidget_ ? radarGLWidget_->getRCSSliceThickness() : 5.0f;
+}
+
+void RadarSceneWidget::setRCSPlaneShowFill(bool show) {
+    if (radarGLWidget_) {
+        radarGLWidget_->setRCSPlaneShowFill(show);
+    }
+}
+
+bool RadarSceneWidget::isRCSPlaneShowFill() const {
+    return radarGLWidget_ ? radarGLWidget_->isRCSPlaneShowFill() : true;
 }

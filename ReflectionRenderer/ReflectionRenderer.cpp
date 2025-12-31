@@ -7,7 +7,7 @@
 #include <cmath>
 #include <algorithm>
 
-using namespace RadarSim::Constants;
+using namespace RS::Constants;
 
 ReflectionRenderer::ReflectionRenderer(QObject* parent)
     : QObject(parent)

@@ -7,7 +7,7 @@
 #include <QPainter>
 #include <QFont>
 
-using namespace RadarSim::Constants;
+using namespace RS::Constants;
 
 RadarGLWidget::RadarGLWidget(QWidget* parent)
 	: QOpenGLWidget(parent),
@@ -44,6 +44,7 @@ RadarGLWidget::~RadarGLWidget() {
 	rcsCompute_.reset();
 	reflectionRenderer_.reset();
 	heatMapRenderer_.reset();
+	slicingPlaneRenderer_.reset();
 
 	doneCurrent();
 
@@ -82,6 +83,11 @@ void RadarGLWidget::cleanupGL() {
 	// Clean up heat map renderer
 	if (heatMapRenderer_) {
 		heatMapRenderer_->cleanup();
+	}
+
+	// Clean up slicing plane renderer
+	if (slicingPlaneRenderer_) {
+		slicingPlaneRenderer_->cleanup();
 	}
 
 	// Clean up component resources
@@ -215,6 +221,23 @@ void RadarGLWidget::initializeGL() {
 			heatMapRenderer_->setSphereRadius(radius_);
 		}
 
+		// Initialize RCS samplers for polar plot
+		azimuthSampler_ = std::make_unique<AzimuthCutSampler>();
+		elevationSampler_ = std::make_unique<ElevationCutSampler>();
+		currentSampler_ = azimuthSampler_.get();  // Default to azimuth cut
+		currentCutType_ = CutType::Azimuth;
+		polarPlotData_.resize(RS::Constants::kPolarPlotBins);
+
+		// Initialize slicing plane renderer
+		slicingPlaneRenderer_ = std::make_unique<SlicingPlaneRenderer>(this);
+		if (!slicingPlaneRenderer_->initialize()) {
+			qWarning() << "SlicingPlaneRenderer initialization failed";
+			slicingPlaneRenderer_.reset();
+		} else {
+			slicingPlaneRenderer_->setSphereRadius(radius_);
+			slicingPlaneRenderer_->setCutType(currentCutType_);
+		}
+
 		// Force beam geometry creation with initial position
 		if (beamController_) {
 			QVector3D initialPos = sphericalToCartesian(radius_, theta_, phi_);
@@ -333,6 +356,12 @@ void RadarGLWidget::paintGL() {
 					if (heatMapRenderer_ && heatMapRenderer_->isVisible()) {
 						heatMapRenderer_->updateFromHits(rcsCompute_->getHitResults(), radius_);
 					}
+
+					// Sample RCS data for polar plot
+					if (currentSampler_) {
+						currentSampler_->sample(rcsCompute_->getHitResults(), polarPlotData_);
+						emit polarPlotDataReady(polarPlotData_);
+					}
 				}
 			}
 		}
@@ -340,6 +369,11 @@ void RadarGLWidget::paintGL() {
 		// Render heat map (semi-transparent, render after sphere before beam)
 		if (heatMapRenderer_ && heatMapRenderer_->isVisible()) {
 			heatMapRenderer_->render(projectionMatrix, viewMatrix, modelMatrix);
+		}
+
+		// Render slicing plane visualization
+		if (slicingPlaneRenderer_ && slicingPlaneRenderer_->isVisible()) {
+			slicingPlaneRenderer_->render(projectionMatrix, viewMatrix, modelMatrix);
 		}
 
 		if (beamController_) {
@@ -473,6 +507,37 @@ void RadarGLWidget::syncBeamMenu() {
 		showShadowAction_->setChecked(beamController_->isShowShadow());
 		showShadowAction_->blockSignals(false);
 	}
+
+	// Also sync target type menu
+	syncTargetTypeMenu();
+}
+
+void RadarGLWidget::syncTargetTypeMenu() {
+	if (!wireframeController_) return;
+
+	WireframeType currentType = wireframeController_->getTargetType();
+
+	// Block signals to prevent triggering actions during sync
+	if (cubeTargetAction_) {
+		cubeTargetAction_->blockSignals(true);
+		cubeTargetAction_->setChecked(currentType == WireframeType::Cube);
+		cubeTargetAction_->blockSignals(false);
+	}
+	if (cylinderTargetAction_) {
+		cylinderTargetAction_->blockSignals(true);
+		cylinderTargetAction_->setChecked(currentType == WireframeType::Cylinder);
+		cylinderTargetAction_->blockSignals(false);
+	}
+	if (aircraftTargetAction_) {
+		aircraftTargetAction_->blockSignals(true);
+		aircraftTargetAction_->setChecked(currentType == WireframeType::Aircraft);
+		aircraftTargetAction_->blockSignals(false);
+	}
+	if (sphereTargetAction_) {
+		sphereTargetAction_->blockSignals(true);
+		sphereTargetAction_->setChecked(currentType == WireframeType::Sphere);
+		sphereTargetAction_->blockSignals(false);
+	}
 }
 
 void RadarGLWidget::setShowShadow(bool show) {
@@ -500,9 +565,13 @@ void RadarGLWidget::setRadius(float radius) {
 			sphereRenderer_->setRadius(radius);
 		}
 
-		// ADD THIS:
 		if (beamController_) {
 			beamController_->setSphereRadius(radius);
+		}
+
+		// Update slicing plane size
+		if (slicingPlaneRenderer_) {
+			slicingPlaneRenderer_->setSphereRadius(radius);
 		}
 
 		emit radiusChanged(radius);
@@ -770,41 +839,54 @@ void RadarGLWidget::setupContextMenu() {
 	// Target type submenu
 	QMenu* targetTypeMenu = targetMenu->addMenu("Type");
 
-	QAction* cubeTargetAction = targetTypeMenu->addAction("Cube");
-	cubeTargetAction->setCheckable(true);
-	cubeTargetAction->setChecked(true);
+	cubeTargetAction_ = targetTypeMenu->addAction("Cube");
+	cubeTargetAction_->setCheckable(true);
 
-	QAction* cylinderTargetAction = targetTypeMenu->addAction("Cylinder");
-	cylinderTargetAction->setCheckable(true);
+	cylinderTargetAction_ = targetTypeMenu->addAction("Cylinder");
+	cylinderTargetAction_->setCheckable(true);
 
-	QAction* aircraftTargetAction = targetTypeMenu->addAction("Aircraft");
-	aircraftTargetAction->setCheckable(true);
+	aircraftTargetAction_ = targetTypeMenu->addAction("Aircraft");
+	aircraftTargetAction_->setCheckable(true);
+
+	sphereTargetAction_ = targetTypeMenu->addAction("Sphere");
+	sphereTargetAction_->setCheckable(true);
 
 	// Make target types exclusive
 	QActionGroup* targetTypeGroup = new QActionGroup(this);
-	targetTypeGroup->addAction(cubeTargetAction);
-	targetTypeGroup->addAction(cylinderTargetAction);
-	targetTypeGroup->addAction(aircraftTargetAction);
+	targetTypeGroup->addAction(cubeTargetAction_);
+	targetTypeGroup->addAction(cylinderTargetAction_);
+	targetTypeGroup->addAction(aircraftTargetAction_);
+	targetTypeGroup->addAction(sphereTargetAction_);
 	targetTypeGroup->setExclusive(true);
 
+	// Sync target type menu to controller state
+	syncTargetTypeMenu();
+
 	// Connect target type actions
-	connect(cubeTargetAction, &QAction::triggered, [this]() {
+	connect(cubeTargetAction_, &QAction::triggered, [this]() {
 		if (wireframeController_) {
 			wireframeController_->setTargetType(WireframeType::Cube);
 			update();
 		}
 		});
 
-	connect(cylinderTargetAction, &QAction::triggered, [this]() {
+	connect(cylinderTargetAction_, &QAction::triggered, [this]() {
 		if (wireframeController_) {
 			wireframeController_->setTargetType(WireframeType::Cylinder);
 			update();
 		}
 		});
 
-	connect(aircraftTargetAction, &QAction::triggered, [this]() {
+	connect(aircraftTargetAction_, &QAction::triggered, [this]() {
 		if (wireframeController_) {
 			wireframeController_->setTargetType(WireframeType::Aircraft);
+			update();
+		}
+		});
+
+	connect(sphereTargetAction_, &QAction::triggered, [this]() {
+		if (wireframeController_) {
+			wireframeController_->setTargetType(WireframeType::Sphere);
 			update();
 		}
 		});
@@ -826,4 +908,66 @@ QPointF RadarGLWidget::projectToScreen(const QVector3D& worldPos, const QMatrix4
 	float screenY = (1.0f - clipSpace.y()) * 0.5f * height(); // Flip Y axis
 
 	return QPointF(screenX, screenY);
+}
+
+// RCS slicing plane control methods
+void RadarGLWidget::setRCSCutType(CutType type) {
+	if (currentCutType_ != type) {
+		currentCutType_ = type;
+		if (type == CutType::Azimuth) {
+			currentSampler_ = azimuthSampler_.get();
+		} else {
+			currentSampler_ = elevationSampler_.get();
+		}
+		// Update slicing plane visualization
+		if (slicingPlaneRenderer_) {
+			slicingPlaneRenderer_->setCutType(type);
+		}
+		update();  // Trigger repaint to update polar plot
+	}
+}
+
+void RadarGLWidget::setRCSPlaneOffset(float degrees) {
+	if (currentSampler_) {
+		currentSampler_->setOffset(degrees);
+	}
+	// Update slicing plane visualization
+	if (slicingPlaneRenderer_) {
+		slicingPlaneRenderer_->setOffset(degrees);
+	}
+	update();
+}
+
+float RadarGLWidget::getRCSPlaneOffset() const {
+	return currentSampler_ ? currentSampler_->getOffset() : 0.0f;
+}
+
+void RadarGLWidget::setRCSSliceThickness(float degrees) {
+	// Set on both samplers so switching doesn't reset the value
+	if (azimuthSampler_) {
+		azimuthSampler_->setThickness(degrees);
+	}
+	if (elevationSampler_) {
+		elevationSampler_->setThickness(degrees);
+	}
+	// Update slicing plane visualization
+	if (slicingPlaneRenderer_) {
+		slicingPlaneRenderer_->setThickness(degrees);
+	}
+	update();
+}
+
+float RadarGLWidget::getRCSSliceThickness() const {
+	return currentSampler_ ? currentSampler_->getThickness() : RS::Constants::kDefaultSliceThickness;
+}
+
+void RadarGLWidget::setRCSPlaneShowFill(bool show) {
+	if (slicingPlaneRenderer_) {
+		slicingPlaneRenderer_->setShowFill(show);
+	}
+	update();
+}
+
+bool RadarGLWidget::isRCSPlaneShowFill() const {
+	return slicingPlaneRenderer_ ? slicingPlaneRenderer_->isShowFill() : true;
 }

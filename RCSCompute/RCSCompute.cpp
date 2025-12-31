@@ -7,7 +7,7 @@
 #include <cmath>
 #include <cstring>
 
-using namespace RadarSim::Constants;
+using namespace RS::Constants;
 
 namespace RCS {
 

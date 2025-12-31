@@ -4,7 +4,9 @@
 // These are fixed values that do not change at runtime.
 // For user-configurable settings, see Config/AppSettings.h
 
-namespace RadarSim {
+#include <array>
+
+namespace RS {
 namespace Constants {
 
 // =============================================================================
@@ -159,6 +161,30 @@ constexpr int kHeatMapLatSegments = 64;         // Sphere mesh latitude segments
 constexpr int kHeatMapLonSegments = 64;         // Sphere mesh longitude segments
 
 // =============================================================================
+// Polar RCS Plot Configuration
+// =============================================================================
+constexpr float kDefaultSliceThickness = 10.0f; // 10 degrees default slab thickness
+constexpr int kPolarPlotBins = 360;             // 1-degree resolution (360 bins)
+constexpr float kPolarPlotMinDBsm = -40.0f;     // Display minimum dBsm
+constexpr float kPolarPlotMaxDBsm = 20.0f;      // Display maximum dBsm
+constexpr float kDBsmFloor = -60.0f;            // Floor for log(0) and empty bins
+constexpr float kMinValidIntensity = 1e-10f;    // Below this, treat as zero intensity
+
+// Non-linear thickness scale: 0.1° steps from 0.5-3°, 1° steps from 3-40°
+// Fine control in precision range (typical radar beamwidths), coarse for wide beams
+inline constexpr std::array<float, 63> kThicknessScale = {
+    0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f, 1.1f, 1.2f, 1.3f, 1.4f,
+    1.5f, 1.6f, 1.7f, 1.8f, 1.9f, 2.0f, 2.1f, 2.2f, 2.3f, 2.4f,
+    2.5f, 2.6f, 2.7f, 2.8f, 2.9f, 3.0f,  // 26 values at 0.1° increments
+    4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f, 13.0f,
+    14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f,
+    24.0f, 25.0f, 26.0f, 27.0f, 28.0f, 29.0f, 30.0f, 31.0f, 32.0f, 33.0f,
+    34.0f, 35.0f, 36.0f, 37.0f, 38.0f, 39.0f, 40.0f  // 37 values at 1° increments
+};
+constexpr int kThicknessScaleSize = 63;
+constexpr int kDefaultThicknessIndex = 32;  // Index for 10° (default)
+
+// =============================================================================
 // Geometry Constants
 // =============================================================================
 constexpr float kGimbalLockThreshold = 0.99f;   // Dot product threshold for gimbal lock avoidance
@@ -247,4 +273,4 @@ namespace UI {
     constexpr int kTextOffsetPixels = 15;           // Offset for text labels
 }
 
-}} // namespace RadarSim::Constants
+}} // namespace RS::Constants

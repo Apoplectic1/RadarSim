@@ -7,7 +7,7 @@
 #include <cmath>
 #include <algorithm>
 
-using namespace RadarSim::Constants;
+using namespace RS::Constants;
 
 HeatMapRenderer::HeatMapRenderer(QObject* parent)
     : QObject(parent),

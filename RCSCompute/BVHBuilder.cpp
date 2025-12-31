@@ -5,7 +5,7 @@
 #include <limits>
 #include <QDebug>
 
-using namespace RadarSim::Constants;
+using namespace RS::Constants;
 
 namespace RCS {
 

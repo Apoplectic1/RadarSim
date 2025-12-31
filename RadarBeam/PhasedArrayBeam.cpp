@@ -5,7 +5,7 @@
 #include <cmath>
 #include <QQuaternion>
 
-using namespace RadarSim::Constants;
+using namespace RS::Constants;
 
 PhasedArrayBeam::PhasedArrayBeam(float sphereRadius, float mainLobeWidthDegrees)
     : RadarBeam(sphereRadius, mainLobeWidthDegrees),

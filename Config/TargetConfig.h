@@ -7,7 +7,7 @@
 namespace RSConfig {
 
 struct TargetConfig {
-    int targetType = 0;         // 0=Cube, 1=Cylinder, 2=Aircraft
+    int targetType = 0;         // 0=Cube, 1=Cylinder, 2=Aircraft, 3=Sphere
     QVector3D position{0.0f, 0.0f, 0.0f};
     QVector3D rotation{0.0f, 0.0f, 0.0f};  // Euler angles in degrees
     float scale = 20.0f;

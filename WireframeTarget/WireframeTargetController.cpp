@@ -4,7 +4,7 @@
 #include "Constants.h"
 #include <QDebug>
 
-using namespace RadarSim::Constants;
+using namespace RS::Constants;
 
 WireframeTargetController::WireframeTargetController(QObject* parent)
     : QObject(parent),

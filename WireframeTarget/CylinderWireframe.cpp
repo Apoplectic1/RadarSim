@@ -4,7 +4,7 @@
 #include "Constants.h"
 #include <cmath>
 
-using namespace RadarSim::Constants;
+using namespace RS::Constants;
 
 CylinderWireframe::CylinderWireframe()
     : WireframeTarget()

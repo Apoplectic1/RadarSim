@@ -2,6 +2,27 @@
 
 #include "RadarSim.h"
 #include "AppSettings.h"
+#include "PolarRCSPlot.h"
+#include "RCSCompute/RCSSampler.h"  // For CutType enum
+#include "Constants.h"
+
+#include <cmath>
+
+namespace {
+    // Find the closest index in the thickness scale for a given thickness value
+    int findClosestThicknessIndex(float thickness) {
+        int closest = 0;
+        float minDiff = std::abs(RS::Constants::kThicknessScale[0] - thickness);
+        for (int i = 1; i < RS::Constants::kThicknessScaleSize; ++i) {
+            float diff = std::abs(RS::Constants::kThicknessScale[i] - thickness);
+            if (diff < minDiff) {
+                minDiff = diff;
+                closest = i;
+            }
+        }
+        return closest;
+    }
+}
 
 #include <QWidget>
 #include <QVBoxLayout>
@@ -13,6 +34,7 @@
 #include <QGroupBox>
 #include <QDoubleSpinBox>
 #include <QComboBox>
+#include <QCheckBox>
 #include <QPushButton>
 #include <QTabWidget>
 #include <QFrame>
@@ -35,7 +57,7 @@ RadarSim::RadarSim(QWidget* parent)
     tabWidget_(nullptr),
     configTabWidget_(nullptr),
     radarSceneTabWidget_(nullptr),
-    physicsTabWidget_(nullptr),
+    polarRCSPlot_(nullptr),
     targetPosXSlider_(nullptr),
     targetPosYSlider_(nullptr),
     targetPosZSlider_(nullptr),
@@ -87,22 +109,19 @@ void RadarSim::setupUI() {
     // Set the main window title
     setWindowTitle("Radar Simulation System");
 
-    // Set minimum window size - increased height to accommodate more controls
-    setMinimumSize(1024, 1100);
+    // Set minimum window size - wider for horizontal layout (controls on right)
+    setMinimumSize(1100, 950);
 }
 
 void RadarSim::setupTabs() {
     configTabWidget_ = new QWidget(tabWidget_);
     radarSceneTabWidget_ = new QWidget(tabWidget_);
-    physicsTabWidget_ = new QWidget(tabWidget_);
 
     tabWidget_->addTab(configTabWidget_, "Configuration");
     tabWidget_->addTab(radarSceneTabWidget_, "Radar Scene");
-    tabWidget_->addTab(physicsTabWidget_, "Physics Analysis");
 
     setupConfigurationTab();
     setupRadarSceneTab();
-    setupPhysicsAnalysisTab();
 }
 
 void RadarSim::setupConfigurationTab() {
@@ -198,56 +217,61 @@ void RadarSim::setupConfigurationTab() {
 }
 
 void RadarSim::setupRadarSceneTab() {
-    QVBoxLayout* radarSceneLayout = new QVBoxLayout(radarSceneTabWidget_);
-    radarSceneLayout->setContentsMargins(4, 4, 4, 4);
-    radarSceneLayout->setSpacing(0);
+    // Main horizontal layout: [Left: scenes] [Right: controls]
+    QHBoxLayout* mainLayout = new QHBoxLayout(radarSceneTabWidget_);
+    mainLayout->setContentsMargins(4, 4, 4, 4);
+    mainLayout->setSpacing(4);
 
-    // Create splitter
-    radarSplitter_ = new QSplitter(Qt::Vertical, radarSceneTabWidget_);
-    radarSceneLayout->addWidget(radarSplitter_);
+    // === LEFT SIDE: Scenes stacked vertically ===
+    QWidget* leftContainer = new QWidget();
+    QVBoxLayout* leftLayout = new QVBoxLayout(leftContainer);
+    leftLayout->setContentsMargins(0, 0, 0, 0);
+    leftLayout->setSpacing(4);
 
-    // Create frames first without parent
-    QFrame* sphereFrame = new QFrame();
-    sphereFrame->setFrameStyle(QFrame::StyledPanel | QFrame::Sunken);
-    sphereFrame->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    // 3D Radar Scene
+    QFrame* sceneFrame = new QFrame();
+    sceneFrame->setFrameStyle(QFrame::StyledPanel | QFrame::Sunken);
+    sceneFrame->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    QVBoxLayout* sceneFrameLayout = new QVBoxLayout(sceneFrame);
+    sceneFrameLayout->setContentsMargins(1, 1, 1, 1);
 
-    QFrame* controlsFrame = new QFrame();
-    controlsFrame->setFrameStyle(QFrame::StyledPanel);
-    controlsFrame->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
+    radarSceneView_ = new RadarSceneWidget(sceneFrame);
+    radarSceneView_->setMinimumSize(600, 350);
+    sceneFrameLayout->addWidget(radarSceneView_);
 
-    // Setup layouts for frames
-    QVBoxLayout* sphereFrameLayout = new QVBoxLayout(sphereFrame);
-    sphereFrameLayout->setContentsMargins(1, 1, 1, 1);
+    // 2D Polar RCS Plot
+    polarRCSPlot_ = new PolarRCSPlot();
+    polarRCSPlot_->setMinimumSize(600, 350);
 
-    QVBoxLayout* controlsFrameLayout = new QVBoxLayout(controlsFrame);
-    controlsFrameLayout->setContentsMargins(4, 4, 4, 4);
-    controlsFrameLayout->setSpacing(8);  // Gap between groupboxes
+    leftLayout->addWidget(sceneFrame, 1);  // Stretch factor 1
+    leftLayout->addWidget(polarRCSPlot_, 1);  // Stretch factor 1 (equal size)
 
-    // Create RadarSceneWidget
-    radarSceneView_ = new RadarSceneWidget(sphereFrame);
-    radarSceneView_->setMinimumSize(800, 400);
-    sphereFrameLayout->addWidget(radarSceneView_);
+    // === RIGHT SIDE: Controls panel ===
+    QWidget* rightContainer = new QWidget();
+    rightContainer->setFixedWidth(260);  // Fixed width for controls
+    rightContainer->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
+
+    QVBoxLayout* rightLayout = new QVBoxLayout(rightContainer);
+    rightLayout->setContentsMargins(0, 0, 0, 0);
+    rightLayout->setSpacing(8);
 
     // Setup control groups
-    setupRadarControls(controlsFrame, controlsFrameLayout);
-    setupTargetControls(controlsFrame, controlsFrameLayout);
-    controlsFrameLayout->addStretch();  // Push controls to top, prevent vertical stretching
+    setupRadarControls(rightContainer, rightLayout);
+    setupTargetControls(rightContainer, rightLayout);
+    setupRCSPlaneControls(rightContainer, rightLayout);
+    rightLayout->addStretch();  // Push controls to top
 
-    // Add frames to splitter AFTER all setup is done
-    radarSplitter_->addWidget(sphereFrame);
-    radarSplitter_->addWidget(controlsFrame);
-
-    // Scene expands to fill space, controls stay minimal
-    radarSplitter_->setStretchFactor(0, 1);  // RadarScene expands
-    radarSplitter_->setStretchFactor(1, 0);  // Controls stay minimal
+    // Add containers to main layout
+    mainLayout->addWidget(leftContainer, 1);  // Stretch factor 1 (expands)
+    mainLayout->addWidget(rightContainer, 0);  // Stretch factor 0 (fixed width)
 }
 
-void RadarSim::setupRadarControls(QFrame* controlsFrame, QVBoxLayout* controlsFrameLayout) {
-    QGroupBox* controlsGroup = new QGroupBox("Radar Controls", controlsFrame);
+void RadarSim::setupRadarControls(QWidget* parent, QVBoxLayout* layout) {
+    QGroupBox* controlsGroup = new QGroupBox("Radar Controls", parent);
     QVBoxLayout* controlsLayout = new QVBoxLayout(controlsGroup);
     controlsLayout->setSpacing(0);
     controlsLayout->setContentsMargins(6, 0, 6, 0);
-    controlsFrameLayout->addWidget(controlsGroup);
+    layout->addWidget(controlsGroup);
 
     // Radius controls
     QLabel* radiusLabel = new QLabel("Sphere Radius", controlsGroup);
@@ -268,220 +292,266 @@ void RadarSim::setupRadarControls(QFrame* controlsFrame, QVBoxLayout* controlsFr
     radiusLayout->addWidget(radiusSpinBox_);
     controlsLayout->addLayout(radiusLayout);
 
-    // Azimuth controls
+    // Azimuth controls (0.5 degree increments: slider 0-718 maps to 0-359 degrees)
     QLabel* thetaLabel = new QLabel("Radar Azimuth (θ)", controlsGroup);
     controlsLayout->addWidget(thetaLabel);
 
     QHBoxLayout* thetaLayout = new QHBoxLayout();
     thetaLayout->setContentsMargins(0, 0, 0, 0);
     thetaSlider_ = new QSlider(Qt::Horizontal, controlsGroup);
-    thetaSlider_->setRange(0, 359);
-    int initialAzimuth = 45;
-    thetaSlider_->setValue(359 - initialAzimuth);
+    thetaSlider_->setRange(0, 718);  // 0-359 degrees in 0.5 steps
+    double initialAzimuth = 45.0;
+    thetaSlider_->setValue(static_cast<int>((359.0 - initialAzimuth) * 2));
 
-    thetaSpinBox_ = new QSpinBox(controlsGroup);
-    thetaSpinBox_->setRange(0, 359);
+    thetaSpinBox_ = new QDoubleSpinBox(controlsGroup);
+    thetaSpinBox_->setRange(0.0, 359.0);
+    thetaSpinBox_->setSingleStep(0.5);
+    thetaSpinBox_->setDecimals(1);
     thetaSpinBox_->setValue(initialAzimuth);
-    thetaSpinBox_->setMinimumWidth(60);  // Ensure consistent spinbox width
+    thetaSpinBox_->setMinimumWidth(60);
 
     thetaLayout->addWidget(thetaSlider_);
     thetaLayout->addWidget(thetaSpinBox_);
     controlsLayout->addLayout(thetaLayout);
 
-    // Elevation controls
+    // Elevation controls (0.5 degree increments: slider -180 to 180 maps to -90 to 90 degrees)
     QLabel* phiLabel = new QLabel("Radar Elevation (φ)", controlsGroup);
     controlsLayout->addWidget(phiLabel);
 
     QHBoxLayout* phiLayout = new QHBoxLayout();
     phiLayout->setContentsMargins(0, 0, 0, 0);
     phiSlider_ = new QSlider(Qt::Horizontal, controlsGroup);
-    phiSlider_->setRange(-90, 90);
-    phiSlider_->setValue(45);
+    phiSlider_->setRange(-180, 180);  // -90 to 90 degrees in 0.5 steps
+    phiSlider_->setValue(90);  // 45 degrees * 2
 
-    phiSpinBox_ = new QSpinBox(controlsGroup);
-    phiSpinBox_->setRange(-90, 90);
-    phiSpinBox_->setValue(45);
-    phiSpinBox_->setMinimumWidth(60);  // Ensure consistent spinbox width
+    phiSpinBox_ = new QDoubleSpinBox(controlsGroup);
+    phiSpinBox_->setRange(-90.0, 90.0);
+    phiSpinBox_->setSingleStep(0.5);
+    phiSpinBox_->setDecimals(1);
+    phiSpinBox_->setValue(45.0);
+    phiSpinBox_->setMinimumWidth(60);
 
     phiLayout->addWidget(phiSlider_);
     phiLayout->addWidget(phiSpinBox_);
     controlsLayout->addLayout(phiLayout);
 }
 
-void RadarSim::setupTargetControls(QFrame* controlsFrame, QVBoxLayout* controlsFrameLayout) {
-    QGroupBox* targetControlsGroup = new QGroupBox("Target Controls", controlsFrame);
+void RadarSim::setupTargetControls(QWidget* parent, QVBoxLayout* layout) {
+    QGroupBox* targetControlsGroup = new QGroupBox("Target Controls", parent);
     QVBoxLayout* targetControlsLayout = new QVBoxLayout(targetControlsGroup);
     targetControlsLayout->setSpacing(0);  // Match Radar Controls spacing exactly
     targetControlsLayout->setContentsMargins(6, 0, 6, 0);
-    controlsFrameLayout->addWidget(targetControlsGroup);
+    layout->addWidget(targetControlsGroup);
 
-    // Target Position X
+    // Target Position X (0.5 increments: slider -200 to 200 maps to -100 to 100)
     QLabel* targetPosXLabel = new QLabel("Position X", targetControlsGroup);
     targetControlsLayout->addWidget(targetPosXLabel);
 
     QHBoxLayout* targetPosXLayout = new QHBoxLayout();
     targetPosXLayout->setContentsMargins(0, 0, 0, 0);
     targetPosXSlider_ = new QSlider(Qt::Horizontal, targetControlsGroup);
-    targetPosXSlider_->setRange(-100, 100);
+    targetPosXSlider_->setRange(-200, 200);
     targetPosXSlider_->setValue(0);
 
-    targetPosXSpinBox_ = new QSpinBox(targetControlsGroup);
-    targetPosXSpinBox_->setRange(-100, 100);
-    targetPosXSpinBox_->setValue(0);
-    targetPosXSpinBox_->setMinimumWidth(60);  // Match Radar Controls spinbox width
+    targetPosXSpinBox_ = new QDoubleSpinBox(targetControlsGroup);
+    targetPosXSpinBox_->setRange(-100.0, 100.0);
+    targetPosXSpinBox_->setSingleStep(0.5);
+    targetPosXSpinBox_->setDecimals(1);
+    targetPosXSpinBox_->setValue(0.0);
+    targetPosXSpinBox_->setMinimumWidth(60);
 
     targetPosXLayout->addWidget(targetPosXSlider_);
     targetPosXLayout->addWidget(targetPosXSpinBox_);
     targetControlsLayout->addLayout(targetPosXLayout);
 
-    // Target Position Y
+    // Target Position Y (0.5 increments)
     QLabel* targetPosYLabel = new QLabel("Position Y", targetControlsGroup);
     targetControlsLayout->addWidget(targetPosYLabel);
 
     QHBoxLayout* targetPosYLayout = new QHBoxLayout();
     targetPosYLayout->setContentsMargins(0, 0, 0, 0);
     targetPosYSlider_ = new QSlider(Qt::Horizontal, targetControlsGroup);
-    targetPosYSlider_->setRange(-100, 100);
+    targetPosYSlider_->setRange(-200, 200);
     targetPosYSlider_->setValue(0);
 
-    targetPosYSpinBox_ = new QSpinBox(targetControlsGroup);
-    targetPosYSpinBox_->setRange(-100, 100);
-    targetPosYSpinBox_->setValue(0);
-    targetPosYSpinBox_->setMinimumWidth(60);  // Match Radar Controls spinbox width
+    targetPosYSpinBox_ = new QDoubleSpinBox(targetControlsGroup);
+    targetPosYSpinBox_->setRange(-100.0, 100.0);
+    targetPosYSpinBox_->setSingleStep(0.5);
+    targetPosYSpinBox_->setDecimals(1);
+    targetPosYSpinBox_->setValue(0.0);
+    targetPosYSpinBox_->setMinimumWidth(60);
 
     targetPosYLayout->addWidget(targetPosYSlider_);
     targetPosYLayout->addWidget(targetPosYSpinBox_);
     targetControlsLayout->addLayout(targetPosYLayout);
 
-    // Target Position Z
+    // Target Position Z (0.5 increments)
     QLabel* targetPosZLabel = new QLabel("Position Z", targetControlsGroup);
     targetControlsLayout->addWidget(targetPosZLabel);
 
     QHBoxLayout* targetPosZLayout = new QHBoxLayout();
     targetPosZLayout->setContentsMargins(0, 0, 0, 0);
     targetPosZSlider_ = new QSlider(Qt::Horizontal, targetControlsGroup);
-    targetPosZSlider_->setRange(-100, 100);
+    targetPosZSlider_->setRange(-200, 200);
     targetPosZSlider_->setValue(0);
 
-    targetPosZSpinBox_ = new QSpinBox(targetControlsGroup);
-    targetPosZSpinBox_->setRange(-100, 100);
-    targetPosZSpinBox_->setValue(0);
-    targetPosZSpinBox_->setMinimumWidth(60);  // Match Radar Controls spinbox width
+    targetPosZSpinBox_ = new QDoubleSpinBox(targetControlsGroup);
+    targetPosZSpinBox_->setRange(-100.0, 100.0);
+    targetPosZSpinBox_->setSingleStep(0.5);
+    targetPosZSpinBox_->setDecimals(1);
+    targetPosZSpinBox_->setValue(0.0);
+    targetPosZSpinBox_->setMinimumWidth(60);
 
     targetPosZLayout->addWidget(targetPosZSlider_);
     targetPosZLayout->addWidget(targetPosZSpinBox_);
     targetControlsLayout->addLayout(targetPosZLayout);
 
-    // Target Pitch (rotation around X)
+    // Target Pitch (0.5 degree increments: slider -360 to 360 maps to -180 to 180)
     QLabel* targetPitchLabel = new QLabel("Pitch (X rotation)", targetControlsGroup);
     targetControlsLayout->addWidget(targetPitchLabel);
 
     QHBoxLayout* targetPitchLayout = new QHBoxLayout();
     targetPitchLayout->setContentsMargins(0, 0, 0, 0);
     targetPitchSlider_ = new QSlider(Qt::Horizontal, targetControlsGroup);
-    targetPitchSlider_->setRange(-180, 180);
+    targetPitchSlider_->setRange(-360, 360);
     targetPitchSlider_->setValue(0);
 
-    targetPitchSpinBox_ = new QSpinBox(targetControlsGroup);
-    targetPitchSpinBox_->setRange(-180, 180);
-    targetPitchSpinBox_->setValue(0);
-    targetPitchSpinBox_->setMinimumWidth(60);  // Match Radar Controls spinbox width
+    targetPitchSpinBox_ = new QDoubleSpinBox(targetControlsGroup);
+    targetPitchSpinBox_->setRange(-180.0, 180.0);
+    targetPitchSpinBox_->setSingleStep(0.5);
+    targetPitchSpinBox_->setDecimals(1);
+    targetPitchSpinBox_->setValue(0.0);
+    targetPitchSpinBox_->setMinimumWidth(60);
 
     targetPitchLayout->addWidget(targetPitchSlider_);
     targetPitchLayout->addWidget(targetPitchSpinBox_);
     targetControlsLayout->addLayout(targetPitchLayout);
 
-    // Target Yaw (rotation around Y)
+    // Target Yaw (0.5 degree increments)
     QLabel* targetYawLabel = new QLabel("Yaw (Y rotation)", targetControlsGroup);
     targetControlsLayout->addWidget(targetYawLabel);
 
     QHBoxLayout* targetYawLayout = new QHBoxLayout();
     targetYawLayout->setContentsMargins(0, 0, 0, 0);
     targetYawSlider_ = new QSlider(Qt::Horizontal, targetControlsGroup);
-    targetYawSlider_->setRange(-180, 180);
+    targetYawSlider_->setRange(-360, 360);
     targetYawSlider_->setValue(0);
 
-    targetYawSpinBox_ = new QSpinBox(targetControlsGroup);
-    targetYawSpinBox_->setRange(-180, 180);
-    targetYawSpinBox_->setValue(0);
-    targetYawSpinBox_->setMinimumWidth(60);  // Match Radar Controls spinbox width
+    targetYawSpinBox_ = new QDoubleSpinBox(targetControlsGroup);
+    targetYawSpinBox_->setRange(-180.0, 180.0);
+    targetYawSpinBox_->setSingleStep(0.5);
+    targetYawSpinBox_->setDecimals(1);
+    targetYawSpinBox_->setValue(0.0);
+    targetYawSpinBox_->setMinimumWidth(60);
 
     targetYawLayout->addWidget(targetYawSlider_);
     targetYawLayout->addWidget(targetYawSpinBox_);
     targetControlsLayout->addLayout(targetYawLayout);
 
-    // Target Roll (rotation around Z)
+    // Target Roll (0.5 degree increments)
     QLabel* targetRollLabel = new QLabel("Roll (Z rotation)", targetControlsGroup);
     targetControlsLayout->addWidget(targetRollLabel);
 
     QHBoxLayout* targetRollLayout = new QHBoxLayout();
     targetRollLayout->setContentsMargins(0, 0, 0, 0);
     targetRollSlider_ = new QSlider(Qt::Horizontal, targetControlsGroup);
-    targetRollSlider_->setRange(-180, 180);
+    targetRollSlider_->setRange(-360, 360);
     targetRollSlider_->setValue(0);
 
-    targetRollSpinBox_ = new QSpinBox(targetControlsGroup);
-    targetRollSpinBox_->setRange(-180, 180);
-    targetRollSpinBox_->setValue(0);
-    targetRollSpinBox_->setMinimumWidth(60);  // Match Radar Controls spinbox width
+    targetRollSpinBox_ = new QDoubleSpinBox(targetControlsGroup);
+    targetRollSpinBox_->setRange(-180.0, 180.0);
+    targetRollSpinBox_->setSingleStep(0.5);
+    targetRollSpinBox_->setDecimals(1);
+    targetRollSpinBox_->setValue(0.0);
+    targetRollSpinBox_->setMinimumWidth(60);
 
     targetRollLayout->addWidget(targetRollSlider_);
     targetRollLayout->addWidget(targetRollSpinBox_);
     targetControlsLayout->addLayout(targetRollLayout);
 
-    // Target Scale
+    // Target Scale (0.5 increments: slider 2 to 200 maps to 1 to 100)
     QLabel* targetScaleLabel = new QLabel("Scale", targetControlsGroup);
     targetControlsLayout->addWidget(targetScaleLabel);
 
     QHBoxLayout* targetScaleLayout = new QHBoxLayout();
     targetScaleLayout->setContentsMargins(0, 0, 0, 0);
     targetScaleSlider_ = new QSlider(Qt::Horizontal, targetControlsGroup);
-    targetScaleSlider_->setRange(1, 100);
-    targetScaleSlider_->setValue(20);
+    targetScaleSlider_->setRange(2, 200);
+    targetScaleSlider_->setValue(40);  // 20 * 2
 
-    targetScaleSpinBox_ = new QSpinBox(targetControlsGroup);
-    targetScaleSpinBox_->setRange(1, 100);
-    targetScaleSpinBox_->setValue(20);
-    targetScaleSpinBox_->setMinimumWidth(60);  // Match Radar Controls spinbox width
+    targetScaleSpinBox_ = new QDoubleSpinBox(targetControlsGroup);
+    targetScaleSpinBox_->setRange(1.0, 100.0);
+    targetScaleSpinBox_->setSingleStep(0.5);
+    targetScaleSpinBox_->setDecimals(1);
+    targetScaleSpinBox_->setValue(20.0);
+    targetScaleSpinBox_->setMinimumWidth(60);
 
     targetScaleLayout->addWidget(targetScaleSlider_);
     targetScaleLayout->addWidget(targetScaleSpinBox_);
     targetControlsLayout->addLayout(targetScaleLayout);
 }
 
-void RadarSim::setupPhysicsAnalysisTab() {
-    QVBoxLayout* physicsLayout = new QVBoxLayout(physicsTabWidget_);
+void RadarSim::setupRCSPlaneControls(QWidget* parent, QVBoxLayout* layout) {
+    QGroupBox* rcsPlaneGroup = new QGroupBox("2D RCS Plane", parent);
+    QVBoxLayout* rcsPlaneLayout = new QVBoxLayout(rcsPlaneGroup);
+    rcsPlaneLayout->setSpacing(0);
+    rcsPlaneLayout->setContentsMargins(6, 0, 6, 0);
+    layout->addWidget(rcsPlaneGroup);
 
-    // Add a placeholder for the physics visualization
-    QLabel* physicsVisPlaceholder = new QLabel("Physics Visualization", physicsTabWidget_);
-    physicsVisPlaceholder->setMinimumSize(700, 300);
-    physicsVisPlaceholder->setFrameStyle(QFrame::StyledPanel | QFrame::Sunken);
-    physicsVisPlaceholder->setAlignment(Qt::AlignCenter);
-    physicsVisPlaceholder->setStyleSheet("background-color: #f0f0f0;");
-    physicsLayout->addWidget(physicsVisPlaceholder);
+    // Cut Type selector
+    QLabel* cutTypeLabel = new QLabel("Cut Type", rcsPlaneGroup);
+    rcsPlaneLayout->addWidget(cutTypeLabel);
 
-    // Add a tab widget for different analysis tools
-    QTabWidget* analysisTabWidget = new QTabWidget(physicsTabWidget_);
-    physicsLayout->addWidget(analysisTabWidget);
+    rcsCutTypeComboBox_ = new QComboBox(rcsPlaneGroup);
+    rcsCutTypeComboBox_->addItem("Azimuth Cut");      // Index 0
+    rcsCutTypeComboBox_->addItem("Elevation Cut");    // Index 1
+    rcsCutTypeComboBox_->setCurrentIndex(0);
+    rcsPlaneLayout->addWidget(rcsCutTypeComboBox_);
 
-    // Create tabs for different analysis modes
-    QWidget* emFieldTab = new QWidget(analysisTabWidget);
-    QWidget* materialAnalysisTab = new QWidget(analysisTabWidget);
-    QWidget* signatureTab = new QWidget(analysisTabWidget);
+    // Plane Offset control
+    QLabel* offsetLabel = new QLabel("Plane Offset (°)", rcsPlaneGroup);
+    rcsPlaneLayout->addWidget(offsetLabel);
 
-    analysisTabWidget->addTab(emFieldTab, "EM Field Analysis");
-    analysisTabWidget->addTab(materialAnalysisTab, "Material Analysis");
-    analysisTabWidget->addTab(signatureTab, "Radar Signature");
+    QHBoxLayout* offsetLayout = new QHBoxLayout();
+    offsetLayout->setContentsMargins(0, 0, 0, 0);
+    rcsPlaneOffsetSlider_ = new QSlider(Qt::Horizontal, rcsPlaneGroup);
+    rcsPlaneOffsetSlider_->setRange(-90, 90);
+    rcsPlaneOffsetSlider_->setValue(0);
 
-    // For each tab, add a simple placeholder layout
-    QVBoxLayout* emFieldLayout = new QVBoxLayout(emFieldTab);
-    emFieldLayout->addWidget(new QLabel("Electromagnetic field analysis tools will go here"));
+    rcsPlaneOffsetSpinBox_ = new QSpinBox(rcsPlaneGroup);
+    rcsPlaneOffsetSpinBox_->setRange(-90, 90);
+    rcsPlaneOffsetSpinBox_->setValue(0);
+    rcsPlaneOffsetSpinBox_->setMinimumWidth(60);
 
-    QVBoxLayout* materialLayout = new QVBoxLayout(materialAnalysisTab);
-    materialLayout->addWidget(new QLabel("Material analysis tools will go here"));
+    offsetLayout->addWidget(rcsPlaneOffsetSlider_);
+    offsetLayout->addWidget(rcsPlaneOffsetSpinBox_);
+    rcsPlaneLayout->addLayout(offsetLayout);
 
-    QVBoxLayout* signatureLayout = new QVBoxLayout(signatureTab);
-    signatureLayout->addWidget(new QLabel("Radar signature analysis tools will go here"));
+    // Slice Thickness control (non-linear scale: 0.1° steps 0.5-3°, 1° steps 3-40°)
+    QLabel* thicknessLabel = new QLabel("Slice Thickness (±°)", rcsPlaneGroup);
+    rcsPlaneLayout->addWidget(thicknessLabel);
+
+    QHBoxLayout* thicknessLayout = new QHBoxLayout();
+    thicknessLayout->setContentsMargins(0, 0, 0, 0);
+    rcsSliceThicknessSlider_ = new QSlider(Qt::Horizontal, rcsPlaneGroup);
+    rcsSliceThicknessSlider_->setRange(0, RS::Constants::kThicknessScaleSize - 1);
+    rcsSliceThicknessSlider_->setValue(RS::Constants::kDefaultThicknessIndex);
+
+    rcsSliceThicknessSpinBox_ = new QDoubleSpinBox(rcsPlaneGroup);
+    rcsSliceThicknessSpinBox_->setRange(0.5, 40.0);
+    rcsSliceThicknessSpinBox_->setDecimals(1);
+    rcsSliceThicknessSpinBox_->setSingleStep(0.1);
+    rcsSliceThicknessSpinBox_->setValue(RS::Constants::kThicknessScale[RS::Constants::kDefaultThicknessIndex]);
+    rcsSliceThicknessSpinBox_->setMinimumWidth(60);
+
+    thicknessLayout->addWidget(rcsSliceThicknessSlider_);
+    thicknessLayout->addWidget(rcsSliceThicknessSpinBox_);
+    rcsPlaneLayout->addLayout(thicknessLayout);
+
+    // Show Fill checkbox
+    rcsPlaneShowFillCheckBox_ = new QCheckBox("Show Plane Fill", rcsPlaneGroup);
+    rcsPlaneShowFillCheckBox_->setChecked(true);
+    rcsPlaneLayout->addWidget(rcsPlaneShowFillCheckBox_);
 }
 
 void RadarSim::connectSignals() {
@@ -491,39 +561,52 @@ void RadarSim::connectSignals() {
 
     // Connect theta (azimuth) slider and spin box
     connect(thetaSlider_, &QSlider::valueChanged, this, &RadarSim::onThetaSliderValueChanged);
-    connect(thetaSpinBox_, QOverload<int>::of(&QSpinBox::valueChanged), this, &RadarSim::onThetaSpinBoxValueChanged);
+    connect(thetaSpinBox_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &RadarSim::onThetaSpinBoxValueChanged);
 
     // Connect phi (elevation) slider and spin box
     connect(phiSlider_, &QSlider::valueChanged, this, &RadarSim::onPhiSliderValueChanged);
-    connect(phiSpinBox_, QOverload<int>::of(&QSpinBox::valueChanged), this, &RadarSim::onPhiSpinBoxValueChanged);
+    connect(phiSpinBox_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &RadarSim::onPhiSpinBoxValueChanged);
 
     // Connect target position X controls
-    connect(targetPosXSlider_, &QSlider::valueChanged, this, &RadarSim::onTargetPosXChanged);
-    connect(targetPosXSpinBox_, QOverload<int>::of(&QSpinBox::valueChanged), this, &RadarSim::onTargetPosXChanged);
+    connect(targetPosXSlider_, &QSlider::valueChanged, this, &RadarSim::onTargetPosXSliderChanged);
+    connect(targetPosXSpinBox_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &RadarSim::onTargetPosXSpinBoxChanged);
 
     // Connect target position Y controls
-    connect(targetPosYSlider_, &QSlider::valueChanged, this, &RadarSim::onTargetPosYChanged);
-    connect(targetPosYSpinBox_, QOverload<int>::of(&QSpinBox::valueChanged), this, &RadarSim::onTargetPosYChanged);
+    connect(targetPosYSlider_, &QSlider::valueChanged, this, &RadarSim::onTargetPosYSliderChanged);
+    connect(targetPosYSpinBox_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &RadarSim::onTargetPosYSpinBoxChanged);
 
     // Connect target position Z controls
-    connect(targetPosZSlider_, &QSlider::valueChanged, this, &RadarSim::onTargetPosZChanged);
-    connect(targetPosZSpinBox_, QOverload<int>::of(&QSpinBox::valueChanged), this, &RadarSim::onTargetPosZChanged);
+    connect(targetPosZSlider_, &QSlider::valueChanged, this, &RadarSim::onTargetPosZSliderChanged);
+    connect(targetPosZSpinBox_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &RadarSim::onTargetPosZSpinBoxChanged);
 
     // Connect target pitch controls
-    connect(targetPitchSlider_, &QSlider::valueChanged, this, &RadarSim::onTargetPitchChanged);
-    connect(targetPitchSpinBox_, QOverload<int>::of(&QSpinBox::valueChanged), this, &RadarSim::onTargetPitchChanged);
+    connect(targetPitchSlider_, &QSlider::valueChanged, this, &RadarSim::onTargetPitchSliderChanged);
+    connect(targetPitchSpinBox_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &RadarSim::onTargetPitchSpinBoxChanged);
 
     // Connect target yaw controls
-    connect(targetYawSlider_, &QSlider::valueChanged, this, &RadarSim::onTargetYawChanged);
-    connect(targetYawSpinBox_, QOverload<int>::of(&QSpinBox::valueChanged), this, &RadarSim::onTargetYawChanged);
+    connect(targetYawSlider_, &QSlider::valueChanged, this, &RadarSim::onTargetYawSliderChanged);
+    connect(targetYawSpinBox_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &RadarSim::onTargetYawSpinBoxChanged);
 
     // Connect target roll controls
-    connect(targetRollSlider_, &QSlider::valueChanged, this, &RadarSim::onTargetRollChanged);
-    connect(targetRollSpinBox_, QOverload<int>::of(&QSpinBox::valueChanged), this, &RadarSim::onTargetRollChanged);
+    connect(targetRollSlider_, &QSlider::valueChanged, this, &RadarSim::onTargetRollSliderChanged);
+    connect(targetRollSpinBox_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &RadarSim::onTargetRollSpinBoxChanged);
 
     // Connect target scale controls
-    connect(targetScaleSlider_, &QSlider::valueChanged, this, &RadarSim::onTargetScaleChanged);
-    connect(targetScaleSpinBox_, QOverload<int>::of(&QSpinBox::valueChanged), this, &RadarSim::onTargetScaleChanged);
+    connect(targetScaleSlider_, &QSlider::valueChanged, this, &RadarSim::onTargetScaleSliderChanged);
+    connect(targetScaleSpinBox_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &RadarSim::onTargetScaleSpinBoxChanged);
+
+    // Connect polar plot data from radar scene
+    connect(radarSceneView_, &RadarSceneWidget::polarPlotDataReady,
+            polarRCSPlot_, &PolarRCSPlot::setData);
+
+    // Connect RCS plane controls
+    connect(rcsCutTypeComboBox_, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &RadarSim::onRCSCutTypeChanged);
+    connect(rcsPlaneOffsetSlider_, &QSlider::valueChanged, this, &RadarSim::onRCSPlaneOffsetChanged);
+    connect(rcsPlaneOffsetSpinBox_, QOverload<int>::of(&QSpinBox::valueChanged), this, &RadarSim::onRCSPlaneOffsetChanged);
+    // Thickness slider uses lookup table, spinbox just displays value
+    connect(rcsSliceThicknessSlider_, &QSlider::valueChanged, this, &RadarSim::onRCSSliceThicknessChanged);
+    connect(rcsPlaneShowFillCheckBox_, &QCheckBox::toggled, this, &RadarSim::onRCSPlaneShowFillChanged);
 }
 
 // Slot implementations
@@ -541,25 +624,29 @@ void RadarSim::onThetaSliderValueChanged(int value) {
     // Block signals to prevent circular updates
     thetaSpinBox_->blockSignals(true);
 
-    // Reverse the sense for Azimuth slider
-    int reversedValue = 359 - value;
+    // Slider value is in half-degrees (0-718), convert to degrees (0-359)
+    // Also reverse the sense for Azimuth slider
+    double degrees = (718 - value) / 2.0;
 
     // Update the spin box with the reversed value
-    thetaSpinBox_->setValue(reversedValue);
+    thetaSpinBox_->setValue(degrees);
     thetaSpinBox_->blockSignals(false);
 
-    // Update the radar scene widget with the reversed value
-    radarSceneView_->setAngles(reversedValue, radarSceneView_->getPhi());
+    // Update the radar scene widget
+    radarSceneView_->setAngles(degrees, radarSceneView_->getPhi());
 }
 
 void RadarSim::onPhiSliderValueChanged(int value) {
     // Block signals to prevent circular updates
     phiSpinBox_->blockSignals(true);
-    phiSpinBox_->setValue(value);
+
+    // Slider value is in half-degrees (-180 to 180), convert to degrees (-90 to 90)
+    double degrees = value / 2.0;
+    phiSpinBox_->setValue(degrees);
     phiSpinBox_->blockSignals(false);
 
     // Update the radar scene widget
-    radarSceneView_->setAngles(radarSceneView_->getTheta(), value);
+    radarSceneView_->setAngles(radarSceneView_->getTheta(), degrees);
 }
 
 void RadarSim::onRadiusSpinBoxValueChanged(int value) {
@@ -572,22 +659,26 @@ void RadarSim::onRadiusSpinBoxValueChanged(int value) {
     radarSceneView_->setRadius(value);
 }
 
-void RadarSim::onThetaSpinBoxValueChanged(int value) {
+void RadarSim::onThetaSpinBoxValueChanged(double value) {
     // Block signals to prevent circular updates
     thetaSlider_->blockSignals(true);
 
-    // Set slider to reversed value (for display purposes)
-    thetaSlider_->setValue(359 - value);
+    // Convert degrees to half-degrees and reverse for slider
+    int sliderValue = static_cast<int>((359.0 - value) * 2);
+    thetaSlider_->setValue(sliderValue);
     thetaSlider_->blockSignals(false);
 
     // Update the radar scene widget with the direct spin box value
     radarSceneView_->setAngles(value, radarSceneView_->getPhi());
 }
 
-void RadarSim::onPhiSpinBoxValueChanged(int value) {
+void RadarSim::onPhiSpinBoxValueChanged(double value) {
     // Block signals to prevent circular updates
     phiSlider_->blockSignals(true);
-    phiSlider_->setValue(value);
+
+    // Convert degrees to half-degrees for slider
+    int sliderValue = static_cast<int>(value * 2);
+    phiSlider_->setValue(sliderValue);
     phiSlider_->blockSignals(false);
 
     // Update the radar scene widget
@@ -604,9 +695,95 @@ void RadarSim::syncSliderSpinBox(QSlider* slider, QSpinBox* spinBox, int value) 
     spinBox->blockSignals(false);
 }
 
-// Target control slot implementations
-void RadarSim::onTargetPosXChanged(int value) {
-    syncSliderSpinBox(targetPosXSlider_, targetPosXSpinBox_, value);
+// Target control slot implementations - slider handlers
+void RadarSim::onTargetPosXSliderChanged(int value) {
+    double actualValue = value / 2.0;
+    targetPosXSpinBox_->blockSignals(true);
+    targetPosXSpinBox_->setValue(actualValue);
+    targetPosXSpinBox_->blockSignals(false);
+    if (auto* controller = radarSceneView_->getWireframeController()) {
+        QVector3D pos = controller->getPosition();
+        controller->setPosition(static_cast<float>(actualValue), pos.y(), pos.z());
+        radarSceneView_->updateScene();
+    }
+}
+
+void RadarSim::onTargetPosYSliderChanged(int value) {
+    double actualValue = value / 2.0;
+    targetPosYSpinBox_->blockSignals(true);
+    targetPosYSpinBox_->setValue(actualValue);
+    targetPosYSpinBox_->blockSignals(false);
+    if (auto* controller = radarSceneView_->getWireframeController()) {
+        QVector3D pos = controller->getPosition();
+        controller->setPosition(pos.x(), static_cast<float>(actualValue), pos.z());
+        radarSceneView_->updateScene();
+    }
+}
+
+void RadarSim::onTargetPosZSliderChanged(int value) {
+    double actualValue = value / 2.0;
+    targetPosZSpinBox_->blockSignals(true);
+    targetPosZSpinBox_->setValue(actualValue);
+    targetPosZSpinBox_->blockSignals(false);
+    if (auto* controller = radarSceneView_->getWireframeController()) {
+        QVector3D pos = controller->getPosition();
+        controller->setPosition(pos.x(), pos.y(), static_cast<float>(actualValue));
+        radarSceneView_->updateScene();
+    }
+}
+
+void RadarSim::onTargetPitchSliderChanged(int value) {
+    double actualValue = value / 2.0;
+    targetPitchSpinBox_->blockSignals(true);
+    targetPitchSpinBox_->setValue(actualValue);
+    targetPitchSpinBox_->blockSignals(false);
+    if (auto* controller = radarSceneView_->getWireframeController()) {
+        QVector3D rot = controller->getRotation();
+        controller->setRotation(static_cast<float>(actualValue), rot.y(), rot.z());
+        radarSceneView_->updateScene();
+    }
+}
+
+void RadarSim::onTargetYawSliderChanged(int value) {
+    double actualValue = value / 2.0;
+    targetYawSpinBox_->blockSignals(true);
+    targetYawSpinBox_->setValue(actualValue);
+    targetYawSpinBox_->blockSignals(false);
+    if (auto* controller = radarSceneView_->getWireframeController()) {
+        QVector3D rot = controller->getRotation();
+        controller->setRotation(rot.x(), static_cast<float>(actualValue), rot.z());
+        radarSceneView_->updateScene();
+    }
+}
+
+void RadarSim::onTargetRollSliderChanged(int value) {
+    double actualValue = value / 2.0;
+    targetRollSpinBox_->blockSignals(true);
+    targetRollSpinBox_->setValue(actualValue);
+    targetRollSpinBox_->blockSignals(false);
+    if (auto* controller = radarSceneView_->getWireframeController()) {
+        QVector3D rot = controller->getRotation();
+        controller->setRotation(rot.x(), rot.y(), static_cast<float>(actualValue));
+        radarSceneView_->updateScene();
+    }
+}
+
+void RadarSim::onTargetScaleSliderChanged(int value) {
+    double actualValue = value / 2.0;
+    targetScaleSpinBox_->blockSignals(true);
+    targetScaleSpinBox_->setValue(actualValue);
+    targetScaleSpinBox_->blockSignals(false);
+    if (auto* controller = radarSceneView_->getWireframeController()) {
+        controller->setScale(static_cast<float>(actualValue));
+        radarSceneView_->updateScene();
+    }
+}
+
+// Target control slot implementations - spinbox handlers
+void RadarSim::onTargetPosXSpinBoxChanged(double value) {
+    targetPosXSlider_->blockSignals(true);
+    targetPosXSlider_->setValue(static_cast<int>(value * 2));
+    targetPosXSlider_->blockSignals(false);
     if (auto* controller = radarSceneView_->getWireframeController()) {
         QVector3D pos = controller->getPosition();
         controller->setPosition(static_cast<float>(value), pos.y(), pos.z());
@@ -614,8 +791,10 @@ void RadarSim::onTargetPosXChanged(int value) {
     }
 }
 
-void RadarSim::onTargetPosYChanged(int value) {
-    syncSliderSpinBox(targetPosYSlider_, targetPosYSpinBox_, value);
+void RadarSim::onTargetPosYSpinBoxChanged(double value) {
+    targetPosYSlider_->blockSignals(true);
+    targetPosYSlider_->setValue(static_cast<int>(value * 2));
+    targetPosYSlider_->blockSignals(false);
     if (auto* controller = radarSceneView_->getWireframeController()) {
         QVector3D pos = controller->getPosition();
         controller->setPosition(pos.x(), static_cast<float>(value), pos.z());
@@ -623,8 +802,10 @@ void RadarSim::onTargetPosYChanged(int value) {
     }
 }
 
-void RadarSim::onTargetPosZChanged(int value) {
-    syncSliderSpinBox(targetPosZSlider_, targetPosZSpinBox_, value);
+void RadarSim::onTargetPosZSpinBoxChanged(double value) {
+    targetPosZSlider_->blockSignals(true);
+    targetPosZSlider_->setValue(static_cast<int>(value * 2));
+    targetPosZSlider_->blockSignals(false);
     if (auto* controller = radarSceneView_->getWireframeController()) {
         QVector3D pos = controller->getPosition();
         controller->setPosition(pos.x(), pos.y(), static_cast<float>(value));
@@ -632,8 +813,10 @@ void RadarSim::onTargetPosZChanged(int value) {
     }
 }
 
-void RadarSim::onTargetPitchChanged(int value) {
-    syncSliderSpinBox(targetPitchSlider_, targetPitchSpinBox_, value);
+void RadarSim::onTargetPitchSpinBoxChanged(double value) {
+    targetPitchSlider_->blockSignals(true);
+    targetPitchSlider_->setValue(static_cast<int>(value * 2));
+    targetPitchSlider_->blockSignals(false);
     if (auto* controller = radarSceneView_->getWireframeController()) {
         QVector3D rot = controller->getRotation();
         controller->setRotation(static_cast<float>(value), rot.y(), rot.z());
@@ -641,8 +824,10 @@ void RadarSim::onTargetPitchChanged(int value) {
     }
 }
 
-void RadarSim::onTargetYawChanged(int value) {
-    syncSliderSpinBox(targetYawSlider_, targetYawSpinBox_, value);
+void RadarSim::onTargetYawSpinBoxChanged(double value) {
+    targetYawSlider_->blockSignals(true);
+    targetYawSlider_->setValue(static_cast<int>(value * 2));
+    targetYawSlider_->blockSignals(false);
     if (auto* controller = radarSceneView_->getWireframeController()) {
         QVector3D rot = controller->getRotation();
         controller->setRotation(rot.x(), static_cast<float>(value), rot.z());
@@ -650,8 +835,10 @@ void RadarSim::onTargetYawChanged(int value) {
     }
 }
 
-void RadarSim::onTargetRollChanged(int value) {
-    syncSliderSpinBox(targetRollSlider_, targetRollSpinBox_, value);
+void RadarSim::onTargetRollSpinBoxChanged(double value) {
+    targetRollSlider_->blockSignals(true);
+    targetRollSlider_->setValue(static_cast<int>(value * 2));
+    targetRollSlider_->blockSignals(false);
     if (auto* controller = radarSceneView_->getWireframeController()) {
         QVector3D rot = controller->getRotation();
         controller->setRotation(rot.x(), rot.y(), static_cast<float>(value));
@@ -659,8 +846,10 @@ void RadarSim::onTargetRollChanged(int value) {
     }
 }
 
-void RadarSim::onTargetScaleChanged(int value) {
-    syncSliderSpinBox(targetScaleSlider_, targetScaleSpinBox_, value);
+void RadarSim::onTargetScaleSpinBoxChanged(double value) {
+    targetScaleSlider_->blockSignals(true);
+    targetScaleSlider_->setValue(static_cast<int>(value * 2));
+    targetScaleSlider_->blockSignals(false);
     if (auto* controller = radarSceneView_->getWireframeController()) {
         controller->setScale(static_cast<float>(value));
         radarSceneView_->updateScene();
@@ -673,6 +862,34 @@ void RadarSim::onBeamTypeChanged(int index) {
         beam->setBeamType(static_cast<BeamType>(index));
         radarSceneView_->update();
     }
+}
+
+// RCS plane control slot implementations
+void RadarSim::onRCSCutTypeChanged(int index) {
+    CutType type = static_cast<CutType>(index);
+    radarSceneView_->setRCSCutType(type);
+}
+
+void RadarSim::onRCSPlaneOffsetChanged(int value) {
+    syncSliderSpinBox(rcsPlaneOffsetSlider_, rcsPlaneOffsetSpinBox_, value);
+    radarSceneView_->setRCSPlaneOffset(static_cast<float>(value));
+}
+
+void RadarSim::onRCSSliceThicknessChanged(int sliderIndex) {
+    // Get actual thickness from lookup table
+    float thickness = RS::Constants::kThicknessScale[sliderIndex];
+
+    // Update spinbox display (read-only, just shows the value)
+    rcsSliceThicknessSpinBox_->blockSignals(true);
+    rcsSliceThicknessSpinBox_->setValue(static_cast<double>(thickness));
+    rcsSliceThicknessSpinBox_->blockSignals(false);
+
+    // Apply to scene
+    radarSceneView_->setRCSSliceThickness(thickness);
+}
+
+void RadarSim::onRCSPlaneShowFillChanged(bool checked) {
+    radarSceneView_->setRCSPlaneShowFill(checked);
 }
 
 // Profile management slot implementations
@@ -822,6 +1039,7 @@ void RadarSim::readSettingsFromScene() {
 
     // Read target settings
     if (auto* target = radarSceneView_->getWireframeController()) {
+        appSettings_->target.targetType = static_cast<int>(target->getTargetType());
         appSettings_->target.position = target->getPosition();
         appSettings_->target.rotation = target->getRotation();
         appSettings_->target.scale = target->getScale();
@@ -840,6 +1058,12 @@ void RadarSim::readSettingsFromScene() {
     appSettings_->scene.showSphere = radarSceneView_->isSphereVisible();
     appSettings_->scene.showGrid = radarSceneView_->areGridLinesVisible();
     appSettings_->scene.showShadow = radarSceneView_->isShowShadow();
+
+    // Read RCS plane settings
+    appSettings_->scene.rcsCutType = static_cast<int>(radarSceneView_->getRCSCutType());
+    appSettings_->scene.rcsPlaneOffset = radarSceneView_->getRCSPlaneOffset();
+    appSettings_->scene.rcsSliceThickness = radarSceneView_->getRCSSliceThickness();
+    appSettings_->scene.rcsPlaneShowFill = radarSceneView_->isRCSPlaneShowFill();
 }
 
 void RadarSim::applySettingsToScene() {
@@ -864,15 +1088,17 @@ void RadarSim::applySettingsToScene() {
 
     thetaSlider_->blockSignals(true);
     thetaSpinBox_->blockSignals(true);
-    thetaSlider_->setValue(359 - static_cast<int>(appSettings_->scene.radarTheta));
-    thetaSpinBox_->setValue(static_cast<int>(appSettings_->scene.radarTheta));
+    // Convert degrees to half-degrees and reverse for slider
+    thetaSlider_->setValue(static_cast<int>((359.0 - appSettings_->scene.radarTheta) * 2));
+    thetaSpinBox_->setValue(static_cast<double>(appSettings_->scene.radarTheta));
     thetaSlider_->blockSignals(false);
     thetaSpinBox_->blockSignals(false);
 
     phiSlider_->blockSignals(true);
     phiSpinBox_->blockSignals(true);
-    phiSlider_->setValue(static_cast<int>(appSettings_->scene.radarPhi));
-    phiSpinBox_->setValue(static_cast<int>(appSettings_->scene.radarPhi));
+    // Convert degrees to half-degrees for slider
+    phiSlider_->setValue(static_cast<int>(appSettings_->scene.radarPhi * 2));
+    phiSpinBox_->setValue(static_cast<double>(appSettings_->scene.radarPhi));
     phiSlider_->blockSignals(false);
     phiSpinBox_->blockSignals(false);
 
@@ -899,55 +1125,58 @@ void RadarSim::applySettingsToScene() {
         );
         target->setScale(appSettings_->target.scale);
 
-        // Update target UI controls
+        // Update target UI controls (slider values are 2x actual values for 0.5 increments)
         targetPosXSlider_->blockSignals(true);
         targetPosXSpinBox_->blockSignals(true);
-        targetPosXSlider_->setValue(static_cast<int>(appSettings_->target.position.x()));
-        targetPosXSpinBox_->setValue(static_cast<int>(appSettings_->target.position.x()));
+        targetPosXSlider_->setValue(static_cast<int>(appSettings_->target.position.x() * 2));
+        targetPosXSpinBox_->setValue(static_cast<double>(appSettings_->target.position.x()));
         targetPosXSlider_->blockSignals(false);
         targetPosXSpinBox_->blockSignals(false);
 
         targetPosYSlider_->blockSignals(true);
         targetPosYSpinBox_->blockSignals(true);
-        targetPosYSlider_->setValue(static_cast<int>(appSettings_->target.position.y()));
-        targetPosYSpinBox_->setValue(static_cast<int>(appSettings_->target.position.y()));
+        targetPosYSlider_->setValue(static_cast<int>(appSettings_->target.position.y() * 2));
+        targetPosYSpinBox_->setValue(static_cast<double>(appSettings_->target.position.y()));
         targetPosYSlider_->blockSignals(false);
         targetPosYSpinBox_->blockSignals(false);
 
         targetPosZSlider_->blockSignals(true);
         targetPosZSpinBox_->blockSignals(true);
-        targetPosZSlider_->setValue(static_cast<int>(appSettings_->target.position.z()));
-        targetPosZSpinBox_->setValue(static_cast<int>(appSettings_->target.position.z()));
+        targetPosZSlider_->setValue(static_cast<int>(appSettings_->target.position.z() * 2));
+        targetPosZSpinBox_->setValue(static_cast<double>(appSettings_->target.position.z()));
         targetPosZSlider_->blockSignals(false);
         targetPosZSpinBox_->blockSignals(false);
 
         targetPitchSlider_->blockSignals(true);
         targetPitchSpinBox_->blockSignals(true);
-        targetPitchSlider_->setValue(static_cast<int>(appSettings_->target.rotation.x()));
-        targetPitchSpinBox_->setValue(static_cast<int>(appSettings_->target.rotation.x()));
+        targetPitchSlider_->setValue(static_cast<int>(appSettings_->target.rotation.x() * 2));
+        targetPitchSpinBox_->setValue(static_cast<double>(appSettings_->target.rotation.x()));
         targetPitchSlider_->blockSignals(false);
         targetPitchSpinBox_->blockSignals(false);
 
         targetYawSlider_->blockSignals(true);
         targetYawSpinBox_->blockSignals(true);
-        targetYawSlider_->setValue(static_cast<int>(appSettings_->target.rotation.y()));
-        targetYawSpinBox_->setValue(static_cast<int>(appSettings_->target.rotation.y()));
+        targetYawSlider_->setValue(static_cast<int>(appSettings_->target.rotation.y() * 2));
+        targetYawSpinBox_->setValue(static_cast<double>(appSettings_->target.rotation.y()));
         targetYawSlider_->blockSignals(false);
         targetYawSpinBox_->blockSignals(false);
 
         targetRollSlider_->blockSignals(true);
         targetRollSpinBox_->blockSignals(true);
-        targetRollSlider_->setValue(static_cast<int>(appSettings_->target.rotation.z()));
-        targetRollSpinBox_->setValue(static_cast<int>(appSettings_->target.rotation.z()));
+        targetRollSlider_->setValue(static_cast<int>(appSettings_->target.rotation.z() * 2));
+        targetRollSpinBox_->setValue(static_cast<double>(appSettings_->target.rotation.z()));
         targetRollSlider_->blockSignals(false);
         targetRollSpinBox_->blockSignals(false);
 
         targetScaleSlider_->blockSignals(true);
         targetScaleSpinBox_->blockSignals(true);
-        targetScaleSlider_->setValue(static_cast<int>(appSettings_->target.scale));
-        targetScaleSpinBox_->setValue(static_cast<int>(appSettings_->target.scale));
+        targetScaleSlider_->setValue(static_cast<int>(appSettings_->target.scale * 2));
+        targetScaleSpinBox_->setValue(static_cast<double>(appSettings_->target.scale));
         targetScaleSlider_->blockSignals(false);
         targetScaleSpinBox_->blockSignals(false);
+
+        // Apply target type
+        target->setTargetType(static_cast<WireframeType>(appSettings_->target.targetType));
     }
 
     // Apply beam settings
@@ -970,6 +1199,46 @@ void RadarSim::applySettingsToScene() {
     radarSceneView_->setSphereVisible(appSettings_->scene.showSphere);
     radarSceneView_->setGridLinesVisible(appSettings_->scene.showGrid);
     radarSceneView_->setShowShadow(appSettings_->scene.showShadow);
+
+    // Apply RCS plane settings
+    radarSceneView_->setRCSCutType(static_cast<CutType>(appSettings_->scene.rcsCutType));
+    radarSceneView_->setRCSPlaneOffset(appSettings_->scene.rcsPlaneOffset);
+    radarSceneView_->setRCSSliceThickness(appSettings_->scene.rcsSliceThickness);
+
+    // Update RCS plane UI controls
+    if (rcsCutTypeComboBox_) {
+        rcsCutTypeComboBox_->blockSignals(true);
+        rcsCutTypeComboBox_->setCurrentIndex(appSettings_->scene.rcsCutType);
+        rcsCutTypeComboBox_->blockSignals(false);
+    }
+    if (rcsPlaneOffsetSlider_ && rcsPlaneOffsetSpinBox_) {
+        rcsPlaneOffsetSlider_->blockSignals(true);
+        rcsPlaneOffsetSpinBox_->blockSignals(true);
+        rcsPlaneOffsetSlider_->setValue(static_cast<int>(appSettings_->scene.rcsPlaneOffset));
+        rcsPlaneOffsetSpinBox_->setValue(static_cast<int>(appSettings_->scene.rcsPlaneOffset));
+        rcsPlaneOffsetSlider_->blockSignals(false);
+        rcsPlaneOffsetSpinBox_->blockSignals(false);
+    }
+    if (rcsSliceThicknessSlider_ && rcsSliceThicknessSpinBox_) {
+        // Find the closest index in the thickness scale for the saved thickness
+        int thicknessIndex = findClosestThicknessIndex(appSettings_->scene.rcsSliceThickness);
+        float actualThickness = RS::Constants::kThicknessScale[thicknessIndex];
+
+        rcsSliceThicknessSlider_->blockSignals(true);
+        rcsSliceThicknessSpinBox_->blockSignals(true);
+        rcsSliceThicknessSlider_->setValue(thicknessIndex);
+        rcsSliceThicknessSpinBox_->setValue(static_cast<double>(actualThickness));
+        rcsSliceThicknessSlider_->blockSignals(false);
+        rcsSliceThicknessSpinBox_->blockSignals(false);
+    }
+
+    // Apply RCS plane show fill setting
+    radarSceneView_->setRCSPlaneShowFill(appSettings_->scene.rcsPlaneShowFill);
+    if (rcsPlaneShowFillCheckBox_) {
+        rcsPlaneShowFillCheckBox_->blockSignals(true);
+        rcsPlaneShowFillCheckBox_->setChecked(appSettings_->scene.rcsPlaneShowFill);
+        rcsPlaneShowFillCheckBox_->blockSignals(false);
+    }
 
     // Sync context menu checkmarks with controller state (after visibility is applied)
     radarSceneView_->syncBeamMenu();

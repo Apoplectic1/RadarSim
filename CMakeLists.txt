@@ -55,6 +55,13 @@ set(RCS_COMPUTE_SOURCES
     RCSCompute/BVHBuilder.h
     RCSCompute/RCSCompute.cpp
     RCSCompute/RCSCompute.h
+    RCSCompute/RCSSampler.h
+    RCSCompute/AzimuthCutSampler.cpp
+    RCSCompute/AzimuthCutSampler.h
+    RCSCompute/ElevationCutSampler.cpp
+    RCSCompute/ElevationCutSampler.h
+    RCSCompute/SlicingPlaneRenderer.cpp
+    RCSCompute/SlicingPlaneRenderer.h
 )
 
 # ReflectionRenderer sources (RCS lobe visualization)
@@ -78,6 +85,8 @@ set(WIREFRAME_TARGET_SOURCES
     WireframeTarget/CylinderWireframe.h
     WireframeTarget/AircraftWireframe.cpp
     WireframeTarget/AircraftWireframe.h
+    WireframeTarget/SphereWireframe.cpp
+    WireframeTarget/SphereWireframe.h
 )
 
 # RadarBeam classes - CRITICAL: Use absolute paths from source directory
@@ -116,6 +125,12 @@ set(CONFIG_SOURCES
     Config/SceneConfig.h
 )
 
+# PolarPlot sources (2D polar RCS visualization)
+set(POLAR_PLOT_SOURCES
+    PolarPlot/PolarRCSPlot.cpp
+    PolarPlot/PolarRCSPlot.h
+)
+
 # Main application sources
 set(PROJECT_SOURCES
     main.cpp
@@ -144,6 +159,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         ${RCS_COMPUTE_SOURCES}
         ${REFLECTION_RENDERER_SOURCES}
         ${CONFIG_SOURCES}
+        ${POLAR_PLOT_SOURCES}
     )
 else()
     add_executable(RadarSim
@@ -155,6 +171,7 @@ else()
         ${RCS_COMPUTE_SOURCES}
         ${REFLECTION_RENDERER_SOURCES}
         ${CONFIG_SOURCES}
+        ${POLAR_PLOT_SOURCES}
     )
 endif()
 
@@ -168,6 +185,7 @@ target_include_directories(RadarSim PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/RCSCompute
     ${CMAKE_CURRENT_SOURCE_DIR}/ReflectionRenderer
     ${CMAKE_CURRENT_SOURCE_DIR}/Config
+    ${CMAKE_CURRENT_SOURCE_DIR}/PolarPlot
 )
 
 # Link Qt libraries

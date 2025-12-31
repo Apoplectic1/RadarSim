@@ -2,7 +2,7 @@
 #include "BeamController.h"
 #include "Constants.h"
 
-using namespace RadarSim::Constants;
+using namespace RS::Constants;
 
 BeamController::BeamController(QObject* parent)
     : QObject(parent),

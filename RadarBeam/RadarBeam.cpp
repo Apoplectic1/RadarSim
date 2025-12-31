@@ -8,7 +8,7 @@
 #include "Constants.h"
 #include <cmath>
 
-using namespace RadarSim::Constants;
+using namespace RS::Constants;
 
 // Constructor
 RadarBeam::RadarBeam(float sphereRadius, float beamWidthDegrees)

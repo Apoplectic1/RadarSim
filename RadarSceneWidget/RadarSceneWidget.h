@@ -10,6 +10,8 @@
 #include "ModelManager/ModelManager.h"
 #include "WireframeTargetController.h"
 #include "RadarGLWidget.h"
+#include "PolarPlot/PolarRCSPlot.h"
+#include "RCSCompute/RCSSampler.h"  // For CutType enum
 
 class RadarSceneWidget : public QWidget {
     Q_OBJECT
@@ -48,6 +50,16 @@ public:
     void setShowShadow(bool show);
     bool isShowShadow() const;
 
+    // RCS slicing plane control
+    void setRCSCutType(CutType type);
+    CutType getRCSCutType() const;
+    void setRCSPlaneOffset(float degrees);
+    float getRCSPlaneOffset() const;
+    void setRCSSliceThickness(float degrees);
+    float getRCSSliceThickness() const;
+    void setRCSPlaneShowFill(bool show);
+    bool isRCSPlaneShowFill() const;
+
     // Component access
     SphereRenderer* getSphereRenderer() const { return sphereRenderer_; }
     BeamController* getBeamController() const { return beamController_; }
@@ -63,6 +75,7 @@ public:
 
 signals:
     void radarPositionChanged(float radius, float theta, float phi);
+    void polarPlotDataReady(const std::vector<RCSDataPoint>& data);
     void beamTypeChanged(BeamType type);
     void beamWidthChanged(float width);
     void visibilityOptionChanged(const QString& option, bool visible);

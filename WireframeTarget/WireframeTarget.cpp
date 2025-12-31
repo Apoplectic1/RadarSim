@@ -5,12 +5,13 @@
 #include "CubeWireframe.h"
 #include "CylinderWireframe.h"
 #include "AircraftWireframe.h"
+#include "SphereWireframe.h"
 #include "Constants.h"
 #include <QDebug>
 #include <QOpenGLContext>
 #include <cmath>
 
-using namespace RadarSim::Constants;
+using namespace RS::Constants;
 
 WireframeTarget::WireframeTarget()
     : position_(0.0f, 0.0f, 0.0f),
@@ -341,6 +342,8 @@ std::unique_ptr<WireframeTarget> WireframeTarget::createTarget(WireframeType typ
         return std::make_unique<CylinderWireframe>();
     case WireframeType::Aircraft:
         return std::make_unique<AircraftWireframe>();
+    case WireframeType::Sphere:
+        return std::make_unique<SphereWireframe>(3);  // 3 subdivisions = 1280 faces
     default:
         return std::make_unique<CubeWireframe>();
     }

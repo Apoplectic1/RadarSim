@@ -4,7 +4,7 @@
 #include <QtMath>
 #include <qtimer.h>
 
-using namespace RadarSim::Constants;
+using namespace RS::Constants;
 
 SphereRenderer::SphereRenderer(QObject* parent)
 	: QObject(parent),

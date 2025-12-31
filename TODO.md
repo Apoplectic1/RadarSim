@@ -4,6 +4,24 @@
 
 ## Recently Completed
 
+- [x] **2D Polar RCS Plot** - Real-time polar plot showing RCS vs angle
+  - OpenGL-based PolarRCSPlot widget below 3D scene
+  - AzimuthCutSampler and ElevationCutSampler for slicing RCS data
+  - Slicing plane visualization in 3D scene (translucent rectangle)
+  - UI controls: Cut Type, Plane Offset, Slice Thickness, Show Fill
+  - Non-linear thickness slider (0.1° steps for 0.5-3°, 1° steps for 3-40°)
+- [x] **Geodesic Sphere Target** - For RCS verification against theoretical πr²
+  - Icosahedron subdivision (configurable levels, default 3 = 1280 faces)
+  - Added to context menu and target type enum
+- [x] **0.5° Slider Increments** - Finer control for all angle/position sliders
+  - Radar Azimuth/Elevation use QDoubleSpinBox with 0.5° step
+  - Target Position X/Y/Z use 0.5 unit increments
+  - Target Pitch/Yaw/Roll use 0.5° increments
+  - Target Scale uses 0.5 unit increments
+- [x] **Profile Save/Restore** - New settings persisted to profiles
+  - Target type (Cube/Cylinder/Aircraft/Sphere) saved and restored
+  - RCS plane settings (cut type, offset, thickness, show fill) saved
+  - Context menu checkmarks sync with restored settings
 - [x] **HeatMapRenderer** - RCS heat map visualization on radar sphere surface
   - Smooth gradient (Blue→Yellow→Red) based on reflection intensity
   - Spherical binning (64×64 lat/lon) for intensity accumulation
@@ -20,7 +38,7 @@
 - [x] Target Controls UI with sliders for Position (X/Y/Z), Rotation (Pitch/Yaw/Roll), Scale
 - [x] Target Controls connected to WireframeTargetController (scene updates on slider change)
 - [x] Compact UI layout for Radar Controls and Target Controls (setSpacing(2), setContentsMargins(6,6,6,6))
-- [x] Context menu for target type selection (Cube, Cylinder, Aircraft)
+- [x] Context menu for target type selection (Cube, Cylinder, Aircraft, Sphere)
 - [x] Beam type switching via context menu (Conical, Sinc, Phased Array)
 
 ## In Progress / Known Issues
@@ -32,16 +50,17 @@ No critical issues at present. GPU ray-traced shadows replaced the problematic s
 ### High Priority
 
 - [ ] Calculate actual RCS values from hit geometry (currently just visualization)
-- [ ] Add RCS value display in UI (dBsm readout)
-- [ ] Add more target shapes (Pyramid, Sphere, Ship)
+- [ ] Add RCS value display in UI (dBsm readout from polar plot data)
+- [ ] Add more target shapes (Pyramid, Ship, Custom OBJ import)
 - [ ] Implement ModelManager intersection testing (currently placeholder - impacts accuracy)
+- [ ] RCS Validation with Sphere target (compare calculated RCS against theoretical πr²)
 
 ### Medium Priority
 
 - [ ] Diffraction effects for realistic radar simulation (significant RCS impact for certain geometries)
 - [ ] Material properties for targets (reflectivity, absorption)
-- [ ] Heat map persistence/settings save
-- [ ] RCS Validation: Compare calculated RCS against known analytical solutions (sphere, cylinder, flat plate)
+- [ ] Pop-out windows for 3D scene and polar plot (resizable analysis windows)
+- [ ] Multi-target support with inter-target reflections
 
 ### Low Priority / Technical Debt
 
@@ -109,10 +128,14 @@ RadarGLWidget
 ├── BeamController           - Conical/Sinc/Phased beam rendering
 ├── CameraController         - Mouse interaction, view transforms, inertia
 ├── ModelManager             - 3D model loading (placeholder)
-├── WireframeTargetController- Solid target shapes with transforms
+├── WireframeTargetController- Solid target shapes (Cube/Cylinder/Aircraft/Sphere)
 ├── RCSCompute               - GPU ray tracing for RCS calculations
+│   ├── AzimuthCutSampler    - Sample RCS data for horizontal plane cuts
+│   ├── ElevationCutSampler  - Sample RCS data for vertical plane cuts
+│   └── SlicingPlaneRenderer - Visualize sampling plane in 3D
 ├── ReflectionRenderer       - Colored cone lobes (RCS visualization)
-└── HeatMapRenderer          - Sphere heat map (RCS visualization)
+├── HeatMapRenderer          - Sphere heat map (RCS visualization)
+└── PolarRCSPlot             - 2D polar plot widget (separate from GL scene)
 ```
 
 ### Build Notes

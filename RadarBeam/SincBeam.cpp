@@ -6,7 +6,7 @@
 #include <QOpenGLContext>
 #include <cmath>
 
-using namespace RadarSim::Constants;
+using namespace RS::Constants;
 
 // First null of Bessel J1 occurs at x ≈ 3.8317
 constexpr float kAiryFirstNull = 3.8317f;

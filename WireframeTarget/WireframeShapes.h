@@ -4,5 +4,6 @@
 enum class WireframeType {
     Cube,
     Cylinder,
-    Aircraft
+    Aircraft,
+    Sphere  // Geodesic sphere for RCS verification (theoretical RCS = pi*r^2)
 };

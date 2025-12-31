@@ -56,14 +56,21 @@ RadarSim/
 │   ├── WireframeTargetController.h/.cpp  # Component wrapper
 │   ├── CubeWireframe.h/.cpp    # Solid cube (6 faces, 12 triangles)
 │   ├── CylinderWireframe.h/.cpp# Solid cylinder (caps + sides)
-│   └── AircraftWireframe.h/.cpp# Solid fighter jet model
+│   ├── AircraftWireframe.h/.cpp# Solid fighter jet model
+│   └── SphereWireframe.h/.cpp  # Geodesic sphere (icosahedron subdivision)
 ├── ReflectionRenderer/         # RCS reflection visualization
 │   ├── ReflectionRenderer.h/.cpp  # Colored cone visualization of reflected energy
 │   └── HeatMapRenderer.h/.cpp     # Smooth gradient heat map on radar sphere
-└── RCSCompute/                 # GPU ray tracing for RCS calculations
-    ├── RCSTypes.h              # GPU-aligned structs (Ray, BVHNode, Triangle, HitResult)
-    ├── BVHBuilder.h/.cpp       # SAH-based Bounding Volume Hierarchy construction
-    └── RCSCompute.h/.cpp       # OpenGL 4.3 compute shader ray tracer
+├── RCSCompute/                 # GPU ray tracing for RCS calculations
+│   ├── RCSTypes.h              # GPU-aligned structs (Ray, BVHNode, Triangle, HitResult)
+│   ├── BVHBuilder.h/.cpp       # SAH-based Bounding Volume Hierarchy construction
+│   ├── RCSCompute.h/.cpp       # OpenGL 4.3 compute shader ray tracer
+│   ├── RCSSampler.h            # Abstract interface for RCS sampling
+│   ├── AzimuthCutSampler.h/.cpp    # Horizontal plane cut sampling
+│   ├── ElevationCutSampler.h/.cpp  # Vertical plane cut sampling
+│   └── SlicingPlaneRenderer.h/.cpp # Visualize sampling plane in 3D
+└── PolarPlot/                  # 2D polar RCS visualization
+    └── PolarRCSPlot.h/.cpp     # OpenGL widget for polar RCS plot
 ```
 
 ## Architecture
@@ -122,8 +129,15 @@ RadarBeam* RadarBeam::createBeam(BeamType type, float sphereRadius, float beamWi
 WireframeTarget (base)
 ├── CubeWireframe      # 6 faces, 12 triangles
 ├── CylinderWireframe  # Top/bottom caps + side surface
-└── AircraftWireframe  # Triangulated fighter jet surfaces
+├── AircraftWireframe  # Triangulated fighter jet surfaces
+└── SphereWireframe    # Geodesic sphere (icosahedron subdivision, 1280 faces default)
 ```
+
+**SphereWireframe Details:**
+- Created via recursive icosahedron subdivision
+- Subdivision level configurable (0=20 faces, 1=80, 2=320, 3=1280)
+- Used for RCS verification against theoretical πr²
+- Normals point outward from sphere center
 
 Factory method for target creation:
 ```cpp
@@ -267,14 +281,19 @@ Config/
     "version": 1,
     "beam": { "type": 0, "width": 15.0, "opacity": 0.3 },
     "camera": { "distance": 300.0, "azimuth": 0.0, "elevation": 0.4 },
-    "target": { "position": [0,0,0], "rotation": [0,0,0], "scale": 20.0 },
+    "target": { "type": 0, "position": [0,0,0], "rotation": [0,0,0], "scale": 20.0 },
     "scene": {
         "sphereRadius": 100.0, "radarTheta": 45.0, "radarPhi": 45.0,
         "showSphere": true, "showAxes": true, "showGridLines": true,
-        "showShadow": true, "enableInertia": false
+        "showShadow": true, "enableInertia": false,
+        "rcsCutType": 0, "rcsPlaneOffset": 0.0, "rcsSliceThickness": 10.0,
+        "rcsPlaneShowFill": true
     }
 }
 ```
+
+**Target Types:** 0=Cube, 1=Cylinder, 2=Aircraft, 3=Sphere
+**RCS Cut Types:** 0=Azimuth, 1=Elevation
 
 **Usage in RadarSim.cpp:**
 ```cpp
@@ -390,6 +409,8 @@ Without this connection, timer-based animations will appear stuttery because `up
 | Sphere geometry | `SphereRenderer.cpp` |
 | Target transforms | `WireframeTargetController.cpp`, `RadarSim.cpp` (target slots) |
 | RCS ray tracing | `RCSCompute/RCSCompute.cpp`, `RCSCompute/BVHBuilder.cpp` |
+| RCS sampling/polar plot | `RCSCompute/AzimuthCutSampler.cpp`, `RCSCompute/ElevationCutSampler.cpp`, `PolarPlot/PolarRCSPlot.cpp` |
+| Slicing plane visualization | `RCSCompute/SlicingPlaneRenderer.cpp` |
 | Reflection lobes | `ReflectionRenderer/ReflectionRenderer.cpp`, `RCSCompute/RCSCompute.cpp` |
 | RCS heat map | `ReflectionRenderer/HeatMapRenderer.cpp`, `RCSCompute/RCSCompute.cpp` |
 | Add compile-time constant | `Constants.h` |
@@ -408,11 +429,19 @@ RadarGLWidget::paintGL()
   │   ├── Generates shadow map texture from ray hit distances
   │   └── Calculates reflection directions and BRDF intensities
   ├── RCSCompute::readHitBuffer()                                 # GPU → CPU for visualization
+  ├── SlicingPlaneRenderer::render()                              # Translucent RCS sampling plane
   ├── HeatMapRenderer::updateFromHits() + render()                # Heat map on sphere (if enabled)
   ├── BeamController::render(projection, view, model)             # Semi-transparent, GPU shadow
   │   └── Fragment shader samples shadow map, discards behind hits
   ├── ReflectionRenderer::render(projection, view, model)         # Transparent lobe cones (if enabled)
+  ├── Sample RCS data → emit polarPlotDataReady signal            # For 2D polar plot
   └── (implicit buffer swap)
+
+PolarRCSPlot (separate widget, below 3D scene)
+  ├── Receives RCSDataPoint vector via signal/slot
+  ├── Renders polar grid (30° lines, 10 dB rings)
+  ├── Renders RCS data curve (filled polygon from center)
+  └── Renders axis labels (0°/90°/180°/270° and dBsm values)
 ```
 
 Note: Solid targets render before beam so they are visible through semi-transparent beam. Target rendering explicitly sets depth test, disables blending, and enables face culling for correct opaque solid rendering. RCSCompute generates both RCS data and shadow map texture which BeamController uses for accurate beam occlusion. ReflectionRenderer renders last with alpha blending for proper transparency.
@@ -618,35 +647,57 @@ See [RCSCompute (GPU Ray Tracing)](#rcscompute-gpu-ray-tracing) section for impl
 Both Radar Controls and Target Controls use compact layout:
 ```cpp
 QVBoxLayout* layout = new QVBoxLayout(groupBox);
-layout->setSpacing(2);                    // Minimal vertical spacing
-layout->setContentsMargins(6, 6, 6, 6);   // Compact margins
+layout->setSpacing(0);                    // Minimal vertical spacing
+layout->setContentsMargins(6, 0, 6, 0);   // Compact margins
 ```
 
-Each control follows this pattern:
-```cpp
-QLabel* label = new QLabel("Control Name", groupBox);
-layout->addWidget(label);
+### 0.5 Increment Slider Pattern
 
-QHBoxLayout* controlLayout = new QHBoxLayout();
-QSlider* slider = new QSlider(Qt::Horizontal, groupBox);
-QSpinBox* spinBox = new QSpinBox(groupBox);
-controlLayout->addWidget(slider);
-controlLayout->addWidget(spinBox);
-layout->addLayout(controlLayout);
+All angle and position sliders use 0.5 increments with QDoubleSpinBox:
+```cpp
+// Slider uses doubled range (e.g., -360 to 360 for -180° to 180°)
+slider->setRange(-360, 360);  // Half-degree steps
+slider->setValue(0);
+
+// Spinbox shows actual value with 0.5 step
+spinBox = new QDoubleSpinBox(parent);
+spinBox->setRange(-180.0, 180.0);
+spinBox->setSingleStep(0.5);
+spinBox->setDecimals(1);
+spinBox->setValue(0.0);
+```
+
+Slot handlers convert between slider (int, half-values) and actual values:
+```cpp
+void RadarSim::onTargetPitchSliderChanged(int value) {
+    double actualValue = value / 2.0;  // Convert half-degrees to degrees
+    targetPitchSpinBox_->blockSignals(true);
+    targetPitchSpinBox_->setValue(actualValue);
+    targetPitchSpinBox_->blockSignals(false);
+    // Update controller with actualValue
+}
+
+void RadarSim::onTargetPitchSpinBoxChanged(double value) {
+    targetPitchSlider_->blockSignals(true);
+    targetPitchSlider_->setValue(static_cast<int>(value * 2));  // Convert to half-degrees
+    targetPitchSlider_->blockSignals(false);
+    // Update controller with value
+}
 ```
 
 ### Target Controls Slots
 
-Target control slots must call `radarSceneView_->update()` after modifying the controller:
+Target control slots must call `radarSceneView_->updateScene()` after modifying the controller:
 ```cpp
-void RadarSim::onTargetPosXChanged(int value) {
-    // Sync slider and spinbox with blockSignals()
-    // ...
+void RadarSim::onTargetPosXSpinBoxChanged(double value) {
+    targetPosXSlider_->blockSignals(true);
+    targetPosXSlider_->setValue(static_cast<int>(value * 2));
+    targetPosXSlider_->blockSignals(false);
 
     if (auto* controller = radarSceneView_->getWireframeController()) {
         QVector3D pos = controller->getPosition();
         controller->setPosition(static_cast<float>(value), pos.y(), pos.z());
-        radarSceneView_->update();  // IMPORTANT: Trigger repaint
+        radarSceneView_->updateScene();  // IMPORTANT: Trigger repaint
     }
 }
 ```
@@ -718,7 +769,8 @@ The 3D scene provides a context menu for quick access to visualization options:
 └── Target >
     ├── Cube              [radio]
     ├── Cylinder          [radio]
-    └── Aircraft          [radio]
+    ├── Aircraft          [radio]
+    └── Sphere            [radio]  # Geodesic sphere for RCS verification
 ```
 
 **Implementation:** `RadarGLWidget::setupContextMenu()` creates actions with `blockSignals()` used in `syncBeamMenu()` to prevent circular updates when syncing checkbox state from code.
