@@ -40,6 +40,7 @@ namespace {
 #include <QFrame>
 #include <QSplitter>
 #include <QCloseEvent>
+#include <QShowEvent>
 #include <QMouseEvent>
 #include <QInputDialog>
 #include <QMessageBox>
@@ -198,8 +199,7 @@ void RadarSim::setupMenuBar() {
 void RadarSim::setupConfigurationWindow() {
     configWindow_ = new ConfigurationWindow(this);
 
-    // Position the config window to the right of the main window
-    configWindow_->move(x() + width() + 10, y());
+    // Note: Position is set in showEvent() after main window geometry is valid
 
     // Connect profile signals
     connect(appSettings_, &RSConfig::AppSettings::profilesChanged,
@@ -1076,6 +1076,20 @@ void RadarSim::closeEvent(QCloseEvent* event) {
     readSettingsFromScene();
     appSettings_->saveLastSession();
     event->accept();
+}
+
+void RadarSim::showEvent(QShowEvent* event) {
+    QMainWindow::showEvent(event);
+
+    // Position config window now that main window geometry is valid
+    positionConfigWindow();
+}
+
+void RadarSim::positionConfigWindow() {
+    if (!configWindow_) return;
+
+    // Position to the right of the main window with 10px gap
+    configWindow_->move(x() + width() + 10, y());
 }
 
 bool RadarSim::eventFilter(QObject* obj, QEvent* event) {

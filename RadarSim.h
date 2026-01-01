@@ -96,10 +96,12 @@ private slots:
 
 protected:
     void closeEvent(QCloseEvent* event) override;
+    void showEvent(QShowEvent* event) override;
     bool eventFilter(QObject* obj, QEvent* event) override;
 
 private:
     void setupUI();
+    void positionConfigWindow();
     void setupLayout();
     void setupMenuBar();
     void setupConfigurationWindow();
