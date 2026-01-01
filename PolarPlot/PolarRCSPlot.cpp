@@ -11,6 +11,9 @@ using namespace RS::Constants;
 PolarRCSPlot::PolarRCSPlot(QWidget* parent)
     : QOpenGLWidget(parent)
 {
+    // Force complete redraws - don't reuse previous frame content
+    setUpdateBehavior(QOpenGLWidget::NoPartialUpdate);
+
     // Pre-allocate data vector for 360 bins
     data_.resize(360);
     for (int i = 0; i < 360; ++i) {
@@ -75,6 +78,8 @@ void PolarRCSPlot::initializeGL() {
 
     setupShaders();
     setupBuffers();
+
+    glInitialized_ = true;
 }
 
 void PolarRCSPlot::resizeGL(int w, int h) {
@@ -93,18 +98,24 @@ void PolarRCSPlot::resizeGL(int w, int h) {
 }
 
 void PolarRCSPlot::paintGL() {
-    // Don't render until resizeGL has been called with valid dimensions
-    if (viewWidth_ <= 0 || viewHeight_ <= 0 || plotRadius_ <= 0.0f) {
+    // Don't render until properly initialized and resized
+    if (!glInitialized_ || viewWidth_ <= 0 || viewHeight_ <= 0 || plotRadius_ <= 0.0f) {
         return;
     }
 
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    // Reset OpenGL state to prevent pollution from other widgets
+    // Set up clean 2D rendering state (prevent pollution from 3D widgets)
+    glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());  // Ensure correct render target
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
+    glDisable(GL_BLEND);
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     glUseProgram(0);
+
+    // Set viewport and clear
+    glViewport(0, 0, viewWidth_, viewHeight_);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // Set up orthographic projection for 2D rendering
     QMatrix4x4 projection;

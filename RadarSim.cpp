@@ -1083,6 +1083,17 @@ void RadarSim::showEvent(QShowEvent* event) {
 
     // Position config window now that main window geometry is valid
     positionConfigWindow();
+
+    // Force polar plot to resize after window is fully visible
+    // This triggers proper OpenGL initialization that doesn't happen on initial layout
+    QTimer::singleShot(50, this, [this]() {
+        if (polarRCSPlot_) {
+            // Trigger a resize event by resizing to current size
+            QSize size = polarRCSPlot_->size();
+            polarRCSPlot_->resize(size.width() + 1, size.height());
+            polarRCSPlot_->resize(size);
+        }
+    });
 }
 
 void RadarSim::positionConfigWindow() {

@@ -81,9 +81,10 @@ private:
     // View parameters
     float plotCenterX_ = 0.0f;
     float plotCenterY_ = 0.0f;
-    float plotRadius_ = 1.0f;  // Normalized radius (scaled in resizeGL)
-    int viewWidth_ = 1;
-    int viewHeight_ = 1;
+    float plotRadius_ = 0.0f;  // Set in resizeGL
+    int viewWidth_ = 0;
+    int viewHeight_ = 0;
+    bool glInitialized_ = false;  // Set after initializeGL completes
 
     // Constants
     static constexpr int kAngularGridLines = 12;    // Every 30 degrees
