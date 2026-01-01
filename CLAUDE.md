@@ -29,6 +29,7 @@ cmake --build out/build/release
 RadarSim/
 ├── main.cpp                    # Entry point, OpenGL context setup
 ├── RadarSim.h/.cpp             # Main window with tabbed UI
+├── PopOutWindow.h/.cpp         # Pop-out window container for detached views
 ├── Constants.h                 # Compile-time constants (see Constants section below)
 ├── GLUtils.h                   # OpenGL error checking utilities
 ├── Config/                     # Settings and configuration system
@@ -47,7 +48,9 @@ RadarSim/
 │   ├── RadarGLWidget.h/.cpp    # Modern QOpenGLWidget with component architecture
 │   ├── SphereRenderer.h/.cpp   # Sphere/grid/axes component
 │   ├── RadarSceneWidget.h/.cpp # Scene container
-│   └── CameraController.h/.cpp # View/camera controls
+│   ├── CameraController.h/.cpp # View/camera controls
+│   ├── FBORenderer.h/.cpp      # Framebuffer object for pop-out windows
+│   └── TextureBlitWidget.h/.cpp # Displays FBO texture in pop-out window
 ├── ModelManager/               # 3D model handling
 │   └── ModelManager.h/.cpp     # Model loading component
 ├── WireframeTarget/            # Solid target visualization (for RCS calculations)
@@ -413,6 +416,7 @@ Without this connection, timer-based animations will appear stuttery because `up
 | Slicing plane visualization | `RCSCompute/SlicingPlaneRenderer.cpp` |
 | Reflection lobes | `ReflectionRenderer/ReflectionRenderer.cpp`, `RCSCompute/RCSCompute.cpp` |
 | RCS heat map | `ReflectionRenderer/HeatMapRenderer.cpp`, `RCSCompute/RCSCompute.cpp` |
+| Pop-out windows | `PopOutWindow.cpp`, `FBORenderer.cpp`, `TextureBlitWidget.cpp`, `RadarSim.cpp` (pop-out slots) |
 | Add compile-time constant | `Constants.h` |
 | Add saved setting | `Config/*Config.h`, `AppSettings.cpp`, `RadarSim.cpp` (read/apply methods) |
 | Profile management | `Config/AppSettings.cpp`, `RadarSim.cpp` (profile slots) |
@@ -741,12 +745,50 @@ The 3D scene uses orbit camera controls via `CameraController`:
 | **Middle Mouse** | Pan the scene (drag to move view left/right/up/down) |
 | **Scroll Wheel** | Zoom in/out (changes camera distance) |
 | **Left Double-Click** | Reset view to default position |
+| **Shift+Double-Click** | Pop out window to separate resizable window |
 
 **Implementation Details** (`CameraController.cpp`):
 - Orbit uses spherical coordinates (azimuth, elevation) around focus point
 - Pan moves the focus point in screen-space aligned directions
 - Inertia can be enabled for smooth rotation continuation after mouse release
 - Elevation clamped to ±85° to avoid gimbal lock
+
+## Pop-Out Windows
+
+Both the 3D Radar Scene and 2D Polar RCS Plot support pop-out functionality via **Shift+Double-Click**. This creates a separate resizable window that mirrors the original view.
+
+**Architecture:**
+The pop-out system uses FBO (Framebuffer Object) texture sharing to avoid NVIDIA driver crashes that occur when reparenting QOpenGLWidget on Windows.
+
+```
+RadarGLWidget (source)
+  └── FBORenderer (renders scene to texture)
+        └── textureUpdated signal
+              └── TextureBlitWidget (in PopOutWindow)
+                    └── Displays shared texture
+                    └── Forwards mouse events to source CameraController
+```
+
+**Key Components:**
+- **FBORenderer**: Wraps OpenGL FBO for offscreen rendering, dynamically resizes to match pop-out window size
+- **TextureBlitWidget**: QOpenGLWidget that displays the FBO texture and forwards mouse events
+- **PopOutWindow**: Container window with close handling and source widget management
+
+**Implementation Details:**
+- `Qt::AA_ShareOpenGLContexts` enabled in `main.cpp` for texture sharing between GL contexts
+- FBO resizes dynamically to match pop-out window dimensions for sharp rendering
+- Projection matrix uses FBO dimensions (not source widget) for correct aspect ratio
+- Shift+Double-Click in pop-out window closes it and returns to docked view
+
+**Files:**
+| File | Purpose |
+|------|---------|
+| `main.cpp` | Sets `Qt::AA_ShareOpenGLContexts` attribute |
+| `PopOutWindow.h/.cpp` | Pop-out window container |
+| `RadarSceneWidget/FBORenderer.h/.cpp` | FBO wrapper for offscreen rendering |
+| `RadarSceneWidget/TextureBlitWidget.h/.cpp` | Displays FBO texture, forwards mouse events |
+| `RadarGLWidget.cpp` | `setRenderToFBO()`, `requestFBOResize()` methods |
+| `RadarSim.cpp` | `onScenePopoutRequested()`, `onPolarPopoutRequested()` slots |
 
 ## Slider Controls
 

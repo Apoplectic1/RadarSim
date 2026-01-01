@@ -59,6 +59,15 @@ void PolarRCSPlot::setScale(float minDBsm, float maxDBsm) {
     update();
 }
 
+void PolarRCSPlot::mouseDoubleClickEvent(QMouseEvent* event) {
+    // Shift+double-click triggers pop-out
+    if (event->modifiers() & Qt::ShiftModifier) {
+        emit popoutRequested();
+        return;
+    }
+    QOpenGLWidget::mouseDoubleClickEvent(event);
+}
+
 void PolarRCSPlot::initializeGL() {
     initializeOpenGLFunctions();
 

@@ -5,6 +5,7 @@
 #include <QOpenGLWidget>
 #include <QOpenGLFunctions_4_5_Core>
 #include <QOpenGLShaderProgram>
+#include <QMouseEvent>
 #include <vector>
 #include <memory>
 
@@ -36,10 +37,14 @@ public:
     float getMinDBsm() const { return minDBsm_; }
     float getMaxDBsm() const { return maxDBsm_; }
 
+signals:
+    void popoutRequested();
+
 protected:
     void initializeGL() override;
     void resizeGL(int w, int h) override;
     void paintGL() override;
+    void mouseDoubleClickEvent(QMouseEvent* event) override;
 
 private:
     // Rendering methods

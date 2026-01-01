@@ -57,7 +57,6 @@ RadarSim::RadarSim(QWidget* parent)
     phiSpinBox_(nullptr),
     tabWidget_(nullptr),
     configTabWidget_(nullptr),
-    radarSceneTabWidget_(nullptr),
     polarRCSPlot_(nullptr),
     targetPosXSlider_(nullptr),
     targetPosYSlider_(nullptr),
@@ -85,9 +84,6 @@ RadarSim::RadarSim(QWidget* parent)
         // Apply restored settings after a brief delay to ensure scene is ready
         QTimer::singleShot(100, this, &RadarSim::applySettingsToScene);
     }
-
-    // Start with the radar scene tab selected
-    tabWidget_->setCurrentIndex(1);
 }
 
 // Destructor
@@ -96,33 +92,30 @@ RadarSim::~RadarSim() {
 }
 
 void RadarSim::setupUI() {
-    // Create central widget for the main window
-    auto* centralWidget = new QWidget(this);
-    setCentralWidget(centralWidget);
-
-    // Create main layout
-    auto* mainLayout = new QVBoxLayout(centralWidget);
-
-    // Create tab widget
-    tabWidget_ = new QTabWidget(centralWidget);
-    mainLayout->addWidget(tabWidget_);
-
     // Set the main window title
     setWindowTitle("Radar Simulation System");
 
-    // Set minimum window size - wider for horizontal layout (controls on right)
+    // Set minimum window size
     setMinimumSize(1100, 950);
+
+    // Allow nested dock widgets and tabbed docks
+    setDockNestingEnabled(true);
+
+    // Create central widget with Configuration tab
+    auto* centralWidget = new QWidget(this);
+    setCentralWidget(centralWidget);
+    auto* mainLayout = new QVBoxLayout(centralWidget);
+    tabWidget_ = new QTabWidget(centralWidget);
+    mainLayout->addWidget(tabWidget_);
+
+    // Configuration tab goes in central widget
+    configTabWidget_ = new QWidget(tabWidget_);
+    tabWidget_->addTab(configTabWidget_, "Configuration");
 }
 
 void RadarSim::setupTabs() {
-    configTabWidget_ = new QWidget(tabWidget_);
-    radarSceneTabWidget_ = new QWidget(tabWidget_);
-
-    tabWidget_->addTab(configTabWidget_, "Configuration");
-    tabWidget_->addTab(radarSceneTabWidget_, "Radar Scene");
-
     setupConfigurationTab();
-    setupRadarSceneTab();
+    setupRadarSceneTab();  // Now creates dock widgets
 }
 
 void RadarSim::setupConfigurationTab() {
@@ -218,53 +211,62 @@ void RadarSim::setupConfigurationTab() {
 }
 
 void RadarSim::setupRadarSceneTab() {
-    // Main horizontal layout: [Left: scenes] [Right: controls]
-    QHBoxLayout* mainLayout = new QHBoxLayout(radarSceneTabWidget_);
-    mainLayout->setContentsMargins(4, 4, 4, 4);
-    mainLayout->setSpacing(4);
+    // Create dock widget for 3D Radar Scene
+    sceneDock_ = new QDockWidget("3D Radar Scene", this);
+    sceneDock_->setFeatures(QDockWidget::DockWidgetMovable |
+                            QDockWidget::DockWidgetFloatable |
+                            QDockWidget::DockWidgetClosable);
+    sceneDock_->setAllowedAreas(Qt::AllDockWidgetAreas);
 
-    // === LEFT SIDE: Scenes stacked vertically ===
-    QWidget* leftContainer = new QWidget();
-    QVBoxLayout* leftLayout = new QVBoxLayout(leftContainer);
-    leftLayout->setContentsMargins(0, 0, 0, 0);
-    leftLayout->setSpacing(4);
-
-    // 3D Radar Scene
-    QFrame* sceneFrame = new QFrame();
-    sceneFrame->setFrameStyle(QFrame::StyledPanel | QFrame::Sunken);
-    sceneFrame->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    QVBoxLayout* sceneFrameLayout = new QVBoxLayout(sceneFrame);
-    sceneFrameLayout->setContentsMargins(1, 1, 1, 1);
-
-    radarSceneView_ = new RadarSceneWidget(sceneFrame);
+    QWidget* sceneContainer = new QWidget();
+    QHBoxLayout* sceneLayout = new QHBoxLayout(sceneContainer);
+    sceneLayout->setContentsMargins(4, 0, 0, 0);  // Left margin only
+    radarSceneView_ = new RadarSceneWidget();
     radarSceneView_->setMinimumSize(600, 350);
-    sceneFrameLayout->addWidget(radarSceneView_);
+    sceneLayout->addWidget(radarSceneView_);
+    sceneDock_->setWidget(sceneContainer);
+    addDockWidget(Qt::LeftDockWidgetArea, sceneDock_);
 
-    // 2D Polar RCS Plot
+    // Create dock widget for 2D Polar RCS Plot
+    polarDock_ = new QDockWidget("2D Polar RCS Plot", this);
+    polarDock_->setFeatures(QDockWidget::DockWidgetMovable |
+                            QDockWidget::DockWidgetFloatable |
+                            QDockWidget::DockWidgetClosable);
+    polarDock_->setAllowedAreas(Qt::AllDockWidgetAreas);
+
+    QWidget* polarContainer = new QWidget();
+    QHBoxLayout* polarLayout = new QHBoxLayout(polarContainer);
+    polarLayout->setContentsMargins(4, 0, 0, 0);  // Left margin only
     polarRCSPlot_ = new PolarRCSPlot();
     polarRCSPlot_->setMinimumSize(600, 350);
+    polarLayout->addWidget(polarRCSPlot_);
+    polarDock_->setWidget(polarContainer);
+    addDockWidget(Qt::LeftDockWidgetArea, polarDock_);
 
-    leftLayout->addWidget(sceneFrame, 1);  // Stretch factor 1
-    leftLayout->addWidget(polarRCSPlot_, 1);  // Stretch factor 1 (equal size)
+    // Stack polar dock below scene dock
+    splitDockWidget(sceneDock_, polarDock_, Qt::Vertical);
 
-    // === RIGHT SIDE: Controls panel ===
-    QWidget* rightContainer = new QWidget();
-    rightContainer->setFixedWidth(260);  // Fixed width for controls
-    rightContainer->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
+    // Create dock widget for Controls
+    controlsDock_ = new QDockWidget("Controls", this);
+    controlsDock_->setFeatures(QDockWidget::DockWidgetMovable |
+                               QDockWidget::DockWidgetFloatable |
+                               QDockWidget::DockWidgetClosable);
+    controlsDock_->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
 
-    QVBoxLayout* rightLayout = new QVBoxLayout(rightContainer);
-    rightLayout->setContentsMargins(0, 0, 0, 0);
-    rightLayout->setSpacing(8);
+    QWidget* controlsContainer = new QWidget();
+    controlsContainer->setFixedWidth(260);
+    QVBoxLayout* controlsLayout = new QVBoxLayout(controlsContainer);
+    controlsLayout->setContentsMargins(4, 4, 4, 4);
+    controlsLayout->setSpacing(8);
 
     // Setup control groups
-    setupRadarControls(rightContainer, rightLayout);
-    setupTargetControls(rightContainer, rightLayout);
-    setupRCSPlaneControls(rightContainer, rightLayout);
-    rightLayout->addStretch();  // Push controls to top
+    setupRadarControls(controlsContainer, controlsLayout);
+    setupTargetControls(controlsContainer, controlsLayout);
+    setupRCSPlaneControls(controlsContainer, controlsLayout);
+    controlsLayout->addStretch();
 
-    // Add containers to main layout
-    mainLayout->addWidget(leftContainer, 1);  // Stretch factor 1 (expands)
-    mainLayout->addWidget(rightContainer, 0);  // Stretch factor 0 (fixed width)
+    controlsDock_->setWidget(controlsContainer);
+    addDockWidget(Qt::RightDockWidgetArea, controlsDock_);
 }
 
 void RadarSim::setupRadarControls(QWidget* parent, QVBoxLayout* layout) {
@@ -626,6 +628,12 @@ void RadarSim::connectSignals() {
     // Thickness slider uses lookup table, spinbox just displays value
     connect(rcsSliceThicknessSlider_, &QSlider::valueChanged, this, &RadarSim::onRCSSliceThicknessChanged);
     connect(rcsPlaneShowFillCheckBox_, &QCheckBox::toggled, this, &RadarSim::onRCSPlaneShowFillChanged);
+
+    // Connect pop-out signals from widgets
+    connect(radarSceneView_, &RadarSceneWidget::popoutRequested,
+            this, &RadarSim::onScenePopoutRequested);
+    connect(polarRCSPlot_, &PolarRCSPlot::popoutRequested,
+            this, &RadarSim::onPolarPopoutRequested);
 }
 
 // Slot implementations
@@ -1329,4 +1337,63 @@ void RadarSim::applySettingsToScene() {
     radarSceneView_->syncBeamMenu();
 
     radarSceneView_->updateScene();
+}
+
+// Pop-out window slot implementations
+void RadarSim::onScenePopoutRequested() {
+    if (scenePopOut_) {
+        // Already popped out - close it (dock back)
+        scenePopOut_->close();
+        return;
+    }
+
+    // Enable FBO rendering on the radar scene widget
+    if (auto* glWidget = radarSceneView_->getGLWidget()) {
+        glWidget->setRenderToFBO(true);
+
+        // Create pop-out window
+        scenePopOut_ = new PopOutWindow(PopOutWindow::Type::RadarScene);
+        scenePopOut_->setWindowTitle("3D Radar Scene");
+        scenePopOut_->setSourceRadarWidget(glWidget);
+        scenePopOut_->resize(1024, 768);
+
+        connect(scenePopOut_, &PopOutWindow::windowClosed,
+                this, &RadarSim::onScenePopoutClosed);
+
+        scenePopOut_->show();
+    }
+}
+
+void RadarSim::onPolarPopoutRequested() {
+    if (polarPopOut_) {
+        // Already popped out - close it (dock back)
+        polarPopOut_->close();
+        return;
+    }
+
+    // Create pop-out window with new PolarRCSPlot instance
+    polarPopOut_ = new PopOutWindow(PopOutWindow::Type::PolarPlot);
+    polarPopOut_->setWindowTitle("2D Polar RCS Plot");
+    polarPopOut_->setSourcePolarPlot(polarRCSPlot_, radarSceneView_);
+    polarPopOut_->resize(800, 600);
+
+    connect(polarPopOut_, &PopOutWindow::windowClosed,
+            this, &RadarSim::onPolarPopoutClosed);
+
+    polarPopOut_->show();
+}
+
+void RadarSim::onScenePopoutClosed() {
+    // Disable FBO rendering
+    if (auto* glWidget = radarSceneView_->getGLWidget()) {
+        glWidget->setRenderToFBO(false);
+    }
+
+    scenePopOut_->deleteLater();
+    scenePopOut_ = nullptr;
+}
+
+void RadarSim::onPolarPopoutClosed() {
+    polarPopOut_->deleteLater();
+    polarPopOut_ = nullptr;
 }

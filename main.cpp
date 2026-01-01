@@ -4,6 +4,9 @@
 #include "RadarSim.h"
 
 int main(int argc, char** argv) {
+    // MUST be set before QApplication is created - enables texture sharing between contexts
+    QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts, true);
+
     // Set up OpenGL format for better debugging
     QSurfaceFormat format;
     format.setDepthBufferSize(24);

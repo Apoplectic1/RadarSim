@@ -1,5 +1,6 @@
 // RadarGLWidget.cpp
 #include "RadarSceneWidget/RadarGLWidget.h"
+#include "RadarSceneWidget/FBORenderer.h"
 #include "GLUtils.h"
 #include "Constants.h"
 #include <QActionGroup>
@@ -45,6 +46,7 @@ RadarGLWidget::~RadarGLWidget() {
 	reflectionRenderer_.reset();
 	heatMapRenderer_.reset();
 	slicingPlaneRenderer_.reset();
+	fboRenderer_.reset();
 
 	doneCurrent();
 
@@ -245,6 +247,13 @@ void RadarGLWidget::initializeGL() {
 			beamController_->rebuildBeamGeometry();
 		}
 
+		// Initialize FBO renderer for pop-out windows
+		fboRenderer_ = std::make_unique<FBORenderer>(this);
+		if (!fboRenderer_->initialize(width(), height())) {
+			qWarning() << "FBORenderer initialization failed - pop-out windows may not work";
+			fboRenderer_.reset();
+		}
+
 		// Mark initialization as complete
 		glInitialized_ = true;
 	}
@@ -261,6 +270,11 @@ void RadarGLWidget::resizeGL(int w, int h) {
 		return;
 	}
 	glViewport(0, 0, w, h);
+
+	// Resize FBO for pop-out windows
+	if (fboRenderer_) {
+		fboRenderer_->resize(w, h);
+	}
 }
 
 void RadarGLWidget::paintGL() {
@@ -279,6 +293,11 @@ void RadarGLWidget::paintGL() {
 	if (!cameraController_) {
 		qWarning() << "CameraController not available in paintGL";
 		return;
+	}
+
+	// Bind FBO if rendering to texture for pop-out window
+	if (renderToFBO_ && fboRenderer_ && fboRenderer_->isValid()) {
+		fboRenderer_->bind();
 	}
 
 	// Now safe to use GL functions - update beam position and geometry
@@ -306,9 +325,16 @@ void RadarGLWidget::paintGL() {
 	QMatrix4x4 modelMatrix = cameraController_->getModelMatrix();
 
 	// Set up projection matrix
+	// When rendering to FBO, use FBO dimensions for correct aspect ratio
+	int renderWidth = width();
+	int renderHeight = height();
+	if (renderToFBO_ && fboRenderer_ && fboRenderer_->isValid()) {
+		renderWidth = fboRenderer_->width();
+		renderHeight = fboRenderer_->height();
+	}
 	QMatrix4x4 projectionMatrix;
 	projectionMatrix.setToIdentity();
-	projectionMatrix.perspective(View::kPerspectiveFOV, float(width()) / float(height()), View::kNearPlane, View::kFarPlane);
+	projectionMatrix.perspective(View::kPerspectiveFOV, float(renderWidth) / float(renderHeight), View::kNearPlane, View::kFarPlane);
 
 	// Draw components
 	try {
@@ -403,6 +429,13 @@ void RadarGLWidget::paintGL() {
 	}
 	catch (...) {
 		qCritical() << "Unknown exception in RadarGLWidget::paintGL";
+	}
+
+	// Release FBO if rendering to texture (before QPainter which doesn't work with FBO)
+	if (renderToFBO_ && fboRenderer_ && fboRenderer_->isValid()) {
+		fboRenderer_->release();
+		// Skip 2D text rendering when in FBO mode - it would render to screen, not FBO
+		return;
 	}
 
 	// Render 2D text labels for axes on top of 3D scene
@@ -557,6 +590,25 @@ bool RadarGLWidget::isShowShadow() const {
 	return beamController_ ? beamController_->isShowShadow() : true;
 }
 
+void RadarGLWidget::setRenderToFBO(bool enable) {
+	if (renderToFBO_ != enable) {
+		renderToFBO_ = enable;
+		update();  // Trigger repaint to update FBO content
+	}
+}
+
+void RadarGLWidget::requestFBOResize(int width, int height) {
+	if (fboRenderer_ && renderToFBO_) {
+		// Only resize if larger than current (don't shrink for main widget)
+		if (width > fboRenderer_->width() || height > fboRenderer_->height()) {
+			makeCurrent();
+			fboRenderer_->resize(width, height);
+			doneCurrent();
+			update();  // Trigger repaint with new FBO size
+		}
+	}
+}
+
 void RadarGLWidget::setRadius(float radius) {
 	if (radius_ != radius) {
 		radius_ = radius;
@@ -632,6 +684,13 @@ void RadarGLWidget::wheelEvent(QWheelEvent* event) {
 }
 
 void RadarGLWidget::mouseDoubleClickEvent(QMouseEvent* event) {
+	// Shift+double-click triggers pop-out
+	if (event->modifiers() & Qt::ShiftModifier) {
+		emit popoutRequested();
+		return;
+	}
+
+	// Regular double-click resets camera view
 	if (cameraController_) {
 		cameraController_->mouseDoubleClickEvent(event);
 		update();

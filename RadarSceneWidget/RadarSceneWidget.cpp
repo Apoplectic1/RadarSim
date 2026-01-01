@@ -25,6 +25,8 @@ RadarSceneWidget::RadarSceneWidget(QWidget* parent)
         this, &RadarSceneWidget::onAnglesChanged);
     connect(radarGLWidget_, &RadarGLWidget::polarPlotDataReady,
         this, &RadarSceneWidget::polarPlotDataReady);
+    connect(radarGLWidget_, &RadarGLWidget::popoutRequested,
+        this, &RadarSceneWidget::popoutRequested);
 
     layout_->addWidget(radarGLWidget_);
     setLayout(layout_);

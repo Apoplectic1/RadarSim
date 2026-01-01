@@ -24,6 +24,8 @@
 #include "ReflectionRenderer/ReflectionRenderer.h"
 #include "ReflectionRenderer/HeatMapRenderer.h"
 
+class FBORenderer;
+
 class RadarGLWidget : public QOpenGLWidget, protected QOpenGLFunctions_4_5_Core {
     Q_OBJECT
 
@@ -62,6 +64,17 @@ public:
     void setRCSPlaneShowFill(bool show);
     bool isRCSPlaneShowFill() const;
 
+    // FBO rendering support (for pop-out windows)
+    void setRenderToFBO(bool enable);
+    bool isRenderingToFBO() const { return renderToFBO_; }
+    FBORenderer* getFBORenderer() const { return fboRenderer_.get(); }
+
+    // Camera controller access (for mouse event forwarding)
+    CameraController* getCameraController() const { return cameraController_.get(); }
+
+    // Request FBO to be resized (called by pop-out window for sharp rendering)
+    void requestFBOResize(int width, int height);
+
     // Event handlers - override from QOpenGLWidget
     void mousePressEvent(QMouseEvent* event) override;
     void mouseMoveEvent(QMouseEvent* event) override;
@@ -74,6 +87,7 @@ signals:
     void radiusChanged(float radius);
     void anglesChanged(float theta, float phi);
     void polarPlotDataReady(const std::vector<RCSDataPoint>& data);
+    void popoutRequested();
 
 protected:
     // Override OpenGL functions
@@ -109,6 +123,10 @@ private:
 
     // Heat map visualization
     std::unique_ptr<HeatMapRenderer> heatMapRenderer_;
+
+    // FBO rendering for pop-out windows
+    std::unique_ptr<FBORenderer> fboRenderer_;
+    bool renderToFBO_ = false;
 
     // Slicing plane visualization
     std::unique_ptr<SlicingPlaneRenderer> slicingPlaneRenderer_;

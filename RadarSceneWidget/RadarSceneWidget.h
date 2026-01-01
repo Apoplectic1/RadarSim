@@ -66,6 +66,7 @@ public:
     CameraController* getCameraController() const { return cameraController_; }
     ModelManager* getModelManager() const { return modelManager_; }
     WireframeTargetController* getWireframeController() const { return wireframeController_; }
+    RadarGLWidget* getGLWidget() const { return radarGLWidget_; }
 
     // Force update of the OpenGL scene
     void updateScene();
@@ -79,6 +80,7 @@ signals:
     void beamTypeChanged(BeamType type);
     void beamWidthChanged(float width);
     void visibilityOptionChanged(const QString& option, bool visible);
+    void popoutRequested();
 
 private slots:
     void onRadiusChanged(float radius);

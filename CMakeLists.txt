@@ -113,6 +113,10 @@ set(RADAR_SCENE_WIDGET_SOURCES
     RadarSceneWidget/RadarSceneWidget.h
     RadarSceneWidget/SphereRenderer.cpp
     RadarSceneWidget/SphereRenderer.h
+    RadarSceneWidget/FBORenderer.cpp
+    RadarSceneWidget/FBORenderer.h
+    RadarSceneWidget/TextureBlitWidget.cpp
+    RadarSceneWidget/TextureBlitWidget.h
 )
 
 # Config sources (settings and configuration)
@@ -139,6 +143,8 @@ set(PROJECT_SOURCES
     RadarSim.ui
     GLUtils.h
     Constants.h
+    PopOutWindow.cpp
+    PopOutWindow.h
 )
 
 # Debug: Print source files

@@ -5,8 +5,10 @@
 #include <QTabWidget>
 #include <QSplitter>
 #include <QComboBox>
+#include <QDockWidget>
 #include "RadarSceneWidget.h"
 #include "AppSettings.h"
+#include "PopOutWindow.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class RadarSim; }
@@ -18,6 +20,7 @@ class QDoubleSpinBox;
 class QCheckBox;
 class QVBoxLayout;
 class QFrame;
+class QLabel;
 class RadarSceneWidget;
 
 class PolarRCSPlot;
@@ -71,6 +74,12 @@ private slots:
     void onResetToDefaults();
     void onProfilesChanged();
 
+    // Pop-out window slots
+    void onScenePopoutRequested();
+    void onPolarPopoutRequested();
+    void onScenePopoutClosed();
+    void onPolarPopoutClosed();
+
 protected:
     void closeEvent(QCloseEvent* event) override;
     bool eventFilter(QObject* obj, QEvent* event) override;
@@ -90,12 +99,11 @@ private:
     // UI helper functions
     void syncSliderSpinBox(QSlider* slider, QSpinBox* spinBox, int value);
 
-    // New tab management
+    // Tab management
     QTabWidget* tabWidget_;
 
-    // Container widgets for each tab
+    // Container widget for Configuration tab
     QWidget* configTabWidget_;
-    QWidget* radarSceneTabWidget_;
 
     RadarSceneWidget* radarSceneView_;
     PolarRCSPlot* polarRCSPlot_;  // 2D polar RCS plot widget
@@ -142,4 +150,13 @@ private:
     void readSettingsFromScene();
     void applySettingsToScene();
     void refreshProfileList();
+
+    // Dock widgets for floating/docking
+    QDockWidget* sceneDock_ = nullptr;
+    QDockWidget* polarDock_ = nullptr;
+    QDockWidget* controlsDock_ = nullptr;
+
+    // Pop-out windows
+    PopOutWindow* scenePopOut_ = nullptr;
+    PopOutWindow* polarPopOut_ = nullptr;
 };
