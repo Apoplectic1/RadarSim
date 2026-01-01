@@ -178,6 +178,12 @@ void HeatMapRenderer::setSphereRadius(float radius) {
     }
 }
 
+void HeatMapRenderer::setSliceParameters(CutType type, float offset, float thickness) {
+    cutType_ = type;
+    sliceOffset_ = offset;
+    sliceThickness_ = thickness;
+}
+
 void HeatMapRenderer::generateSphereMesh() {
     vertices_.clear();
     indices_.clear();
@@ -283,6 +289,11 @@ void HeatMapRenderer::accumulateHit(const RCS::HitResult& hit) {
         return;
     }
 
+    // Skip hits outside current slice
+    if (!isHitInSlice(hit)) {
+        return;
+    }
+
     // Get reflection direction (where the energy goes)
     QVector3D dir = hit.reflection.toVector3D().normalized();
 
@@ -294,6 +305,39 @@ void HeatMapRenderer::accumulateHit(const RCS::HitResult& hit) {
     if (bin >= 0 && bin < static_cast<int>(binIntensity_.size())) {
         binIntensity_[bin] += intensity;
         binHitCount_[bin]++;
+    }
+}
+
+bool HeatMapRenderer::isHitInSlice(const RCS::HitResult& hit) const {
+    // Get the reflection direction
+    QVector3D reflectDir = hit.reflection.toVector3D().normalized();
+
+    if (cutType_ == CutType::Azimuth) {
+        // Azimuth cut: filter by elevation angle
+        // Elevation = angle from horizontal plane (XY plane)
+        float elevationRad = std::asin(std::clamp(reflectDir.z(), -1.0f, 1.0f));
+        float elevationDeg = elevationRad * kRadToDegF;
+
+        // Check if within slice thickness of the offset elevation
+        float delta = std::abs(elevationDeg - sliceOffset_);
+        return delta <= sliceThickness_;
+    } else {
+        // Elevation cut: filter by azimuth angle
+        float azimuthRad = std::atan2(reflectDir.y(), reflectDir.x());
+        float azimuthDeg = azimuthRad * kRadToDegF;
+
+        // Normalize to [0, 360)
+        if (azimuthDeg < 0.0f) {
+            azimuthDeg += 360.0f;
+        }
+
+        // Check if within slice thickness of the offset azimuth
+        // Handle wrap-around at 0/360
+        float delta = std::abs(azimuthDeg - sliceOffset_);
+        if (delta > 180.0f) {
+            delta = 360.0f - delta;
+        }
+        return delta <= sliceThickness_;
     }
 }
 

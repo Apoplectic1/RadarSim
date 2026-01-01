@@ -12,6 +12,7 @@
 #include <string_view>
 
 #include "RCSCompute/RCSTypes.h"
+#include "RCSCompute/RCSSampler.h"  // For CutType enum
 
 class HeatMapRenderer : public QObject, protected QOpenGLFunctions_4_5_Core {
     Q_OBJECT
@@ -41,6 +42,12 @@ public:
     float getMinIntensityThreshold() const { return minIntensity_; }
     void setSphereRadius(float radius);
 
+    // Slice filtering (to match polar plot)
+    void setSliceParameters(CutType type, float offset, float thickness);
+    CutType getCutType() const { return cutType_; }
+    float getSliceOffset() const { return sliceOffset_; }
+    float getSliceThickness() const { return sliceThickness_; }
+
 signals:
     void visibilityChanged(bool visible);
 
@@ -50,6 +57,11 @@ private:
     float opacity_ = 0.7f;
     float minIntensity_ = 0.05f;
     float sphereRadius_ = 100.0f;
+
+    // Slice filtering parameters
+    CutType cutType_ = CutType::Azimuth;
+    float sliceOffset_ = 0.0f;      // Degrees
+    float sliceThickness_ = 10.0f;  // Degrees (+/-)
 
     // OpenGL resources
     std::unique_ptr<QOpenGLShaderProgram> shaderProgram_;
@@ -85,6 +97,7 @@ private:
     void computeVertexIntensities();
     int getBinIndex(float theta, float phi) const;
     void getVertexSphericalCoords(int vertexIndex, float& theta, float& phi) const;
+    bool isHitInSlice(const RCS::HitResult& hit) const;
 
     // Intensity to color conversion (same gradient as ReflectionRenderer)
     static QVector3D intensityToColor(float intensity);

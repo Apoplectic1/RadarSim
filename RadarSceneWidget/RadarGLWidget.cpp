@@ -636,6 +636,12 @@ void RadarGLWidget::setRCSCutType(CutType type) {
 		if (slicingPlaneRenderer_) {
 			slicingPlaneRenderer_->setCutType(type);
 		}
+		// Update heat map slice parameters
+		if (heatMapRenderer_) {
+			heatMapRenderer_->setSliceParameters(type,
+				currentSampler_ ? currentSampler_->getOffset() : 0.0f,
+				currentSampler_ ? currentSampler_->getThickness() : 10.0f);
+		}
 		update();  // Trigger repaint to update polar plot
 	}
 }
@@ -647,6 +653,12 @@ void RadarGLWidget::setRCSPlaneOffset(float degrees) {
 	// Update slicing plane visualization
 	if (slicingPlaneRenderer_) {
 		slicingPlaneRenderer_->setOffset(degrees);
+	}
+	// Update heat map slice parameters
+	if (heatMapRenderer_) {
+		heatMapRenderer_->setSliceParameters(currentCutType_,
+			degrees,
+			currentSampler_ ? currentSampler_->getThickness() : 10.0f);
 	}
 	update();
 }
@@ -666,6 +678,12 @@ void RadarGLWidget::setRCSSliceThickness(float degrees) {
 	// Update slicing plane visualization
 	if (slicingPlaneRenderer_) {
 		slicingPlaneRenderer_->setThickness(degrees);
+	}
+	// Update heat map slice parameters
+	if (heatMapRenderer_) {
+		heatMapRenderer_->setSliceParameters(currentCutType_,
+			currentSampler_ ? currentSampler_->getOffset() : 0.0f,
+			degrees);
 	}
 	update();
 }

@@ -226,6 +226,7 @@ Alternative RCS visualization showing reflection intensity as a smooth gradient 
 - Blue (low) → Yellow (mid) → Red (high) intensity gradient
 - Smooth per-vertex interpolation for gradient appearance
 - Spherical binning (1024×1024 lat/lon bins) for intensity accumulation
+- **Slice filtering**: Only shows hits within current plane offset and thickness (synced with polar plot)
 - Toggle via Configuration window ("Show RCS Heat Map" checkbox)
 
 **Coordinate Mapping:**
