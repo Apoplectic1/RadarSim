@@ -95,6 +95,12 @@ void PolarRCSPlot::resizeGL(int w, int h) {
 void PolarRCSPlot::paintGL() {
     glClear(GL_COLOR_BUFFER_BIT);
 
+    // Reset OpenGL state to prevent pollution from other widgets
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    glUseProgram(0);
+
     // Set up orthographic projection for 2D rendering
     QMatrix4x4 projection;
     projection.ortho(0.0f, static_cast<float>(viewWidth_),
