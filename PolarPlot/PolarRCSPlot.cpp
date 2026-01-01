@@ -93,6 +93,11 @@ void PolarRCSPlot::resizeGL(int w, int h) {
 }
 
 void PolarRCSPlot::paintGL() {
+    // Don't render until resizeGL has been called with valid dimensions
+    if (viewWidth_ <= 0 || viewHeight_ <= 0 || plotRadius_ <= 0.0f) {
+        return;
+    }
+
     glClear(GL_COLOR_BUFFER_BIT);
 
     // Reset OpenGL state to prevent pollution from other widgets
