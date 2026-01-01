@@ -13,7 +13,7 @@ def ask_gemini(prompt: str, model: str = "gemini-1.5-pro-002") -> str:
         prompt: The text to analyze.
         model: Defaults to "gemini-1.5-pro-002" (Stable Sept 2024 release).
     """
-    api_key = os.environ.get("GEMINI_API_KEY")
+    api_key = os.environ.get("GEMINI_API_KEY")1
     if not api_key:
         return "Error: GEMINI_API_KEY not found."
 

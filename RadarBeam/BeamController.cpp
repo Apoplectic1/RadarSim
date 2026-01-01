@@ -61,7 +61,8 @@ void BeamController::setBeamType(BeamType type) {
 }
 
 BeamType BeamController::getBeamType() const {
-    return currentBeamType_;
+    // Return pending type if a change is waiting for GL context
+    return beamTypeChangePending_ ? pendingBeamType_ : currentBeamType_;
 }
 
 void BeamController::setBeamWidth(float degrees) {

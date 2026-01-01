@@ -537,7 +537,7 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 		glDrawArrays(GL_LINE_STRIP, equatorStartIndex_, kSphereLatSegments + 1);
 
 		// Prime Meridian (blue)
-		shaderProgram_->setUniformValue("color", QVector3D(Colors::kPrimeMeridianBlue[0], Colors::kPrimeMeridianBlue[1], Colors::kPrimeMeridianBlue[2]));
+		shaderProgram_->setUniformValue("color", QVector3D(Colors::kPrimeMeridianRed[0], Colors::kPrimeMeridianRed[1], Colors::kPrimeMeridianRed[2]));
 		glDrawArrays(GL_LINE_STRIP, primeMeridianStartIndex_, kSphereLongSegments + 1);
 
 		// Restore default depth function

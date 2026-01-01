@@ -64,7 +64,8 @@ void WireframeTargetController::setTargetType(WireframeType type) {
 }
 
 WireframeType WireframeTargetController::getTargetType() const {
-    return currentType_;
+    // Return pending type if a change is waiting for GL context
+    return typeChangePending_ ? pendingType_ : currentType_;
 }
 
 void WireframeTargetController::setPosition(const QVector3D& position) {

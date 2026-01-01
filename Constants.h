@@ -68,8 +68,8 @@ constexpr float kMaxRayDistanceMultiplier = 3.0f; // Max ray distance as multipl
 // =============================================================================
 // Rendering Parameters
 // =============================================================================
-constexpr float kGridLineWidthNormal = 1.0f;    // Standard grid line width
-constexpr float kGridLineWidthSpecial = 3.5f;   // Major grid line width (equator, prime meridian)
+constexpr float kGridLineWidthNormal = 0.3f;    // Standard grid line width
+constexpr float kGridLineWidthSpecial = 2.5f;   // Major grid line width (equator, prime meridian)
 constexpr float kGridRadiusOffset = 1.005f;     // Grid radius multiplier (slightly outside sphere)
 constexpr float kRadarDotRadius = 5.0f;         // Radar position dot size
 constexpr int kRadarDotVertices = 16;           // Vertices in radar dot circle
@@ -233,7 +233,7 @@ namespace Defaults {
 namespace Colors {
     // Scene colors
     constexpr float kBackgroundGrey[3] = {0.5f, 0.5f, 0.5f};
-    constexpr float kGridLineGrey[3] = {0.4f, 0.4f, 0.4f};
+    constexpr float kGridLineGrey[3] = {0.75f, 0.75f, 0.75f};
     constexpr float kSphereOffWhite[3] = { 0.95f, 0.95f, 0.95f };
 
     // Default object colors
@@ -248,7 +248,7 @@ namespace Colors {
 
     // Grid special lines
     constexpr float kEquatorGreen[3] = {0.0f, 0.8f, 0.0f};
-    constexpr float kPrimeMeridianBlue[3] = {0.0f, 0.0f, 0.8f};
+    constexpr float kPrimeMeridianRed[3] = {0.9f, 0.0f, 0.0f};
 
     // Reflection lobe intensity gradient (high to low)
     constexpr float kLobeHighIntensity[3] = {1.0f, 0.0f, 0.0f};   // Red (high energy)
