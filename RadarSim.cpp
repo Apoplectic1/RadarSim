@@ -55,8 +55,6 @@ RadarSim::RadarSim(QWidget* parent)
     radiusSpinBox_(nullptr),
     thetaSpinBox_(nullptr),
     phiSpinBox_(nullptr),
-    tabWidget_(nullptr),
-    configTabWidget_(nullptr),
     polarRCSPlot_(nullptr),
     targetPosXSlider_(nullptr),
     targetPosYSlider_(nullptr),
@@ -72,11 +70,12 @@ RadarSim::RadarSim(QWidget* parent)
     targetYawSpinBox_(nullptr),
     targetRollSpinBox_(nullptr),
     targetScaleSpinBox_(nullptr),
-    appSettings_(new RSConfig::AppSettings(this)),
-    profileComboBox_(nullptr)
+    appSettings_(new RSConfig::AppSettings(this))
 {
     setupUI();
-    setupTabs();
+    setupLayout();
+    setupMenuBar();
+    setupConfigurationWindow();
     connectSignals();
 
     // Try to restore last session settings
@@ -84,6 +83,9 @@ RadarSim::RadarSim(QWidget* parent)
         // Apply restored settings after a brief delay to ensure scene is ready
         QTimer::singleShot(100, this, &RadarSim::applySettingsToScene);
     }
+
+    // Show configuration window at startup
+    configWindow_->show();
 }
 
 // Destructor
@@ -95,122 +97,25 @@ void RadarSim::setupUI() {
     // Set the main window title
     setWindowTitle("Radar Simulation System");
 
-    // Set minimum window size
-    setMinimumSize(1100, 950);
+    // Set minimum window size (reduced since we removed the Configuration tab)
+    setMinimumSize(900, 750);
 
-    // Allow nested dock widgets and tabbed docks
+    // Allow nested dock widgets
     setDockNestingEnabled(true);
 
-    // Create central widget with Configuration tab
+    // No central widget - use dock widgets only
+    // Create a minimal central widget to satisfy QMainWindow
     auto* centralWidget = new QWidget(this);
+    centralWidget->setMaximumWidth(0);
     setCentralWidget(centralWidget);
-    auto* mainLayout = new QVBoxLayout(centralWidget);
-    tabWidget_ = new QTabWidget(centralWidget);
-    mainLayout->addWidget(tabWidget_);
-
-    // Configuration tab goes in central widget
-    configTabWidget_ = new QWidget(tabWidget_);
-    tabWidget_->addTab(configTabWidget_, "Configuration");
 }
 
-void RadarSim::setupTabs() {
-    setupConfigurationTab();
-    setupRadarSceneTab();  // Now creates dock widgets
+void RadarSim::setupLayout() {
+    setupSceneDocks();
+    setupControlsPanel();
 }
 
-void RadarSim::setupConfigurationTab() {
-    QVBoxLayout* configLayout = new QVBoxLayout(configTabWidget_);
-
-    // Create a group box for profile management (at top)
-    QGroupBox* profileGroup = new QGroupBox("Configuration Profiles", configTabWidget_);
-    QVBoxLayout* profileLayout = new QVBoxLayout(profileGroup);
-
-    // Profile selector row
-    QHBoxLayout* profileSelectorLayout = new QHBoxLayout();
-    QLabel* profileLabel = new QLabel("Profile:", profileGroup);
-    profileComboBox_ = new QComboBox(profileGroup);
-    profileComboBox_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    profileSelectorLayout->addWidget(profileLabel);
-    profileSelectorLayout->addWidget(profileComboBox_);
-    profileLayout->addLayout(profileSelectorLayout);
-
-    // Profile buttons row
-    QHBoxLayout* profileButtonsLayout = new QHBoxLayout();
-    QPushButton* saveButton = new QPushButton("Save", profileGroup);
-    QPushButton* saveAsButton = new QPushButton("Save As...", profileGroup);
-    QPushButton* deleteButton = new QPushButton("Delete", profileGroup);
-    QPushButton* resetButton = new QPushButton("Reset to Defaults", profileGroup);
-
-    saveButton->setToolTip("Save current settings to the selected profile");
-    saveAsButton->setToolTip("Save current settings to a new profile");
-    deleteButton->setToolTip("Delete the selected profile");
-    resetButton->setToolTip("Reset all settings to their default values");
-
-    profileButtonsLayout->addWidget(saveButton);
-    profileButtonsLayout->addWidget(saveAsButton);
-    profileButtonsLayout->addWidget(deleteButton);
-    profileButtonsLayout->addWidget(resetButton);
-    profileLayout->addLayout(profileButtonsLayout);
-
-    configLayout->addWidget(profileGroup);
-
-    // Create a group box for simulation settings
-    QGroupBox* simSettingsGroup = new QGroupBox("Simulation Settings", configTabWidget_);
-    QFormLayout* simSettingsLayout = new QFormLayout(simSettingsGroup);
-
-    // Add some placeholder settings
-    QSpinBox* maxTargetsSpinBox = new QSpinBox(simSettingsGroup);
-    maxTargetsSpinBox->setRange(1, 50);
-    maxTargetsSpinBox->setValue(5);
-    simSettingsLayout->addRow("Maximum Targets:", maxTargetsSpinBox);
-
-    QDoubleSpinBox* physicsStepSpinBox = new QDoubleSpinBox(simSettingsGroup);
-    physicsStepSpinBox->setRange(0.001, 0.1);
-    physicsStepSpinBox->setValue(0.01);
-    physicsStepSpinBox->setSingleStep(0.001);
-    simSettingsLayout->addRow("Physics Time Step (s):", physicsStepSpinBox);
-
-    configLayout->addWidget(simSettingsGroup);
-
-    // Create a group box for beam settings
-    QGroupBox* beamSettingsGroup = new QGroupBox("Beam Settings", configTabWidget_);
-    QFormLayout* beamSettingsLayout = new QFormLayout(beamSettingsGroup);
-
-    beamTypeComboBox_ = new QComboBox(beamSettingsGroup);
-    beamTypeComboBox_->addItem("Conical");
-    beamTypeComboBox_->addItem("Shaped");
-    beamTypeComboBox_->addItem("Phased Array");
-    beamTypeComboBox_->addItem("Sinc (Airy)");
-    beamTypeComboBox_->setCurrentIndex(3);  // Default to Sinc
-    beamSettingsLayout->addRow("Beam Type:", beamTypeComboBox_);
-    connect(beamTypeComboBox_, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &RadarSim::onBeamTypeChanged);
-
-    QDoubleSpinBox* beamWidthSpinBox = new QDoubleSpinBox(beamSettingsGroup);
-    beamWidthSpinBox->setRange(1.0, 45.0);
-    beamWidthSpinBox->setValue(15.0);
-    beamSettingsLayout->addRow("Default Beam Width (°):", beamWidthSpinBox);
-
-    configLayout->addWidget(beamSettingsGroup);
-    configLayout->addStretch();
-
-    // Connect profile management signals
-    connect(profileComboBox_, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &RadarSim::onProfileSelected);
-    connect(saveButton, &QPushButton::clicked, this, &RadarSim::onSaveProfile);
-    connect(saveAsButton, &QPushButton::clicked, this, &RadarSim::onSaveProfileAs);
-    connect(deleteButton, &QPushButton::clicked, this, &RadarSim::onDeleteProfile);
-    connect(resetButton, &QPushButton::clicked, this, &RadarSim::onResetToDefaults);
-
-    // Connect settings signals
-    connect(appSettings_, &RSConfig::AppSettings::profilesChanged,
-            this, &RadarSim::onProfilesChanged);
-
-    // Populate profile list
-    refreshProfileList();
-}
-
-void RadarSim::setupRadarSceneTab() {
+void RadarSim::setupSceneDocks() {
     // Create dock widget for 3D Radar Scene
     sceneDock_ = new QDockWidget("3D Radar Scene", this);
     sceneDock_->setFeatures(QDockWidget::DockWidgetMovable |
@@ -245,28 +150,63 @@ void RadarSim::setupRadarSceneTab() {
 
     // Stack polar dock below scene dock
     splitDockWidget(sceneDock_, polarDock_, Qt::Vertical);
+}
 
-    // Create dock widget for Controls
-    controlsDock_ = new QDockWidget("Controls", this);
-    controlsDock_->setFeatures(QDockWidget::DockWidgetMovable |
-                               QDockWidget::DockWidgetFloatable |
-                               QDockWidget::DockWidgetClosable);
-    controlsDock_->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
+void RadarSim::setupControlsPanel() {
+    // Create a fixed controls panel (not a dock widget) on the right side
+    controlsPanel_ = new QWidget(this);
+    controlsPanel_->setFixedWidth(260);
 
-    QWidget* controlsContainer = new QWidget();
-    controlsContainer->setFixedWidth(260);
-    QVBoxLayout* controlsLayout = new QVBoxLayout(controlsContainer);
+    QVBoxLayout* controlsLayout = new QVBoxLayout(controlsPanel_);
     controlsLayout->setContentsMargins(4, 4, 4, 4);
     controlsLayout->setSpacing(8);
 
+    // Add a title label
+    QLabel* titleLabel = new QLabel("Controls", controlsPanel_);
+    titleLabel->setStyleSheet("font-weight: bold; font-size: 12pt; padding: 4px;");
+    controlsLayout->addWidget(titleLabel);
+
     // Setup control groups
-    setupRadarControls(controlsContainer, controlsLayout);
-    setupTargetControls(controlsContainer, controlsLayout);
-    setupRCSPlaneControls(controlsContainer, controlsLayout);
+    setupRadarControls(controlsPanel_, controlsLayout);
+    setupTargetControls(controlsPanel_, controlsLayout);
+    setupRCSPlaneControls(controlsPanel_, controlsLayout);
     controlsLayout->addStretch();
 
-    controlsDock_->setWidget(controlsContainer);
-    addDockWidget(Qt::RightDockWidgetArea, controlsDock_);
+    // Add the controls panel to the right side using a dock widget with no features
+    QDockWidget* controlsDock = new QDockWidget("Controls", this);
+    controlsDock->setFeatures(QDockWidget::NoDockWidgetFeatures);  // Cannot be moved, floated, or closed
+    controlsDock->setTitleBarWidget(new QWidget());  // Hide title bar
+    controlsDock->setWidget(controlsPanel_);
+    addDockWidget(Qt::RightDockWidgetArea, controlsDock);
+}
+
+void RadarSim::setupMenuBar() {
+    // Create menu bar
+    QMenuBar* menuBar = this->menuBar();
+
+    // View menu
+    viewMenu_ = menuBar->addMenu("&View");
+
+    // Configuration window action
+    showConfigWindowAction_ = new QAction("&Configuration Window", this);
+    showConfigWindowAction_->setShortcut(QKeySequence("Ctrl+,"));
+    showConfigWindowAction_->setStatusTip("Show the configuration window");
+    connect(showConfigWindowAction_, &QAction::triggered, this, &RadarSim::onShowConfigurationWindow);
+    viewMenu_->addAction(showConfigWindowAction_);
+}
+
+void RadarSim::setupConfigurationWindow() {
+    configWindow_ = new ConfigurationWindow(this);
+
+    // Position the config window to the right of the main window
+    configWindow_->move(x() + width() + 10, y());
+
+    // Connect profile signals
+    connect(appSettings_, &RSConfig::AppSettings::profilesChanged,
+            this, &RadarSim::onProfilesChanged);
+
+    // Populate profile list
+    refreshProfileList();
 }
 
 void RadarSim::setupRadarControls(QWidget* parent, QVBoxLayout* layout) {
@@ -634,6 +574,46 @@ void RadarSim::connectSignals() {
             this, &RadarSim::onScenePopoutRequested);
     connect(polarRCSPlot_, &PolarRCSPlot::popoutRequested,
             this, &RadarSim::onPolarPopoutRequested);
+
+    // Connect ConfigurationWindow signals
+    connect(configWindow_, &ConfigurationWindow::profileSelected,
+            this, &RadarSim::onProfileSelected);
+    connect(configWindow_, &ConfigurationWindow::saveRequested,
+            this, &RadarSim::onSaveProfile);
+    connect(configWindow_, &ConfigurationWindow::saveAsRequested,
+            this, &RadarSim::onSaveProfileAs);
+    connect(configWindow_, &ConfigurationWindow::deleteRequested,
+            this, &RadarSim::onDeleteProfile);
+    connect(configWindow_, &ConfigurationWindow::resetRequested,
+            this, &RadarSim::onResetToDefaults);
+
+    // Visibility signals
+    connect(configWindow_, &ConfigurationWindow::axesVisibilityChanged,
+            this, &RadarSim::onAxesVisibilityChanged);
+    connect(configWindow_, &ConfigurationWindow::sphereVisibilityChanged,
+            this, &RadarSim::onSphereVisibilityChanged);
+    connect(configWindow_, &ConfigurationWindow::gridVisibilityChanged,
+            this, &RadarSim::onGridVisibilityChanged);
+    connect(configWindow_, &ConfigurationWindow::inertiaChanged,
+            this, &RadarSim::onInertiaChanged);
+    connect(configWindow_, &ConfigurationWindow::reflectionLobesChanged,
+            this, &RadarSim::onReflectionLobesChanged);
+    connect(configWindow_, &ConfigurationWindow::heatMapChanged,
+            this, &RadarSim::onHeatMapChanged);
+
+    // Beam signals
+    connect(configWindow_, &ConfigurationWindow::beamVisibilityChanged,
+            this, &RadarSim::onBeamVisibilityChanged);
+    connect(configWindow_, &ConfigurationWindow::beamShadowChanged,
+            this, &RadarSim::onBeamShadowChanged);
+    connect(configWindow_, &ConfigurationWindow::beamTypeChanged,
+            this, &RadarSim::onBeamTypeChanged);
+
+    // Target signals
+    connect(configWindow_, &ConfigurationWindow::targetVisibilityChanged,
+            this, &RadarSim::onTargetVisibilityChanged);
+    connect(configWindow_, &ConfigurationWindow::targetTypeChanged,
+            this, &RadarSim::onTargetTypeChanged);
 }
 
 // Slot implementations
@@ -883,11 +863,72 @@ void RadarSim::onTargetScaleSpinBoxChanged(double value) {
     }
 }
 
-// Beam type slot
-void RadarSim::onBeamTypeChanged(int index) {
+// Configuration window slot implementations
+void RadarSim::onShowConfigurationWindow() {
+    if (configWindow_) {
+        configWindow_->show();
+        configWindow_->raise();
+        configWindow_->activateWindow();
+    }
+}
+
+void RadarSim::onAxesVisibilityChanged(bool visible) {
+    radarSceneView_->setAxesVisible(visible);
+}
+
+void RadarSim::onSphereVisibilityChanged(bool visible) {
+    radarSceneView_->setSphereVisible(visible);
+}
+
+void RadarSim::onGridVisibilityChanged(bool visible) {
+    radarSceneView_->setGridLinesVisible(visible);
+}
+
+void RadarSim::onInertiaChanged(bool enabled) {
+    radarSceneView_->setInertiaEnabled(enabled);
+}
+
+void RadarSim::onReflectionLobesChanged(bool visible) {
+    if (auto* glWidget = radarSceneView_->getGLWidget()) {
+        glWidget->setReflectionLobesVisible(visible);
+    }
+}
+
+void RadarSim::onHeatMapChanged(bool visible) {
+    if (auto* glWidget = radarSceneView_->getGLWidget()) {
+        glWidget->setHeatMapVisible(visible);
+    }
+}
+
+void RadarSim::onBeamVisibilityChanged(bool visible) {
     if (auto* beam = radarSceneView_->getBeamController()) {
-        beam->setBeamType(static_cast<BeamType>(index));
-        radarSceneView_->update();
+        beam->setFootprintOnly(!visible);  // visible = full beam, !visible = footprint only
+        radarSceneView_->updateScene();
+    }
+}
+
+void RadarSim::onBeamShadowChanged(bool visible) {
+    radarSceneView_->setShowShadow(visible);
+}
+
+void RadarSim::onBeamTypeChanged(BeamType type) {
+    if (auto* beam = radarSceneView_->getBeamController()) {
+        beam->setBeamType(type);
+        radarSceneView_->updateScene();
+    }
+}
+
+void RadarSim::onTargetVisibilityChanged(bool visible) {
+    if (auto* target = radarSceneView_->getWireframeController()) {
+        target->setVisible(visible);
+        radarSceneView_->updateScene();
+    }
+}
+
+void RadarSim::onTargetTypeChanged(WireframeType type) {
+    if (auto* target = radarSceneView_->getWireframeController()) {
+        target->setTargetType(type);
+        radarSceneView_->updateScene();
     }
 }
 
@@ -921,11 +962,16 @@ void RadarSim::onRCSPlaneShowFillChanged(bool checked) {
 
 // Profile management slot implementations
 void RadarSim::onProfileSelected(int index) {
-    if (index < 0 || !profileComboBox_) {
+    if (index < 0 || !configWindow_) {
         return;
     }
 
-    QString profileName = profileComboBox_->currentText();
+    // Get profile name from AppSettings since ConfigurationWindow uses string list
+    QStringList profiles = appSettings_->availableProfiles();
+    if (index >= profiles.size()) {
+        return;
+    }
+    QString profileName = profiles.at(index);
     if (profileName.isEmpty()) {
         return;
     }
@@ -937,13 +983,19 @@ void RadarSim::onProfileSelected(int index) {
 }
 
 void RadarSim::onSaveProfile() {
-    if (!profileComboBox_ || profileComboBox_->currentIndex() < 0) {
+    if (!configWindow_ || configWindow_->currentProfileIndex() < 0) {
         // No profile selected, use Save As instead
         onSaveProfileAs();
         return;
     }
 
-    QString profileName = profileComboBox_->currentText();
+    QStringList profiles = appSettings_->availableProfiles();
+    int index = configWindow_->currentProfileIndex();
+    if (index >= profiles.size()) {
+        onSaveProfileAs();
+        return;
+    }
+    QString profileName = profiles.at(index);
     if (profileName.isEmpty()) {
         onSaveProfileAs();
         return;
@@ -965,20 +1017,26 @@ void RadarSim::onSaveProfileAs() {
         if (appSettings_->saveProfile(name)) {
             refreshProfileList();
             // Select the newly saved profile
-            int index = profileComboBox_->findText(name);
-            if (index >= 0) {
-                profileComboBox_->setCurrentIndex(index);
+            QStringList profiles = appSettings_->availableProfiles();
+            int index = profiles.indexOf(name);
+            if (index >= 0 && configWindow_) {
+                configWindow_->setCurrentProfile(index);
             }
         }
     }
 }
 
 void RadarSim::onDeleteProfile() {
-    if (!profileComboBox_ || profileComboBox_->currentIndex() < 0) {
+    if (!configWindow_ || configWindow_->currentProfileIndex() < 0) {
         return;
     }
 
-    QString profileName = profileComboBox_->currentText();
+    QStringList profiles = appSettings_->availableProfiles();
+    int index = configWindow_->currentProfileIndex();
+    if (index >= profiles.size()) {
+        return;
+    }
+    QString profileName = profiles.at(index);
     if (profileName.isEmpty()) {
         return;
     }
@@ -1087,28 +1145,65 @@ bool RadarSim::eventFilter(QObject* obj, QEvent* event) {
 }
 
 void RadarSim::refreshProfileList() {
-    if (!profileComboBox_) {
+    if (!configWindow_) {
         return;
     }
 
-    // Block signals while updating
-    profileComboBox_->blockSignals(true);
-
     QString currentProfile = appSettings_->currentProfileName();
-    profileComboBox_->clear();
-
     QStringList profiles = appSettings_->availableProfiles();
-    profileComboBox_->addItems(profiles);
+
+    configWindow_->setProfiles(profiles);
 
     // Restore selection
     if (!currentProfile.isEmpty()) {
-        int index = profileComboBox_->findText(currentProfile);
+        int index = profiles.indexOf(currentProfile);
         if (index >= 0) {
-            profileComboBox_->setCurrentIndex(index);
+            configWindow_->setCurrentProfile(index);
         }
     }
+}
 
-    profileComboBox_->blockSignals(false);
+void RadarSim::syncConfigWindowState() {
+    if (!configWindow_ || !radarSceneView_) {
+        return;
+    }
+
+    // Get current state from scene
+    bool axesVisible = radarSceneView_->areAxesVisible();
+    bool sphereVisible = radarSceneView_->isSphereVisible();
+    bool gridVisible = radarSceneView_->areGridLinesVisible();
+    bool inertiaEnabled = radarSceneView_->isInertiaEnabled();
+
+    // Get beam state
+    bool beamVisible = true;
+    bool shadowVisible = radarSceneView_->isShowShadow();
+    BeamType beamType = BeamType::Sinc;
+    if (auto* beam = radarSceneView_->getBeamController()) {
+        beamVisible = !beam->isFootprintOnly();  // visible = full beam
+        beamType = beam->getBeamType();
+    }
+
+    // Get target state
+    bool targetVisible = true;
+    WireframeType targetType = WireframeType::Cube;
+    if (auto* target = radarSceneView_->getWireframeController()) {
+        targetVisible = target->isVisible();
+        targetType = target->getTargetType();
+    }
+
+    // Get visualization state
+    bool reflectionLobesVisible = false;
+    bool heatMapVisible = false;
+    if (auto* glWidget = radarSceneView_->getGLWidget()) {
+        reflectionLobesVisible = glWidget->areReflectionLobesVisible();
+        heatMapVisible = glWidget->isHeatMapVisible();
+    }
+
+    // Sync to config window
+    configWindow_->syncStateFromScene(axesVisible, sphereVisible, gridVisible,
+                                       inertiaEnabled, reflectionLobesVisible, heatMapVisible,
+                                       beamVisible, shadowVisible, beamType,
+                                       targetVisible, targetType);
 }
 
 void RadarSim::readSettingsFromScene() {
@@ -1280,13 +1375,6 @@ void RadarSim::applySettingsToScene() {
         beam->setFootprintOnly(appSettings_->beam.footprintOnly);
     }
 
-    // Update beam type combo box UI
-    if (beamTypeComboBox_) {
-        beamTypeComboBox_->blockSignals(true);
-        beamTypeComboBox_->setCurrentIndex(appSettings_->beam.beamType);
-        beamTypeComboBox_->blockSignals(false);
-    }
-
     // Apply visibility settings
     radarSceneView_->setAxesVisible(appSettings_->scene.showAxes);
     radarSceneView_->setSphereVisible(appSettings_->scene.showSphere);
@@ -1333,8 +1421,8 @@ void RadarSim::applySettingsToScene() {
         rcsPlaneShowFillCheckBox_->blockSignals(false);
     }
 
-    // Sync context menu checkmarks with controller state (after visibility is applied)
-    radarSceneView_->syncBeamMenu();
+    // Sync ConfigurationWindow checkboxes with current scene state
+    syncConfigWindowState();
 
     radarSceneView_->updateScene();
 }

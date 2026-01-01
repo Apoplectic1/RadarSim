@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-RadarSim is a Qt-based 3D radar simulation application written in C++17 with OpenGL 4.3 core rendering. It visualizes radar beams with interactive controls, featuring a tabbed UI interface and a component-based architecture supporting multiple beam types. Includes GPU-accelerated ray tracing for radar cross-section (RCS) calculations.
+RadarSim is a Qt-based 3D radar simulation application written in C++17 with OpenGL 4.3 core rendering. It visualizes radar beams with interactive controls, featuring a floating Configuration window and a component-based architecture supporting multiple beam types. Includes GPU-accelerated ray tracing for radar cross-section (RCS) calculations.
 
 - **Qt Version**: 6.10.1 (with Qt5 fallback support)
 - **OpenGL**: 4.3 Core Profile (compute shaders for RCS ray tracing)
@@ -28,7 +28,8 @@ cmake --build out/build/release
 ```
 RadarSim/
 ├── main.cpp                    # Entry point, OpenGL context setup
-├── RadarSim.h/.cpp             # Main window with tabbed UI
+├── RadarSim.h/.cpp             # Main window with menu bar and fixed controls panel
+├── ConfigurationWindow.h/.cpp  # Floating configuration window (display/beam/target options)
 ├── PopOutWindow.h/.cpp         # Pop-out window container for detached views
 ├── Constants.h                 # Compile-time constants (see Constants section below)
 ├── GLUtils.h                   # OpenGL error checking utilities
@@ -193,7 +194,7 @@ Visualizes RCS reflected energy as colored cone lobes emanating from target surf
 - Color gradient: Red (high intensity) → Yellow → Blue (low intensity)
 - BRDF-based intensity calculation (diffuse + specular)
 - CPU-side clustering aggregates ~10K hits into ~100 lobes
-- Toggle via right-click context menu ("Toggle Reflection Lobes")
+- Toggle via Configuration window ("Show Reflection Lobes" checkbox)
 
 **Clustering Algorithm:**
 - Groups hits by spatial proximity (kLobeClusterDist = 5 units)
@@ -225,7 +226,7 @@ Alternative RCS visualization showing reflection intensity as a smooth gradient 
 - Blue (low) → Yellow (mid) → Red (high) intensity gradient
 - Smooth per-vertex interpolation for gradient appearance
 - Spherical binning (1024×1024 lat/lon bins) for intensity accumulation
-- Toggle via right-click context menu ("Toggle RCS Heat Map")
+- Toggle via Configuration window ("Show RCS Heat Map" checkbox)
 
 **Coordinate Mapping:**
 ```cpp
@@ -271,7 +272,7 @@ Config/
 **Features:**
 - **Session Persistence**: State auto-saved on exit, restored on next launch
 - **Named Profiles**: Save/load multiple named configurations
-- **Profile Management UI**: Configuration tab has Save/Save As/Delete/Reset buttons
+- **Profile Management UI**: Floating Configuration window has Save/Save As/Delete/Reset buttons
 
 **File Storage:**
 - Location: `%APPDATA%/RadarSim/` (Windows) or `~/.config/RadarSim/` (Linux/macOS)
@@ -406,7 +407,8 @@ Without this connection, timer-based animations will appear stuttery because `up
 |------|-------|
 | Add new beam type | `RadarBeam/RadarBeam.h` (enum), new class inheriting `RadarBeam`, override `getVisualExtentMultiplier()` if beam has side lobes |
 | Add new solid target | `WireframeTarget/WireframeShapes.h` (enum), new class inheriting `WireframeTarget` |
-| Modify UI controls | `RadarSim.cpp` (`setupTabs()`, slot methods) |
+| Modify UI controls | `RadarSim.cpp` (setup methods, slot methods), `ConfigurationWindow.cpp` |
+| Configuration options | `ConfigurationWindow.cpp`, `RadarSim.cpp` (connect signals) |
 | Change rendering | `RadarGLWidget.cpp` (`paintGL()`), component `render()` methods |
 | Adjust camera | `CameraController.cpp` |
 | Sphere geometry | `SphereRenderer.cpp` |
@@ -522,7 +524,7 @@ protected:
 
 3. Update factory in `WireframeTarget::createTarget()`
 
-4. Add context menu action in `RadarGLWidget::setupContextMenu()`
+4. Add combo box option in `ConfigurationWindow::createTargetGroup()`
 
 **Note**: Ensure correct winding order (counter-clockwise when viewed from outside) for face culling to work properly. Normals should point outward for correct lighting.
 
@@ -612,7 +614,7 @@ if (gpuShadowEnabled) {
 
 ### Show Shadow Toggle
 
-The beam projection (cap) on the sphere surface can be toggled via the "Show Shadow" menu option.
+The beam projection (cap) on the sphere surface can be toggled via the Configuration window "Show Shadow" checkbox.
 
 **Implementation:**
 - `showShadow_` member in `RadarBeam` controls visibility
@@ -631,8 +633,8 @@ if (!showShadow) {
 - `RadarBeam/RadarBeam.cpp` - showShadow uniform and shader logic
 - `RadarBeam/SincBeam.cpp` - Same shader logic for Sinc beams
 - `Config/SceneConfig.h` - Persistence field
-- `RadarGLWidget.cpp` - Context menu action
-- `RadarSim.cpp` - Settings read/apply
+- `ConfigurationWindow.cpp` - Show Shadow checkbox
+- `RadarSim.cpp` - Settings read/apply, signal connections
 
 ### RCS Ray Tracing Future Work
 
@@ -799,32 +801,45 @@ Default values are defined in `Constants.h` under `RS::Constants::Defaults` name
 - Target Position: (0, 0, 0), Rotation: (0, 0, 0), Scale: 20
 - RCS Plane Offset: 0°, Thickness: 10° (index 32)
 
-## Context Menu (Right-Click)
+## Configuration Window
 
-The 3D scene provides a context menu for quick access to visualization options:
+The application uses a floating Configuration window (opened at startup, reopenable via View menu) for all display and visualization options. The main window has a fixed Controls panel on the right side for radar/target/RCS plane parameters.
 
+**Window Layout:**
 ```
-├── Beam >
-│   ├── Show Beam         [checkable]
-│   ├── Show Shadow       [checkable]  # Beam projection on sphere
-│   └── Type >
-│       ├── Conical       [radio]
-│       ├── Sinc          [radio]
-│       └── Phased Array  [radio]
-├── Toggle Axes           [checkable]
-├── Toggle Sphere         [checkable]
-├── Toggle Grid           [checkable]
-├── Toggle Inertia        [checkable]
-├── Toggle Reflection Lobes [checkable]  # Cone lobe visualization
-├── Toggle RCS Heat Map   [checkable]    # Sphere gradient visualization
-└── Target >
-    ├── Cube              [radio]
-    ├── Cylinder          [radio]
-    ├── Aircraft          [radio]
-    └── Sphere            [radio]  # Geodesic sphere for RCS verification
+Configuration Window (floating)
+├── Configuration Profiles (GroupBox)
+│   ├── Profile: [Combo]
+│   └── [Save] [Save As...] [Delete] [Reset to Defaults]
+├── Display Options (GroupBox)
+│   ├── ☑ Show Axes
+│   ├── ☑ Show Sphere
+│   ├── ☑ Show Grid Lines
+│   └── ☐ Enable Inertia
+├── Beam Settings (GroupBox)
+│   ├── ☑ Show Beam
+│   ├── ☑ Show Shadow
+│   └── Type: [Combo: Conical/Sinc/Phased Array]
+├── Visualization (GroupBox)
+│   ├── ☐ Show Reflection Lobes
+│   └── ☐ Show RCS Heat Map
+└── Target (GroupBox)
+    ├── ☑ Show Target
+    └── Type: [Combo: Cube/Cylinder/Aircraft/Sphere]
 ```
 
-**Implementation:** `RadarGLWidget::setupContextMenu()` creates actions with `blockSignals()` used in `syncBeamMenu()` to prevent circular updates when syncing checkbox state from code.
+**Implementation:**
+- `ConfigurationWindow` is a `QWidget` with `Qt::Window` flag for floating behavior
+- Signals emitted for each setting change, connected to `RadarSim` slots
+- `syncStateFromScene()` method syncs checkboxes with current scene state
+- Menu bar: View > Configuration Window reopens if closed
+
+**Files:**
+| File | Purpose |
+|------|---------|
+| `ConfigurationWindow.h/.cpp` | Floating window UI and signals |
+| `RadarSim.cpp` | Signal connections, slot implementations |
+| `RadarSim.h` | `configWindow_` member, slot declarations |
 
 ## Coordinate System
 

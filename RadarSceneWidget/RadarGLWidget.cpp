@@ -3,7 +3,6 @@
 #include "RadarSceneWidget/FBORenderer.h"
 #include "GLUtils.h"
 #include "Constants.h"
-#include <QActionGroup>
 #include <QDebug>
 #include <QPainter>
 #include <QFont>
@@ -19,14 +18,10 @@ RadarGLWidget::RadarGLWidget(QWidget* parent)
 	beamController_(nullptr),
 	cameraController_(nullptr),
 	modelManager_(nullptr),
-	wireframeController_(nullptr),
-	contextMenu_(new QMenu(this))
+	wireframeController_(nullptr)
 {
 	// Set focus policy to receive keyboard events
 	setFocusPolicy(Qt::StrongFocus);
-
-	// Set up context menu
-	setupContextMenu();
 }
 
 RadarGLWidget::~RadarGLWidget() {
@@ -49,8 +44,6 @@ RadarGLWidget::~RadarGLWidget() {
 	fboRenderer_.reset();
 
 	doneCurrent();
-
-	// contextMenu_ is parented to 'this' and auto-deleted by Qt
 }
 
 void RadarGLWidget::cleanupGL() {
@@ -131,23 +124,6 @@ void RadarGLWidget::initialize(SphereRenderer* sphereRenderer, BeamController* b
 		connect(cameraController_.get(), &CameraController::viewChanged,
 			this, QOverload<>::of(&QWidget::update));
 	}
-
-	// Connect beam type changed signal and sync menu checkmarks
-	if (beamController_) {
-		connect(beamController_.get(), &BeamController::beamTypeChanged,
-			this, &RadarGLWidget::syncBeamTypeMenuToController);
-		// Initial sync now that beamController_ exists
-		syncBeamTypeMenuToController();
-	}
-
-	// Enable context menu for right-click
-	setContextMenuPolicy(Qt::CustomContextMenu);
-	connect(this, &QWidget::customContextMenuRequested,
-		this, [this](const QPoint& pos) {
-			if (contextMenu_) {
-				contextMenu_->popup(mapToGlobal(pos));
-			}
-		});
 
 }
 
@@ -476,37 +452,6 @@ void RadarGLWidget::paintGL() {
 	}
 }
 
-void RadarGLWidget::syncBeamTypeMenuToController() {
-	if (!beamController_) return;
-
-	// Sync "Show Beam" checkbox (checked = full beam, unchecked = footprint only)
-	if (showBeamAction_) {
-		showBeamAction_->blockSignals(true);
-		showBeamAction_->setChecked(!beamController_->isFootprintOnly());
-		showBeamAction_->blockSignals(false);
-	}
-
-	// Sync beam type
-	BeamType currentType = beamController_->getBeamType();
-
-	// Block signals to prevent triggering setBeamType again
-	if (conicalBeamAction_) {
-		conicalBeamAction_->blockSignals(true);
-		conicalBeamAction_->setChecked(currentType == BeamType::Conical);
-		conicalBeamAction_->blockSignals(false);
-	}
-	if (sincBeamAction_) {
-		sincBeamAction_->blockSignals(true);
-		sincBeamAction_->setChecked(currentType == BeamType::Sinc);
-		sincBeamAction_->blockSignals(false);
-	}
-	if (phasedBeamAction_) {
-		phasedBeamAction_->blockSignals(true);
-		phasedBeamAction_->setChecked(currentType == BeamType::Phased);
-		phasedBeamAction_->blockSignals(false);
-	}
-}
-
 void RadarGLWidget::updateBeamPosition() {
 	if (beamController_) {
 		// Convert spherical coordinates to Cartesian
@@ -517,77 +462,37 @@ void RadarGLWidget::updateBeamPosition() {
 	}
 }
 
-void RadarGLWidget::syncBeamMenu() {
-	syncBeamTypeMenuToController();
-
-	// Sync visibility toggles with current state
-	if (toggleAxesAction_ && sphereRenderer_) {
-		toggleAxesAction_->blockSignals(true);
-		toggleAxesAction_->setChecked(sphereRenderer_->areAxesVisible());
-		toggleAxesAction_->blockSignals(false);
-	}
-	if (toggleSphereAction_ && sphereRenderer_) {
-		toggleSphereAction_->blockSignals(true);
-		toggleSphereAction_->setChecked(sphereRenderer_->isSphereVisible());
-		toggleSphereAction_->blockSignals(false);
-	}
-	if (toggleGridAction_ && sphereRenderer_) {
-		toggleGridAction_->blockSignals(true);
-		toggleGridAction_->setChecked(sphereRenderer_->areGridLinesVisible());
-		toggleGridAction_->blockSignals(false);
-	}
-	if (showShadowAction_ && beamController_) {
-		showShadowAction_->blockSignals(true);
-		showShadowAction_->setChecked(beamController_->isShowShadow());
-		showShadowAction_->blockSignals(false);
-	}
-
-	// Also sync target type menu
-	syncTargetTypeMenu();
-}
-
-void RadarGLWidget::syncTargetTypeMenu() {
-	if (!wireframeController_) return;
-
-	WireframeType currentType = wireframeController_->getTargetType();
-
-	// Block signals to prevent triggering actions during sync
-	if (cubeTargetAction_) {
-		cubeTargetAction_->blockSignals(true);
-		cubeTargetAction_->setChecked(currentType == WireframeType::Cube);
-		cubeTargetAction_->blockSignals(false);
-	}
-	if (cylinderTargetAction_) {
-		cylinderTargetAction_->blockSignals(true);
-		cylinderTargetAction_->setChecked(currentType == WireframeType::Cylinder);
-		cylinderTargetAction_->blockSignals(false);
-	}
-	if (aircraftTargetAction_) {
-		aircraftTargetAction_->blockSignals(true);
-		aircraftTargetAction_->setChecked(currentType == WireframeType::Aircraft);
-		aircraftTargetAction_->blockSignals(false);
-	}
-	if (sphereTargetAction_) {
-		sphereTargetAction_->blockSignals(true);
-		sphereTargetAction_->setChecked(currentType == WireframeType::Sphere);
-		sphereTargetAction_->blockSignals(false);
-	}
-}
-
 void RadarGLWidget::setShowShadow(bool show) {
 	if (beamController_) {
 		beamController_->setShowShadow(show);
-	}
-	if (showShadowAction_) {
-		showShadowAction_->blockSignals(true);
-		showShadowAction_->setChecked(show);
-		showShadowAction_->blockSignals(false);
 	}
 	update();
 }
 
 bool RadarGLWidget::isShowShadow() const {
 	return beamController_ ? beamController_->isShowShadow() : true;
+}
+
+void RadarGLWidget::setReflectionLobesVisible(bool visible) {
+	if (reflectionRenderer_) {
+		reflectionRenderer_->setVisible(visible);
+	}
+	update();
+}
+
+bool RadarGLWidget::areReflectionLobesVisible() const {
+	return reflectionRenderer_ ? reflectionRenderer_->isVisible() : false;
+}
+
+void RadarGLWidget::setHeatMapVisible(bool visible) {
+	if (heatMapRenderer_) {
+		heatMapRenderer_->setVisible(visible);
+	}
+	update();
+}
+
+bool RadarGLWidget::isHeatMapVisible() const {
+	return heatMapRenderer_ ? heatMapRenderer_->isVisible() : false;
 }
 
 void RadarGLWidget::setRenderToFBO(bool enable) {
@@ -648,13 +553,6 @@ void RadarGLWidget::setAngles(float theta, float phi) {
 }
 
 void RadarGLWidget::mousePressEvent(QMouseEvent* event) {
-	// If right-click is for context menu, let it bubble up
-	if (event->button() == Qt::RightButton && contextMenu_) {
-		// Let the context menu event handle it
-		QOpenGLWidget::mousePressEvent(event);
-		return;
-	}
-
 	// Forward to camera controller
 	if (cameraController_) {
 		cameraController_->mousePressEvent(event);
@@ -697,10 +595,6 @@ void RadarGLWidget::mouseDoubleClickEvent(QMouseEvent* event) {
 	}
 }
 
-void RadarGLWidget::contextMenuEvent(QContextMenuEvent* event) {
-	contextMenu_->popup(event->globalPos());
-}
-
 QVector3D RadarGLWidget::sphericalToCartesian(float r, float thetaDeg, float phiDeg) {
 	float theta = thetaDeg * kDegToRadF;
 	float phi = phiDeg * kDegToRadF;
@@ -709,247 +603,6 @@ QVector3D RadarGLWidget::sphericalToCartesian(float r, float thetaDeg, float phi
 		r * cos(phi) * sin(theta),  // Y is now horizontal
 		r * sin(phi)                // Z is now vertical (elevation)
 	);
-}
-
-void RadarGLWidget::setupContextMenu() {
-	// Reset view
-	QAction* resetAction = contextMenu_->addAction("Reset View");
-	connect(resetAction, &QAction::triggered, [this]() {
-		if (cameraController_) {
-			cameraController_->resetView();
-		}
-		// Reset visibility toggles to default (all visible)
-		if (sphereRenderer_) {
-			sphereRenderer_->setAxesVisible(true);
-			sphereRenderer_->setSphereVisible(true);
-			sphereRenderer_->setGridLinesVisible(true);
-		}
-		if (toggleAxesAction_) toggleAxesAction_->setChecked(true);
-		if (toggleSphereAction_) toggleSphereAction_->setChecked(true);
-		if (toggleGridAction_) toggleGridAction_->setChecked(true);
-		update();
-		});
-
-	// Add separator
-	contextMenu_->addSeparator();
-
-	// Toggle axes
-	toggleAxesAction_ = contextMenu_->addAction("Toggle Axes");
-	toggleAxesAction_->setCheckable(true);
-	toggleAxesAction_->setChecked(true);
-	connect(toggleAxesAction_, &QAction::toggled, [this](bool checked) {
-		if (sphereRenderer_) {
-			sphereRenderer_->setAxesVisible(checked);
-			update();
-		}
-		});
-
-	// Toggle sphere
-	toggleSphereAction_ = contextMenu_->addAction("Toggle Sphere");
-	toggleSphereAction_->setCheckable(true);
-	toggleSphereAction_->setChecked(true);
-	connect(toggleSphereAction_, &QAction::toggled, [this](bool checked) {
-		if (sphereRenderer_) {
-			sphereRenderer_->setSphereVisible(checked);
-			update();
-		}
-		});
-
-	// Toggle grid lines
-	toggleGridAction_ = contextMenu_->addAction("Toggle Grid");
-	toggleGridAction_->setCheckable(true);
-	toggleGridAction_->setChecked(true);
-	connect(toggleGridAction_, &QAction::toggled, [this](bool checked) {
-		if (sphereRenderer_) {
-			sphereRenderer_->setGridLinesVisible(checked);
-			update();
-		}
-		});
-
-	// Toggle inertia
-	QAction* toggleInertiaAction = contextMenu_->addAction("Toggle Inertia");
-	toggleInertiaAction->setCheckable(true);
-	toggleInertiaAction->setChecked(false);
-	connect(toggleInertiaAction, &QAction::toggled, [this](bool checked) {
-		if (cameraController_) {
-			cameraController_->setInertiaEnabled(checked);
-		}
-		});
-
-	// Toggle reflection lobes
-	QAction* toggleLobesAction = contextMenu_->addAction("Toggle Reflection Lobes");
-	toggleLobesAction->setCheckable(true);
-	toggleLobesAction->setChecked(true);
-	connect(toggleLobesAction, &QAction::toggled, [this](bool checked) {
-		if (reflectionRenderer_) {
-			reflectionRenderer_->setVisible(checked);
-		}
-		update();
-		});
-
-	// Toggle RCS heat map
-	toggleHeatMapAction_ = contextMenu_->addAction("Toggle RCS Heat Map");
-	toggleHeatMapAction_->setCheckable(true);
-	toggleHeatMapAction_->setChecked(false);  // Off by default (lobes are default)
-	connect(toggleHeatMapAction_, &QAction::toggled, [this](bool checked) {
-		if (heatMapRenderer_) {
-			heatMapRenderer_->setVisible(checked);
-		}
-		update();
-		});
-
-	// Add separator before Beam menu
-	contextMenu_->addSeparator();
-
-	// Add Beam submenu (matching Target menu pattern)
-	QMenu* beamMenu = contextMenu_->addMenu("Beam");
-
-	// Show Beam toggle (first item)
-	// When unchecked: beam stays visible but only shows footprint on sphere surface
-	// When checked: full beam visible
-	showBeamAction_ = beamMenu->addAction("Show Beam");
-	showBeamAction_->setCheckable(true);
-	showBeamAction_->setChecked(true);
-	connect(showBeamAction_, &QAction::toggled, [this](bool checked) {
-		if (beamController_) {
-			// Beam is always visible, but footprintOnly controls what's shown
-			beamController_->setFootprintOnly(!checked);
-		}
-		update();
-		});
-
-	// Show Shadow toggle (second item)
-	showShadowAction_ = beamMenu->addAction("Show Shadow");
-	showShadowAction_->setCheckable(true);
-	showShadowAction_->setChecked(true);
-	connect(showShadowAction_, &QAction::toggled, [this](bool checked) {
-		if (beamController_) {
-			beamController_->setShowShadow(checked);
-		}
-		update();
-		});
-
-	// Type submenu
-	QMenu* beamTypeMenu = beamMenu->addMenu("Type");
-
-	conicalBeamAction_ = beamTypeMenu->addAction("Conical");
-	conicalBeamAction_->setCheckable(true);
-
-	sincBeamAction_ = beamTypeMenu->addAction("Sinc");
-	sincBeamAction_->setCheckable(true);
-
-	phasedBeamAction_ = beamTypeMenu->addAction("Phased Array");
-	phasedBeamAction_->setCheckable(true);
-
-	// Make beam types exclusive
-	QActionGroup* beamTypeGroup = new QActionGroup(this);
-	beamTypeGroup->addAction(conicalBeamAction_);
-	beamTypeGroup->addAction(sincBeamAction_);
-	beamTypeGroup->addAction(phasedBeamAction_);
-	beamTypeGroup->setExclusive(true);
-
-	// Sync checkmarks with current beam type
-	syncBeamTypeMenuToController();
-
-	// Connect beam type actions
-	connect(conicalBeamAction_, &QAction::triggered, [this]() {
-		if (beamController_) {
-			beamController_->setBeamType(BeamType::Conical);
-			beamDirty_ = true;  // Force geometry rebuild with GL context
-			update();
-		}
-		});
-
-	connect(sincBeamAction_, &QAction::triggered, [this]() {
-		if (beamController_) {
-			beamController_->setBeamType(BeamType::Sinc);
-			beamDirty_ = true;  // Force geometry rebuild with GL context
-			update();
-		}
-		});
-
-	connect(phasedBeamAction_, &QAction::triggered, [this]() {
-		if (beamController_) {
-			beamController_->setBeamType(BeamType::Phased);
-			beamDirty_ = true;  // Force geometry rebuild with GL context
-			update();
-		}
-		});
-
-	// Note: Signal connection for beamTypeChanged is set up in initialize()
-	// because beamController_ doesn't exist yet when setupContextMenu() runs
-
-	// Add separator before Target menu
-	contextMenu_->addSeparator();
-
-	// Add target submenu
-	QMenu* targetMenu = contextMenu_->addMenu("Target");
-
-	// Toggle target visibility
-	QAction* toggleTargetAction = targetMenu->addAction("Show Target");
-	toggleTargetAction->setCheckable(true);
-	toggleTargetAction->setChecked(true);
-	connect(toggleTargetAction, &QAction::toggled, [this](bool checked) {
-		if (wireframeController_) {
-			wireframeController_->setVisible(checked);
-			update();
-		}
-		});
-
-	// Target type submenu
-	QMenu* targetTypeMenu = targetMenu->addMenu("Type");
-
-	cubeTargetAction_ = targetTypeMenu->addAction("Cube");
-	cubeTargetAction_->setCheckable(true);
-
-	cylinderTargetAction_ = targetTypeMenu->addAction("Cylinder");
-	cylinderTargetAction_->setCheckable(true);
-
-	aircraftTargetAction_ = targetTypeMenu->addAction("Aircraft");
-	aircraftTargetAction_->setCheckable(true);
-
-	sphereTargetAction_ = targetTypeMenu->addAction("Sphere");
-	sphereTargetAction_->setCheckable(true);
-
-	// Make target types exclusive
-	QActionGroup* targetTypeGroup = new QActionGroup(this);
-	targetTypeGroup->addAction(cubeTargetAction_);
-	targetTypeGroup->addAction(cylinderTargetAction_);
-	targetTypeGroup->addAction(aircraftTargetAction_);
-	targetTypeGroup->addAction(sphereTargetAction_);
-	targetTypeGroup->setExclusive(true);
-
-	// Sync target type menu to controller state
-	syncTargetTypeMenu();
-
-	// Connect target type actions
-	connect(cubeTargetAction_, &QAction::triggered, [this]() {
-		if (wireframeController_) {
-			wireframeController_->setTargetType(WireframeType::Cube);
-			update();
-		}
-		});
-
-	connect(cylinderTargetAction_, &QAction::triggered, [this]() {
-		if (wireframeController_) {
-			wireframeController_->setTargetType(WireframeType::Cylinder);
-			update();
-		}
-		});
-
-	connect(aircraftTargetAction_, &QAction::triggered, [this]() {
-		if (wireframeController_) {
-			wireframeController_->setTargetType(WireframeType::Aircraft);
-			update();
-		}
-		});
-
-	connect(sphereTargetAction_, &QAction::triggered, [this]() {
-		if (wireframeController_) {
-			wireframeController_->setTargetType(WireframeType::Sphere);
-			update();
-		}
-		});
 }
 
 QPointF RadarGLWidget::projectToScreen(const QVector3D& worldPos, const QMatrix4x4& projection,

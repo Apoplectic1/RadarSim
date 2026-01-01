@@ -8,7 +8,6 @@
 #include <QWheelEvent>
 #include <QTimer>
 #include <QElapsedTimer>
-#include <QMenu>
 #include <memory>
 
 #include "RadarSceneWidget/SphereRenderer.h"
@@ -47,12 +46,17 @@ public:
     float getTheta() const { return theta_; }
     float getPhi() const { return phi_; }
 
-    // Sync context menu checkmarks with controller state
-    void syncBeamMenu();
-
     // Shadow visibility (beam projection on sphere)
     void setShowShadow(bool show);
     bool isShowShadow() const;
+
+    // Reflection lobe visibility
+    void setReflectionLobesVisible(bool visible);
+    bool areReflectionLobesVisible() const;
+
+    // Heat map visibility
+    void setHeatMapVisible(bool visible);
+    bool isHeatMapVisible() const;
 
     // RCS slicing plane control
     void setRCSCutType(CutType type);
@@ -81,7 +85,6 @@ public:
     void mouseReleaseEvent(QMouseEvent* event) override;
     void wheelEvent(QWheelEvent* event) override;
     void mouseDoubleClickEvent(QMouseEvent* event) override;
-    void contextMenuEvent(QContextMenuEvent* event) override;
 
 signals:
     void radiusChanged(float radius);
@@ -138,33 +141,8 @@ private:
     CutType currentCutType_ = CutType::Azimuth;
     std::vector<RCSDataPoint> polarPlotData_;
 
-    // Context menu
-    QMenu* contextMenu_ = nullptr;
-
-    // Beam menu actions (for syncing checked state)
-    QAction* showBeamAction_ = nullptr;
-    QAction* conicalBeamAction_ = nullptr;
-    QAction* phasedBeamAction_ = nullptr;
-    QAction* sincBeamAction_ = nullptr;
-
-    // Visibility toggle actions (for syncing checked state)
-    QAction* toggleAxesAction_ = nullptr;
-    QAction* toggleSphereAction_ = nullptr;
-    QAction* toggleGridAction_ = nullptr;
-    QAction* showShadowAction_ = nullptr;
-    QAction* toggleHeatMapAction_ = nullptr;
-
-    // Target type menu actions (for syncing checked state)
-    QAction* cubeTargetAction_ = nullptr;
-    QAction* cylinderTargetAction_ = nullptr;
-    QAction* aircraftTargetAction_ = nullptr;
-    QAction* sphereTargetAction_ = nullptr;
-
     // Helper methods
-    void syncBeamTypeMenuToController();
-    void syncTargetTypeMenu();
     QVector3D sphericalToCartesian(float r, float thetaDeg, float phiDeg);
-    void setupContextMenu();
     void updateBeamPosition();
     QPointF projectToScreen(const QVector3D& worldPos, const QMatrix4x4& projection,
                             const QMatrix4x4& view, const QMatrix4x4& model);

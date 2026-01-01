@@ -145,6 +145,8 @@ set(PROJECT_SOURCES
     Constants.h
     PopOutWindow.cpp
     PopOutWindow.h
+    ConfigurationWindow.cpp
+    ConfigurationWindow.h
 )
 
 # Debug: Print source files

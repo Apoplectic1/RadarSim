@@ -56,12 +56,6 @@ void RadarSceneWidget::updateScene() {
     }
 }
 
-void RadarSceneWidget::syncBeamMenu() {
-    if (radarGLWidget_) {
-        radarGLWidget_->syncBeamMenu();
-    }
-}
-
 void RadarSceneWidget::onRadiusChanged(float radius) {
     emit radarPositionChanged(radius, getTheta(), getPhi());
 }

@@ -2,13 +2,16 @@
 
 #pragma once
 #include <QMainWindow>
-#include <QTabWidget>
 #include <QSplitter>
 #include <QComboBox>
 #include <QDockWidget>
+#include <QMenuBar>
+#include <QMenu>
+#include <QAction>
 #include "RadarSceneWidget.h"
 #include "AppSettings.h"
 #include "PopOutWindow.h"
+#include "ConfigurationWindow.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class RadarSim; }
@@ -57,9 +60,6 @@ private slots:
     void onTargetRollSpinBoxChanged(double value);
     void onTargetScaleSpinBoxChanged(double value);
 
-    // Beam type slot
-    void onBeamTypeChanged(int index);
-
     // RCS plane control slots
     void onRCSCutTypeChanged(int index);
     void onRCSPlaneOffsetChanged(int value);
@@ -80,30 +80,41 @@ private slots:
     void onScenePopoutClosed();
     void onPolarPopoutClosed();
 
+    // Configuration window slots
+    void onShowConfigurationWindow();
+    void onAxesVisibilityChanged(bool visible);
+    void onSphereVisibilityChanged(bool visible);
+    void onGridVisibilityChanged(bool visible);
+    void onInertiaChanged(bool enabled);
+    void onReflectionLobesChanged(bool visible);
+    void onHeatMapChanged(bool visible);
+    void onBeamVisibilityChanged(bool visible);
+    void onBeamShadowChanged(bool visible);
+    void onBeamTypeChanged(BeamType type);
+    void onTargetVisibilityChanged(bool visible);
+    void onTargetTypeChanged(WireframeType type);
+
 protected:
     void closeEvent(QCloseEvent* event) override;
     bool eventFilter(QObject* obj, QEvent* event) override;
 
 private:
     void setupUI();
-    void setupTabs();
+    void setupLayout();
+    void setupMenuBar();
+    void setupConfigurationWindow();
     void connectSignals();
 
-    // Tab setup helper functions
-    void setupConfigurationTab();
-    void setupRadarSceneTab();
+    // Layout setup helper functions
+    void setupSceneDocks();
+    void setupControlsPanel();
     void setupRadarControls(QWidget* parent, QVBoxLayout* layout);
     void setupTargetControls(QWidget* parent, QVBoxLayout* layout);
     void setupRCSPlaneControls(QWidget* parent, QVBoxLayout* layout);
 
     // UI helper functions
     void syncSliderSpinBox(QSlider* slider, QSpinBox* spinBox, int value);
-
-    // Tab management
-    QTabWidget* tabWidget_;
-
-    // Container widget for Configuration tab
-    QWidget* configTabWidget_;
+    void syncConfigWindowState();
 
     RadarSceneWidget* radarSceneView_;
     PolarRCSPlot* polarRCSPlot_;  // 2D polar RCS plot widget
@@ -135,8 +146,6 @@ private:
 
     // Settings and profile management
     RSConfig::AppSettings* appSettings_;
-    QComboBox* profileComboBox_;
-    QComboBox* beamTypeComboBox_ = nullptr;
 
     // RCS plane controls
     QComboBox* rcsCutTypeComboBox_ = nullptr;
@@ -151,10 +160,19 @@ private:
     void applySettingsToScene();
     void refreshProfileList();
 
-    // Dock widgets for floating/docking
+    // Dock widgets for scene views (left side)
     QDockWidget* sceneDock_ = nullptr;
     QDockWidget* polarDock_ = nullptr;
-    QDockWidget* controlsDock_ = nullptr;
+
+    // Fixed controls panel (right side, not dockable)
+    QWidget* controlsPanel_ = nullptr;
+
+    // Menu bar
+    QMenu* viewMenu_ = nullptr;
+    QAction* showConfigWindowAction_ = nullptr;
+
+    // Configuration window (floating)
+    ConfigurationWindow* configWindow_ = nullptr;
 
     // Pop-out windows
     PopOutWindow* scenePopOut_ = nullptr;
