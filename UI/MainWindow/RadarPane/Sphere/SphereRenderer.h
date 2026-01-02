@@ -44,12 +44,6 @@ public:
     bool areGridLinesVisible() const { return showGridLines_; }
     bool areAxesVisible() const { return showAxes_; }
 
-    // Radar dot methods
-    void setRadarPosition(float theta, float phi);
-    QVector3D getRadarPosition() const;
-    float getTheta() const { return theta_; }
-    float getPhi() const { return phi_; }
-
     // Inertia control
     void setInertiaEnabled(bool enabled);
     bool isInertiaEnabled() const { return inertiaEnabled_; }
@@ -101,25 +95,11 @@ private:
     std::string_view fragmentShaderSource_;
     std::string_view axesVertexShaderSource_;
     std::string_view axesFragmentShaderSource_;
-    std::string_view dotVertexShaderSource_;
-    std::string_view dotFragmentShaderSource_;
 
     // Helper methods
     void createSphere(int latDivisions = 64, int longDivisions = 64);
     void createGridLines();
     void createAxesLines();
-
-    // Radar dot geometry and properties
-    QOpenGLVertexArrayObject dotVAO_;
-    QOpenGLBuffer dotVBO_;
-    std::vector<float> dotVertices_;
-    std::unique_ptr<QOpenGLShaderProgram> dotShaderProgram_;
-    float theta_ = 45.0f;  // Spherical coordinate theta (longitude)
-    float phi_ = 45.0f;    // Spherical coordinate phi (latitude)
-
-    // Helper methods
-    void createDot();
-    QVector3D sphericalToCartesian(float r, float thetaDeg, float phiDeg) const;
 
     // Inertia control
     // Inertia/momentum for rotation

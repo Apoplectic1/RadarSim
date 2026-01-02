@@ -13,6 +13,9 @@
 #include "PopOutWindow.h"
 #include "ConfigurationWindow.h"
 #include "ControlsWindow.h"
+#include "RadarControlsWidget.h"
+#include "TargetControlsWidget.h"
+#include "RCSPlaneControlsWidget.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class RadarSim; }
@@ -36,36 +39,20 @@ public:
     ~RadarSim();
 
 private slots:
-    // Radar control slots
-    void onRadiusSliderValueChanged(int value);
-    void onThetaSliderValueChanged(int value);
-    void onPhiSliderValueChanged(int value);
-    void onRadiusSpinBoxValueChanged(int value);
-    void onThetaSpinBoxValueChanged(double value);
-    void onPhiSpinBoxValueChanged(double value);
+    // Radar control slot (from widget)
+    void onRadarRadiusChanged(int radius);
+    void onRadarAnglesChanged(float theta, float phi);
 
-    // Target control slots (slider)
-    void onTargetPosXSliderChanged(int value);
-    void onTargetPosYSliderChanged(int value);
-    void onTargetPosZSliderChanged(int value);
-    void onTargetPitchSliderChanged(int value);
-    void onTargetYawSliderChanged(int value);
-    void onTargetRollSliderChanged(int value);
-    void onTargetScaleSliderChanged(int value);
-    // Target control slots (spinbox)
-    void onTargetPosXSpinBoxChanged(double value);
-    void onTargetPosYSpinBoxChanged(double value);
-    void onTargetPosZSpinBoxChanged(double value);
-    void onTargetPitchSpinBoxChanged(double value);
-    void onTargetYawSpinBoxChanged(double value);
-    void onTargetRollSpinBoxChanged(double value);
-    void onTargetScaleSpinBoxChanged(double value);
+    // Target control slots (from widget)
+    void onTargetPositionChanged(float x, float y, float z);
+    void onTargetRotationChanged(float pitch, float yaw, float roll);
+    void onTargetScaleChanged(float scale);
 
-    // RCS plane control slots
-    void onRCSCutTypeChanged(int index);
-    void onRCSPlaneOffsetChanged(int value);
-    void onRCSSliceThicknessChanged(int value);
-    void onRCSPlaneShowFillChanged(bool checked);
+    // RCS plane control slots (from widget)
+    void onRCSCutTypeChanged(CutType type);
+    void onRCSPlaneOffsetChanged(float degrees);
+    void onRCSSliceThicknessChanged(float degrees);
+    void onRCSPlaneShowFillChanged(bool show);
 
     // Profile management slots
     void onProfileSelected(int index);
@@ -114,52 +101,21 @@ private:
     // Layout setup helper functions
     void setupSceneDocks();
     void setupControlsPanel();
-    void setupRadarControls(QWidget* parent, QVBoxLayout* layout);
-    void setupTargetControls(QWidget* parent, QVBoxLayout* layout);
-    void setupRCSPlaneControls(QWidget* parent, QVBoxLayout* layout);
 
     // UI helper functions
-    void syncSliderSpinBox(QSlider* slider, QSpinBox* spinBox, int value);
     void syncConfigWindowState();
 
     RadarSceneWidget* radarSceneView_;
     PolarRCSPlot* polarRCSPlot_;  // 2D polar RCS plot widget
     QSplitter* radarSplitter_ = nullptr;
 
-    // Radar controls
-    QSlider* radiusSlider_;
-    QSlider* thetaSlider_;
-    QSlider* phiSlider_;
-    QSpinBox* radiusSpinBox_;
-    QDoubleSpinBox* thetaSpinBox_;
-    QDoubleSpinBox* phiSpinBox_;
-
-    // Target controls
-    QSlider* targetPosXSlider_;
-    QSlider* targetPosYSlider_;
-    QSlider* targetPosZSlider_;
-    QSlider* targetPitchSlider_;
-    QSlider* targetYawSlider_;
-    QSlider* targetRollSlider_;
-    QSlider* targetScaleSlider_;
-    QDoubleSpinBox* targetPosXSpinBox_;
-    QDoubleSpinBox* targetPosYSpinBox_;
-    QDoubleSpinBox* targetPosZSpinBox_;
-    QDoubleSpinBox* targetPitchSpinBox_;
-    QDoubleSpinBox* targetYawSpinBox_;
-    QDoubleSpinBox* targetRollSpinBox_;
-    QDoubleSpinBox* targetScaleSpinBox_;
+    // Control widgets
+    RadarControlsWidget* radarControls_ = nullptr;
+    TargetControlsWidget* targetControls_ = nullptr;
+    RCSPlaneControlsWidget* rcsPlaneControls_ = nullptr;
 
     // Settings and profile management
     RSConfig::AppSettings* appSettings_;
-
-    // RCS plane controls
-    QComboBox* rcsCutTypeComboBox_ = nullptr;
-    QSlider* rcsPlaneOffsetSlider_ = nullptr;
-    QSpinBox* rcsPlaneOffsetSpinBox_ = nullptr;
-    QSlider* rcsSliceThicknessSlider_ = nullptr;
-    QDoubleSpinBox* rcsSliceThicknessSpinBox_ = nullptr;
-    QCheckBox* rcsPlaneShowFillCheckBox_ = nullptr;
 
     // Helper methods
     void readSettingsFromScene();

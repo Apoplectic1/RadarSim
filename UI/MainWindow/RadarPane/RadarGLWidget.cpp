@@ -33,6 +33,7 @@ RadarGLWidget::~RadarGLWidget() {
 	// Reset unique_ptrs while context is still current
 	// This ensures VAO/VBO destructors run with valid context
 	sphereRenderer_.reset();
+	radarSiteRenderer_.reset();
 	beamController_.reset();
 	cameraController_.reset();
 	modelManager_.reset();
@@ -88,6 +89,10 @@ void RadarGLWidget::cleanupGL() {
 	// Clean up component resources
 	if (sphereRenderer_) {
 		sphereRenderer_->cleanup();
+	}
+
+	if (radarSiteRenderer_) {
+		radarSiteRenderer_->cleanup();
 	}
 
 	if (beamController_) {
@@ -156,6 +161,15 @@ void RadarGLWidget::initializeGL() {
 	try {
 		if (sphereRenderer_) {
 			sphereRenderer_->initialize();
+		}
+
+		// Create and initialize radar site renderer
+		radarSiteRenderer_ = std::make_unique<RadarSiteRenderer>();
+		if (!radarSiteRenderer_->initialize()) {
+			qWarning() << "RadarSiteRenderer initialization failed";
+			radarSiteRenderer_.reset();
+		} else {
+			radarSiteRenderer_->setPosition(theta_, phi_);
 		}
 
 		if (beamController_) {
@@ -316,6 +330,16 @@ void RadarGLWidget::paintGL() {
 	try {
 		if (sphereRenderer_) {
 			sphereRenderer_->render(projectionMatrix, viewMatrix, modelMatrix);
+		}
+
+		// Render radar site dot (after sphere, using sphere's rotation)
+		if (radarSiteRenderer_) {
+			// Apply sphere rotation to model matrix for consistent dot positioning
+			QMatrix4x4 rotatedModel = modelMatrix;
+			if (sphereRenderer_) {
+				rotatedModel.rotate(sphereRenderer_->getRotation());
+			}
+			radarSiteRenderer_->render(projectionMatrix, viewMatrix, rotatedModel, radius_);
 		}
 
 		if (modelManager_) {
@@ -543,10 +567,10 @@ void RadarGLWidget::setAngles(float theta, float phi) {
 		beamDirty_ = true;
 
 		phi_ = phi;
-		if (sphereRenderer_) {
-			sphereRenderer_->setRadarPosition(theta, phi);
+		if (radarSiteRenderer_) {
+			radarSiteRenderer_->setPosition(theta, phi);
 		}
-		
+
 		emit anglesChanged(theta, phi);
 		update();
 	}

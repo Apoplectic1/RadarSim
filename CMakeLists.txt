@@ -63,6 +63,8 @@ set(UI_RADARPANE_SOURCES
     UI/MainWindow/RadarPane/RadarSceneWidget.h
     UI/MainWindow/RadarPane/Sphere/SphereRenderer.cpp
     UI/MainWindow/RadarPane/Sphere/SphereRenderer.h
+    UI/MainWindow/RadarPane/RadarSite/RadarSiteRenderer.cpp
+    UI/MainWindow/RadarPane/RadarSite/RadarSiteRenderer.h
     UI/MainWindow/RadarPane/Cones/ReflectionRenderer.cpp
     UI/MainWindow/RadarPane/Cones/ReflectionRenderer.h
     UI/MainWindow/RadarPane/HeatMap/HeatMapRenderer.cpp
@@ -115,6 +117,16 @@ set(UI_CONFIGWINDOW_SOURCES
     UI/ConfigurationWindow/TargetConfig.h
 )
 
+# UI/MainWindow/Controls sources (self-contained control widgets)
+set(UI_CONTROLS_SOURCES
+    UI/MainWindow/Controls/RadarControlsWidget.cpp
+    UI/MainWindow/Controls/RadarControlsWidget.h
+    UI/MainWindow/Controls/TargetControlsWidget.cpp
+    UI/MainWindow/Controls/TargetControlsWidget.h
+    UI/MainWindow/Controls/RCSPlaneControlsWidget.cpp
+    UI/MainWindow/Controls/RCSPlaneControlsWidget.h
+)
+
 # UI/ControlsWindow sources
 set(UI_CONTROLSWINDOW_SOURCES
     UI/ControlsWindow/ControlsWindow.cpp
@@ -165,6 +177,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         ${UI_RCSPANE_SOURCES}
         ${UI_POPOUTPANE_SOURCES}
         ${UI_CAMERA_SOURCES}
+        ${UI_CONTROLS_SOURCES}
         ${UI_CONFIGWINDOW_SOURCES}
         ${UI_CONTROLSWINDOW_SOURCES}
         ${BEAM_SOURCES}
@@ -179,6 +192,7 @@ else()
         ${UI_RCSPANE_SOURCES}
         ${UI_POPOUTPANE_SOURCES}
         ${UI_CAMERA_SOURCES}
+        ${UI_CONTROLS_SOURCES}
         ${UI_CONFIGWINDOW_SOURCES}
         ${UI_CONTROLSWINDOW_SOURCES}
         ${BEAM_SOURCES}
@@ -193,6 +207,7 @@ target_include_directories(RadarSim PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow
     ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/RadarPane
     ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/RadarPane/Sphere
+    ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/RadarPane/RadarSite
     ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/RadarPane/Cones
     ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/RadarPane/HeatMap
     ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/RadarPane/SlicingPlane
@@ -201,6 +216,7 @@ target_include_directories(RadarSim PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/RCSPane/Sampling
     ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/PopOutPane
     ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/RadarPane/Camera
+    ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/Controls
     ${CMAKE_CURRENT_SOURCE_DIR}/UI/ConfigurationWindow
     ${CMAKE_CURRENT_SOURCE_DIR}/UI/ControlsWindow
     ${CMAKE_CURRENT_SOURCE_DIR}/Beam

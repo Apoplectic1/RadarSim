@@ -34,6 +34,10 @@ RadarSim/
 ├── PopOutWindow.h/.cpp         # Pop-out window container for detached views
 ├── Constants.h                 # Compile-time constants (see Constants section below)
 ├── GLUtils.h                   # OpenGL error checking utilities
+├── Controls/                   # Self-contained control panel widgets
+│   ├── RadarControlsWidget.h/.cpp    # Radar controls (radius, theta, phi)
+│   ├── TargetControlsWidget.h/.cpp   # Target controls (position, rotation, scale)
+│   └── RCSPlaneControlsWidget.h/.cpp # RCS plane controls (cut type, offset, thickness)
 ├── Config/                     # Settings and configuration system
 │   ├── AppSettings.h/.cpp      # Main settings manager with profile support
 │   ├── BeamConfig.h            # Beam parameters (type, width, color, opacity)
@@ -49,6 +53,7 @@ RadarSim/
 ├── RadarSceneWidget/           # OpenGL scene management
 │   ├── RadarGLWidget.h/.cpp    # Modern QOpenGLWidget with component architecture
 │   ├── SphereRenderer.h/.cpp   # Sphere/grid/axes component
+│   ├── RadarSiteRenderer.h/.cpp # Radar site dot rendering
 │   ├── RadarSceneWidget.h/.cpp # Scene container
 │   ├── CameraController.h/.cpp # View/camera controls
 │   ├── FBORenderer.h/.cpp      # Framebuffer object for pop-out windows
@@ -84,7 +89,8 @@ RadarSim/
 
 The project uses a component-based architecture where `RadarGLWidget` owns and coordinates multiple components:
 
-- **SphereRenderer**: Renders the sphere, grid lines, axes, and radar position dot
+- **SphereRenderer**: Renders the sphere, grid lines, and axes
+- **RadarSiteRenderer**: Renders the radar site position dot on the sphere
 - **BeamController**: Manages radar beam creation and rendering (Conical, Sinc, Phased)
 - **CameraController**: Handles view transformations, mouse interaction, inertia
 - **ModelManager**: Loads and renders 3D models
@@ -102,6 +108,29 @@ void RadarGLWidget::initializeGL() {
     modelManager_->initialize();
     wireframeController_->initialize();
 }
+```
+
+### Control Widget Pattern
+
+UI control panels are implemented as self-contained widget classes in `Controls/`:
+
+- **RadarControlsWidget**: Radar sphere radius and position (theta, phi)
+- **TargetControlsWidget**: Target position, rotation, and scale
+- **RCSPlaneControlsWidget**: RCS cut type, plane offset, and slice thickness
+
+Each widget encapsulates:
+1. **UI setup**: Creates QSlider, QSpinBox, QComboBox, QCheckBox as needed
+2. **Internal synchronization**: Slider/spinbox values stay in sync via `blockSignals()`
+3. **Double-click reset**: Event filter resets sliders to defaults
+4. **Settings persistence**: `readSettings()` and `applySettings()` methods for save/restore
+
+Widgets emit signals when values change, which `RadarSim` connects to the scene:
+```cpp
+// In RadarSim::connectSignals()
+connect(radarControls_, &RadarControlsWidget::radiusChanged,
+        this, &RadarSim::onRadarRadiusChanged);
+connect(targetControls_, &TargetControlsWidget::positionChanged,
+        this, &RadarSim::onTargetPositionChanged);
 ```
 
 ### Beam Hierarchy
@@ -409,13 +438,16 @@ Without this connection, timer-based animations will appear stuttery because `up
 |------|-------|
 | Add new beam type | `RadarBeam/RadarBeam.h` (enum), new class inheriting `RadarBeam`, override `getVisualExtentMultiplier()` if beam has side lobes |
 | Add new solid target | `WireframeTarget/WireframeShapes.h` (enum), new class inheriting `WireframeTarget` |
-| Modify UI controls | `RadarSim.cpp` (setup methods, slot methods), `ControlsWindow.cpp`, `ConfigurationWindow.cpp` |
+| Modify radar controls | `Controls/RadarControlsWidget.cpp` (UI, signals, settings), `RadarSim.cpp` (connect to scene) |
+| Modify target controls | `Controls/TargetControlsWidget.cpp` (UI, signals, settings), `RadarSim.cpp` (connect to scene) |
+| Modify RCS plane controls | `Controls/RCSPlaneControlsWidget.cpp` (UI, signals, settings), `RadarSim.cpp` (connect to scene) |
 | Configuration options | `ConfigurationWindow.cpp`, `RadarSim.cpp` (connect signals) |
 | Floating windows | `ControlsWindow.cpp`, `ConfigurationWindow.cpp`, `RadarSim.cpp` (positioning, show/hide) |
 | Change rendering | `RadarGLWidget.cpp` (`paintGL()`), component `render()` methods |
 | Adjust camera | `CameraController.cpp` |
 | Sphere geometry | `SphereRenderer.cpp` |
-| Target transforms | `WireframeTargetController.cpp`, `RadarSim.cpp` (target slots) |
+| Radar site position | `RadarSiteRenderer.cpp`, `RadarGLWidget.cpp` |
+| Target transforms | `WireframeTargetController.cpp`, `Controls/TargetControlsWidget.cpp` |
 | RCS ray tracing | `RCSCompute/RCSCompute.cpp`, `RCSCompute/BVHBuilder.cpp` |
 | RCS sampling/polar plot | `RCSCompute/AzimuthCutSampler.cpp`, `RCSCompute/ElevationCutSampler.cpp`, `PolarPlot/PolarRCSPlot.cpp` |
 | Slicing plane visualization | `RCSCompute/SlicingPlaneRenderer.cpp` |
@@ -426,12 +458,75 @@ Without this connection, timer-based animations will appear stuttery because `up
 | Add saved setting | `Config/*Config.h`, `AppSettings.cpp`, `RadarSim.cpp` (read/apply methods) |
 | Profile management | `Config/AppSettings.cpp`, `RadarSim.cpp` (profile slots) |
 
+## Event-Driven Update Model
+
+The application uses **Qt's event-driven rendering** - there is no continuous render loop. Updates only occur when triggered:
+
+### What Triggers a Frame
+
+| Trigger | Source | Mechanism |
+|---------|--------|-----------|
+| Mouse orbit/pan | CameraController | `emit viewChanged()` → `update()` |
+| Mouse zoom | CameraController | `emit viewChanged()` → `update()` |
+| Slider/control change | RadarSim slots | `radarSceneView_->updateScene()` |
+| Inertia animation | CameraController timer | 16ms QTimer → `emit viewChanged()` |
+| Window resize/expose | Qt | Automatic repaint |
+
+### Update Flow
+
+```
+USER ACTION (mouse drag, slider change, etc.)
+    ↓
+CONTROL EVENT HANDLER (slot in RadarSim.cpp)
+    ↓
+STATE UPDATE (e.g., camera angles, target position)
+    ↓
+QWidget::update() called
+    ↓
+Qt queues repaint event
+    ↓
+RadarGLWidget::paintGL() executes
+    ↓
+RCS compute runs INSIDE paintGL()
+    ↓
+Results emitted via signal to PolarRCSPlot
+```
+
+### RCS Processing
+
+RCS computation happens **synchronously inside `paintGL()`** every frame (not in a separate thread):
+
+```cpp
+// Inside RadarGLWidget::paintGL() (~line 320-380)
+if (wireframeController_ && wireframeController_->isVisible()) {
+    rcsCompute_->setTargetGeometry(...);
+    rcsCompute_->compute();           // GPU ray tracing
+    rcsCompute_->readHitBuffer();     // GPU → CPU transfer
+    currentSampler_->sample(hits, polarPlotData_);
+    emit polarPlotDataReady(polarPlotData_);  // → PolarRCSPlot
+}
+```
+
+### Inertia Timer (Pseudo-Continuous Loop)
+
+When inertia is enabled, a QTimer fires every ~16ms creating continuous updates:
+
+```cpp
+// CameraController::onInertiaTimerTimeout()
+azimuth_ += azimuthVelocity_;
+azimuthVelocity_ *= 0.95f;  // Decay
+emit viewChanged();         // Triggers paintGL()
+```
+
+When idle (no interaction, no inertia), the scene doesn't render - no wasted GPU cycles.
+
 ## Rendering Pipeline
 
 ```
 RadarGLWidget::paintGL()
   ├── Clear buffers (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
   ├── SphereRenderer::render(projection, view, model)
+  ├── RadarSiteRenderer::render(projection, view, model, radius)  # Radar position dot
   ├── ModelManager::render(projection, view, model)
   ├── WireframeTargetController::render(projection, view, model)  # Solid target
   ├── RCSCompute::compute()                                       # GPU ray tracing + shadow map
@@ -895,7 +990,7 @@ Configuration Window (floating, RIGHT of main)
 - Spherical coordinates: (radius, theta, phi)
   - `theta`: azimuth angle (horizontal rotation)
   - `phi`: elevation angle (vertical rotation)
-- Conversion to Cartesian in `SphereRenderer::updateRadarDotPosition()`
+- Conversion to Cartesian in `RadarSiteRenderer::sphericalToCartesian()` and `RadarGLWidget::sphericalToCartesian()`
 
 ## Constants.h Organization
 

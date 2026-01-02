@@ -11,6 +11,7 @@
 #include <memory>
 
 #include "SphereRenderer.h"
+#include "RadarSiteRenderer.h"
 #include "BeamController.h"
 #include "CameraController.h"
 #include "ModelManager.h"
@@ -113,6 +114,7 @@ private:
 
     // Component ownership - deleted while GL context is still valid
     std::unique_ptr<SphereRenderer> sphereRenderer_;
+    std::unique_ptr<RadarSiteRenderer> radarSiteRenderer_;
     std::unique_ptr<BeamController> beamController_;
     std::unique_ptr<CameraController> cameraController_;
     std::unique_ptr<ModelManager> modelManager_;

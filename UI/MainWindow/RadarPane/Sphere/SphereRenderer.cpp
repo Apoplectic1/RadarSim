@@ -13,13 +13,10 @@ SphereRenderer::SphereRenderer(QObject* parent)
 	showGridLines_(true),
 	showAxes_(true),
 	initialized_(false),
-	theta_(Defaults::kRadarTheta),
-	phi_(Defaults::kRadarPhi),
 	// Initialize OpenGL buffer types
 	sphereVBO_(QOpenGLBuffer::VertexBuffer),
 	sphereEBO_(QOpenGLBuffer::IndexBuffer),
 	linesVBO_(QOpenGLBuffer::VertexBuffer),
-	dotVBO_(QOpenGLBuffer::VertexBuffer),
 	axesVBO_(QOpenGLBuffer::VertexBuffer),
 	// Initialize inertia-related members
 	inertiaTimer_(new QTimer(this)),
@@ -103,49 +100,6 @@ SphereRenderer::SphereRenderer(QObject* parent)
         }
     )";
 
-	dotVertexShaderSource_ = R"(
-        #version 330 core
-        layout (location = 0) in vec3 aPos;
-        layout (location = 1) in vec3 aNormal;
-
-        uniform mat4 model;
-        uniform mat4 view;
-        uniform mat4 projection;
-
-        out vec3 Normal;
-        out vec3 FragPos;
-
-        void main() {
-            FragPos = vec3(model * vec4(aPos, 1.0));
-            Normal = mat3(transpose(inverse(model))) * aNormal;
-            gl_Position = projection * view * model * vec4(aPos, 1.0);
-        }
-    )";
-
-	dotFragmentShaderSource_ = R"(
-        #version 330 core
-        in vec3 Normal;
-        in vec3 FragPos;
-
-        uniform vec3 lightPos;
-        uniform vec3 color;
-        uniform float opacity;
-
-        out vec4 outColor;
-
-        void main() {
-            // Simple lighting calculation
-            vec3 norm = normalize(Normal);
-            vec3 lightDir = normalize(lightPos - FragPos);
-            float diff = max(dot(norm, lightDir), 0.0);
-            vec3 diffuse = diff * vec3(1.0, 1.0, 1.0);
-            vec3 ambient = vec3(0.3, 0.3, 0.3);
-            vec3 result = (ambient + diffuse) * color;
-            
-            // Apply opacity
-            outColor = vec4(result, opacity);
-        }
-    )";
 	// Connect inertia timer to update slot
 	connect(inertiaTimer_, &QTimer::timeout, this, &SphereRenderer::updateInertia);
 
@@ -167,7 +121,6 @@ void SphereRenderer::cleanup() {
 		// Still clean up shader programs (safe without context)
 		shaderProgram_.reset();
 		axesShaderProgram_.reset();
-		dotShaderProgram_.reset();
 		return;
 	}
 
@@ -198,18 +151,9 @@ void SphereRenderer::cleanup() {
 		axesVBO_.destroy();
 	}
 
-	// Clean up dot resources
-	if (dotVAO_.isCreated()) {
-		dotVAO_.destroy();
-	}
-	if (dotVBO_.isCreated()) {
-		dotVBO_.destroy();
-	}
-
 	// Clean up shader programs
 	shaderProgram_.reset();
 	axesShaderProgram_.reset();
-	dotShaderProgram_.reset();
 
 	initialized_ = false;
 }
@@ -250,7 +194,6 @@ bool SphereRenderer::initialize() {
 	createSphere();
 	createGridLines();
 	createAxesLines();
-	createDot();
 
 	// Mark as initialized
 	initialized_ = true;
@@ -261,28 +204,9 @@ bool SphereRenderer::initializeShaders() {
 	// Clean up existing shader programs to prevent memory leaks
 	shaderProgram_.reset();
 	axesShaderProgram_.reset();
-	dotShaderProgram_.reset();
 
 	// Create main shader program
 	shaderProgram_ = std::make_unique<QOpenGLShaderProgram>();
-
-	// Create the dot shader program
-	dotShaderProgram_ = std::make_unique<QOpenGLShaderProgram>();
-
-	if (!dotShaderProgram_->addShaderFromSourceCode(QOpenGLShader::Vertex, dotVertexShaderSource_.data())) {
-		qWarning() << "Failed to compile dot vertex shader:" << dotShaderProgram_->log();
-		return false;
-	}
-
-	if (!dotShaderProgram_->addShaderFromSourceCode(QOpenGLShader::Fragment, dotFragmentShaderSource_.data())) {
-		qWarning() << "Failed to compile dot fragment shader:" << dotShaderProgram_->log();
-		return false;
-	}
-
-	if (!dotShaderProgram_->link()) {
-		qWarning() << "Failed to link dot shader program:" << dotShaderProgram_->log();
-		return false;
-	}
 
 	// Load and compile vertex shader
 	if (!shaderProgram_->addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShaderSource_.data())) {
@@ -326,81 +250,6 @@ bool SphereRenderer::initializeShaders() {
 	return true;
 }
 
-void SphereRenderer::createDot() {
-	// Create a small sphere for the dot
-	dotVertices_.clear();
-
-	float dotRadius = kRadarDotRadius;
-	int segments = kRadarDotVertices;
-
-	// Generate icosphere vertices for the dot (more efficient than full sphere)
-	// This is a simplified version - a proper icosphere would be better
-	std::vector<QVector3D> positions;
-
-	// Start with icosahedron vertices
-	float t = (1.0f + sqrt(5.0f)) / 2.0f;
-
-	positions.push_back(QVector3D(-1, t, 0).normalized() * dotRadius);
-	positions.push_back(QVector3D(1, t, 0).normalized() * dotRadius);
-	positions.push_back(QVector3D(-1, -t, 0).normalized() * dotRadius);
-	positions.push_back(QVector3D(1, -t, 0).normalized() * dotRadius);
-
-	positions.push_back(QVector3D(0, -1, t).normalized() * dotRadius);
-	positions.push_back(QVector3D(0, 1, t).normalized() * dotRadius);
-	positions.push_back(QVector3D(0, -1, -t).normalized() * dotRadius);
-	positions.push_back(QVector3D(0, 1, -t).normalized() * dotRadius);
-
-	positions.push_back(QVector3D(t, 0, -1).normalized() * dotRadius);
-	positions.push_back(QVector3D(t, 0, 1).normalized() * dotRadius);
-	positions.push_back(QVector3D(-t, 0, -1).normalized() * dotRadius);
-	positions.push_back(QVector3D(-t, 0, 1).normalized() * dotRadius);
-
-	// Define the triangles of the icosahedron
-	std::vector<std::array<int, 3>> faces = {
-		{0, 11, 5}, {0, 5, 1}, {0, 1, 7}, {0, 7, 10}, {0, 10, 11},
-		{1, 5, 9}, {5, 11, 4}, {11, 10, 2}, {10, 7, 6}, {7, 1, 8},
-		{3, 9, 4}, {3, 4, 2}, {3, 2, 6}, {3, 6, 8}, {3, 8, 9},
-		{4, 9, 5}, {2, 4, 11}, {6, 2, 10}, {8, 6, 7}, {9, 8, 1}
-	};
-
-	// Create vertex data for dot
-	for (const auto& face : faces) {
-		for (int idx : face) {
-			QVector3D pos = positions[idx];
-			QVector3D normal = pos.normalized();
-
-			dotVertices_.push_back(pos.x());
-			dotVertices_.push_back(pos.y());
-			dotVertices_.push_back(pos.z());
-			dotVertices_.push_back(normal.x());
-			dotVertices_.push_back(normal.y());
-			dotVertices_.push_back(normal.z());
-		}
-	}
-
-	// Set up VAO and VBO for dot
-	if (!dotVAO_.isCreated()) {
-		dotVAO_.create();
-	}
-	dotVAO_.bind();
-
-	if (!dotVBO_.isCreated()) {
-		dotVBO_.create();
-	}
-	dotVBO_.bind();
-	dotVBO_.allocate(dotVertices_.data(), dotVertices_.size() * sizeof(float));
-
-	// Position attribute
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
-
-	// Normal attribute
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-	glEnableVertexAttribArray(1);
-
-	dotVAO_.release();
-}
-
 void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view, const QMatrix4x4& model) {
 	// Create a local copy of the model matrix that we can modify
 	QMatrix4x4 localModel = model;
@@ -410,8 +259,8 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 
 #ifdef QT_DEBUG
 	// Single shader validation check
-	if (!shaderProgram_ || !axesShaderProgram_ || !dotShaderProgram_ ||
-		!shaderProgram_->isLinked() || !axesShaderProgram_->isLinked() || !dotShaderProgram_->isLinked()) {
+	if (!shaderProgram_ || !axesShaderProgram_ ||
+		!shaderProgram_->isLinked() || !axesShaderProgram_->isLinked()) {
 		qCritical() << "ERROR: render called with invalid shaders";
 	}
 #endif
@@ -596,87 +445,13 @@ void SphereRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view
 		}
 	}
 
-	// 4. Draw radar dot
-	// Calculate dot position in spherical coordinates
-	QVector3D dotPos = sphericalToCartesian(radius_, theta_, phi_);
-
-	// Create a separate model matrix for the dot that includes our rotation
-	QMatrix4x4 dotModelMatrix = localModel;
-	dotModelMatrix.translate(dotPos);
-
-	// 4.1. First, draw opaque parts of the dot (front-facing parts)
-	// Switch to dot shader program
-	if (currentShader && currentShader != dotShaderProgram_.get()) {
-		currentShader->release();
-		currentShader = nullptr;
-	}
-
-	dotShaderProgram_->bind();
-	currentShader = dotShaderProgram_.get();
-
-	// Ensure proper depth testing for opaque rendering
-	glDisable(GL_BLEND);
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LESS);
-	glDepthMask(GL_TRUE);
-
-	dotShaderProgram_->setUniformValue("projection", projection);
-	dotShaderProgram_->setUniformValue("view", view);
-	dotShaderProgram_->setUniformValue("model", dotModelMatrix);
-	dotShaderProgram_->setUniformValue("color", QVector3D(Colors::kAxisRed[0], Colors::kAxisRed[1], Colors::kAxisRed[2]));  // Red dot
-	dotShaderProgram_->setUniformValue("lightPos", QVector3D(Lighting::kLightPosition[0], Lighting::kLightPosition[1], Lighting::kLightPosition[2]));
-	dotShaderProgram_->setUniformValue("opacity", 1.0f);  // Fully opaque
-
-	dotVAO_.bind();
-
-	// Only draw front-facing polygons in this pass
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_BACK);
-	glDrawArrays(GL_TRIANGLES, 0, dotVertices_.size() / 6);
-	glDisable(GL_CULL_FACE);
-
-	dotVAO_.release();
-
-	// 4.2. Then, draw transparent parts of the dot (back-facing parts)
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glDepthMask(GL_FALSE);  // Don't write to depth buffer for transparent parts
-
-	dotShaderProgram_->setUniformValue("opacity", 0.2f);  // Partially transparent
-
-	dotVAO_.bind();
-
-	// Draw with special depth test for transparency
-	glDepthFunc(GL_GREATER);  // Only draw if behind other objects
-
-	glDrawArrays(GL_TRIANGLES, 0, dotVertices_.size() / 6);
-
-	// Restore default depth function and settings
-	glDepthFunc(GL_LESS);
-	glDepthMask(GL_TRUE);
-
-	dotVAO_.release();
-
-	if (currentShader == dotShaderProgram_.get()) {
-		currentShader->release();
-		currentShader = nullptr;
-	}
-
+	// Note: Radar site dot rendering is handled by RadarSiteRenderer
 	// Note: Beam rendering is handled by BeamController
 
 	// Final cleanup - ensure all shaders are released
 	if (currentShader) {
 		currentShader->release();
 	}
-}
-
-void SphereRenderer::setRadarPosition(float theta, float phi) {
-	theta_ = theta;
-	phi_ = phi;
-}
-
-QVector3D SphereRenderer::getRadarPosition() const {
-	return sphericalToCartesian(radius_, theta_, phi_);
 }
 
 void SphereRenderer::setRadius(float radius) {
@@ -689,7 +464,6 @@ void SphereRenderer::setRadius(float radius) {
 			createSphere();
 			createGridLines();
 			createAxesLines();
-			createDot();
 		}
 
 		emit radiusChanged(radius);
@@ -1067,18 +841,6 @@ void SphereRenderer::createGridLines() {
 	glEnableVertexAttribArray(0);
 
 	linesVAO_.release();
-}
-
-// Helper method for spherical to cartesian conversion (Z-up convention)
-QVector3D SphereRenderer::sphericalToCartesian(float r, float thetaDeg, float phiDeg) const {
-	const float toRad = kDegToRadF;
-	float theta = thetaDeg * toRad;
-	float phi = phiDeg * toRad;
-	return QVector3D(
-		r * cos(phi) * cos(theta),
-		r * cos(phi) * sin(theta),  // Y is now horizontal
-		r * sin(phi)                // Z is now vertical (elevation)
-	);
 }
 
 void SphereRenderer::startInertia(const QVector3D& axis, float velocity) {
