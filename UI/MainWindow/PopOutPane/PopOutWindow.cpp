@@ -1,10 +1,10 @@
 // ---- PopOutWindow.cpp ----
 
 #include "PopOutWindow.h"
-#include "RadarSceneWidget/TextureBlitWidget.h"
-#include "RadarSceneWidget/RadarGLWidget.h"
-#include "RadarSceneWidget/RadarSceneWidget.h"
-#include "PolarPlot/PolarRCSPlot.h"
+#include "TextureBlitWidget.h"
+#include "RadarGLWidget.h"
+#include "RadarSceneWidget.h"
+#include "PolarRCSPlot.h"
 #include <QVBoxLayout>
 #include <QCloseEvent>
 #include <QKeyEvent>

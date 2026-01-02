@@ -15,7 +15,7 @@ endif()
 if(CMAKE_BUILD_TYPE MATCHES "Release")
     add_definitions(-DQT_NO_DEBUG_OUTPUT)
     add_definitions(-DQT_NO_WARNING_OUTPUT)
-    
+
     if(MSVC)
         add_compile_options(/O2)
     else()
@@ -42,160 +42,171 @@ else()
     find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Gui Widgets OpenGL)
 endif()
 
-# ModelManager sources
-set(MODEL_MANAGER_SOURCES
-    ModelManager/ModelManager.cpp
-    ModelManager/ModelManager.h
+# Common sources (shared utilities)
+set(COMMON_SOURCES
+    Common/Constants.h
+    Common/GLUtils.h
 )
 
-# RCSCompute sources (GPU ray tracing for RCS calculations)
-set(RCS_COMPUTE_SOURCES
-    RCSCompute/RCSTypes.h
-    RCSCompute/BVHBuilder.cpp
-    RCSCompute/BVHBuilder.h
-    RCSCompute/RCSCompute.cpp
-    RCSCompute/RCSCompute.h
-    RCSCompute/RCSSampler.h
-    RCSCompute/AzimuthCutSampler.cpp
-    RCSCompute/AzimuthCutSampler.h
-    RCSCompute/ElevationCutSampler.cpp
-    RCSCompute/ElevationCutSampler.h
-    RCSCompute/SlicingPlaneRenderer.cpp
-    RCSCompute/SlicingPlaneRenderer.h
+# UI/MainWindow sources
+set(UI_MAINWINDOW_SOURCES
+    UI/MainWindow/RadarSim.cpp
+    UI/MainWindow/RadarSim.h
+    UI/MainWindow/RadarSim.ui
 )
 
-# ReflectionRenderer sources (RCS lobe visualization)
-set(REFLECTION_RENDERER_SOURCES
-    ReflectionRenderer/ReflectionRenderer.cpp
-    ReflectionRenderer/ReflectionRenderer.h
-    ReflectionRenderer/HeatMapRenderer.cpp
-    ReflectionRenderer/HeatMapRenderer.h
+# UI/MainWindow/RadarPane sources (3D radar scene)
+set(UI_RADARPANE_SOURCES
+    UI/MainWindow/RadarPane/RadarGLWidget.cpp
+    UI/MainWindow/RadarPane/RadarGLWidget.h
+    UI/MainWindow/RadarPane/RadarSceneWidget.cpp
+    UI/MainWindow/RadarPane/RadarSceneWidget.h
+    UI/MainWindow/RadarPane/Sphere/SphereRenderer.cpp
+    UI/MainWindow/RadarPane/Sphere/SphereRenderer.h
+    UI/MainWindow/RadarPane/Cones/ReflectionRenderer.cpp
+    UI/MainWindow/RadarPane/Cones/ReflectionRenderer.h
+    UI/MainWindow/RadarPane/HeatMap/HeatMapRenderer.cpp
+    UI/MainWindow/RadarPane/HeatMap/HeatMapRenderer.h
+    UI/MainWindow/RadarPane/SlicingPlane/SlicingPlaneRenderer.cpp
+    UI/MainWindow/RadarPane/SlicingPlane/SlicingPlaneRenderer.h
 )
 
-# WireframeTarget sources
-set(WIREFRAME_TARGET_SOURCES
-    WireframeTarget/WireframeShapes.h
-    WireframeTarget/WireframeTarget.cpp
-    WireframeTarget/WireframeTarget.h
-    WireframeTarget/WireframeTargetController.cpp
-    WireframeTarget/WireframeTargetController.h
-    WireframeTarget/CubeWireframe.cpp
-    WireframeTarget/CubeWireframe.h
-    WireframeTarget/CylinderWireframe.cpp
-    WireframeTarget/CylinderWireframe.h
-    WireframeTarget/AircraftWireframe.cpp
-    WireframeTarget/AircraftWireframe.h
-    WireframeTarget/SphereWireframe.cpp
-    WireframeTarget/SphereWireframe.h
+# UI/MainWindow/RCSPane sources (2D polar plot and RCS computation)
+set(UI_RCSPANE_SOURCES
+    UI/MainWindow/RCSPane/PolarPlot/PolarRCSPlot.cpp
+    UI/MainWindow/RCSPane/PolarPlot/PolarRCSPlot.h
+    UI/MainWindow/RCSPane/Compute/RCSCompute.cpp
+    UI/MainWindow/RCSPane/Compute/RCSCompute.h
+    UI/MainWindow/RCSPane/Compute/RCSTypes.h
+    UI/MainWindow/RCSPane/Compute/BVHBuilder.cpp
+    UI/MainWindow/RCSPane/Compute/BVHBuilder.h
+    UI/MainWindow/RCSPane/Sampling/RCSSampler.h
+    UI/MainWindow/RCSPane/Sampling/AzimuthCutSampler.cpp
+    UI/MainWindow/RCSPane/Sampling/AzimuthCutSampler.h
+    UI/MainWindow/RCSPane/Sampling/ElevationCutSampler.cpp
+    UI/MainWindow/RCSPane/Sampling/ElevationCutSampler.h
 )
 
-# RadarBeam classes - CRITICAL: Use absolute paths from source directory
-set(RADAR_BEAM_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/BeamController.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/BeamController.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/ConicalBeam.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/ConicalBeam.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/PhasedArrayBeam.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/PhasedArrayBeam.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/SincBeam.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/SincBeam.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/RadarBeam.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam/RadarBeam.h
+# UI/MainWindow/PopOutPane sources
+set(UI_POPOUTPANE_SOURCES
+    UI/MainWindow/PopOutPane/PopOutWindow.cpp
+    UI/MainWindow/PopOutPane/PopOutWindow.h
+    UI/MainWindow/PopOutPane/FBORenderer.cpp
+    UI/MainWindow/PopOutPane/FBORenderer.h
+    UI/MainWindow/PopOutPane/TextureBlitWidget.cpp
+    UI/MainWindow/PopOutPane/TextureBlitWidget.h
 )
 
-# RadarSceneWidget and related component classes
-set(RADAR_SCENE_WIDGET_SOURCES
-    RadarSceneWidget/CameraController.cpp
-    RadarSceneWidget/CameraController.h
-    RadarSceneWidget/RadarGLWidget.cpp
-    RadarSceneWidget/RadarGLWidget.h
-    RadarSceneWidget/RadarSceneWidget.cpp
-    RadarSceneWidget/RadarSceneWidget.h
-    RadarSceneWidget/SphereRenderer.cpp
-    RadarSceneWidget/SphereRenderer.h
-    RadarSceneWidget/FBORenderer.cpp
-    RadarSceneWidget/FBORenderer.h
-    RadarSceneWidget/TextureBlitWidget.cpp
-    RadarSceneWidget/TextureBlitWidget.h
+# UI/MainWindow/Camera sources
+set(UI_CAMERA_SOURCES
+    UI/MainWindow/Camera/CameraController.cpp
+    UI/MainWindow/Camera/CameraController.h
 )
 
-# Config sources (settings and configuration)
-set(CONFIG_SOURCES
-    Config/AppSettings.cpp
-    Config/AppSettings.h
-    Config/BeamConfig.h
-    Config/CameraConfig.h
-    Config/TargetConfig.h
-    Config/SceneConfig.h
+# UI/ConfigurationWindow sources (includes config data)
+set(UI_CONFIGWINDOW_SOURCES
+    UI/ConfigurationWindow/ConfigurationWindow.cpp
+    UI/ConfigurationWindow/ConfigurationWindow.h
+    UI/ConfigurationWindow/AppSettings.cpp
+    UI/ConfigurationWindow/AppSettings.h
+    UI/ConfigurationWindow/BeamConfig.h
+    UI/ConfigurationWindow/CameraConfig.h
+    UI/ConfigurationWindow/SceneConfig.h
+    UI/ConfigurationWindow/TargetConfig.h
 )
 
-# PolarPlot sources (2D polar RCS visualization)
-set(POLAR_PLOT_SOURCES
-    PolarPlot/PolarRCSPlot.cpp
-    PolarPlot/PolarRCSPlot.h
+# UI/ControlsWindow sources
+set(UI_CONTROLSWINDOW_SOURCES
+    UI/ControlsWindow/ControlsWindow.cpp
+    UI/ControlsWindow/ControlsWindow.h
 )
 
-# Main application sources
-set(PROJECT_SOURCES
-    main.cpp
-    RadarSim.cpp
-    RadarSim.h
-    RadarSim.ui
-    GLUtils.h
-    Constants.h
-    PopOutWindow.cpp
-    PopOutWindow.h
-    ConfigurationWindow.cpp
-    ConfigurationWindow.h
-    ControlsWindow.cpp
-    ControlsWindow.h
+# Beam sources
+set(BEAM_SOURCES
+    Beam/RadarBeam.cpp
+    Beam/RadarBeam.h
+    Beam/BeamController.cpp
+    Beam/BeamController.h
+    Beam/ConicalBeam.cpp
+    Beam/ConicalBeam.h
+    Beam/PhasedArrayBeam.cpp
+    Beam/PhasedArrayBeam.h
+    Beam/SincBeam.cpp
+    Beam/SincBeam.h
 )
 
-# Debug: Print source files
-message(STATUS "RadarBeam sources:")
-foreach(src ${RADAR_BEAM_SOURCES})
-    message(STATUS "  ${src}")
-endforeach()
+# Target sources
+set(TARGET_SOURCES
+    Target/WireframeTarget.cpp
+    Target/WireframeTarget.h
+    Target/WireframeTargetController.cpp
+    Target/WireframeTargetController.h
+    Target/WireframeShapes.h
+    Target/Shapes/CubeWireframe.cpp
+    Target/Shapes/CubeWireframe.h
+    Target/Shapes/CylinderWireframe.cpp
+    Target/Shapes/CylinderWireframe.h
+    Target/Shapes/AircraftWireframe.cpp
+    Target/Shapes/AircraftWireframe.h
+    Target/Shapes/SphereWireframe.cpp
+    Target/Shapes/SphereWireframe.h
+    Target/Model/ModelManager.cpp
+    Target/Model/ModelManager.h
+)
 
 # Create executable
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(RadarSim
         MANUAL_FINALIZATION
-        ${PROJECT_SOURCES}
-        ${RADAR_BEAM_SOURCES}
-        ${RADAR_SCENE_WIDGET_SOURCES}
-        ${MODEL_MANAGER_SOURCES}
-        ${WIREFRAME_TARGET_SOURCES}
-        ${RCS_COMPUTE_SOURCES}
-        ${REFLECTION_RENDERER_SOURCES}
-        ${CONFIG_SOURCES}
-        ${POLAR_PLOT_SOURCES}
+        main.cpp
+        ${COMMON_SOURCES}
+        ${UI_MAINWINDOW_SOURCES}
+        ${UI_RADARPANE_SOURCES}
+        ${UI_RCSPANE_SOURCES}
+        ${UI_POPOUTPANE_SOURCES}
+        ${UI_CAMERA_SOURCES}
+        ${UI_CONFIGWINDOW_SOURCES}
+        ${UI_CONTROLSWINDOW_SOURCES}
+        ${BEAM_SOURCES}
+        ${TARGET_SOURCES}
     )
 else()
     add_executable(RadarSim
-        ${PROJECT_SOURCES}
-        ${RADAR_BEAM_SOURCES}
-        ${RADAR_SCENE_WIDGET_SOURCES}
-        ${MODEL_MANAGER_SOURCES}
-        ${WIREFRAME_TARGET_SOURCES}
-        ${RCS_COMPUTE_SOURCES}
-        ${REFLECTION_RENDERER_SOURCES}
-        ${CONFIG_SOURCES}
-        ${POLAR_PLOT_SOURCES}
+        main.cpp
+        ${COMMON_SOURCES}
+        ${UI_MAINWINDOW_SOURCES}
+        ${UI_RADARPANE_SOURCES}
+        ${UI_RCSPANE_SOURCES}
+        ${UI_POPOUTPANE_SOURCES}
+        ${UI_CAMERA_SOURCES}
+        ${UI_CONFIGWINDOW_SOURCES}
+        ${UI_CONTROLSWINDOW_SOURCES}
+        ${BEAM_SOURCES}
+        ${TARGET_SOURCES}
     )
 endif()
 
-# CRITICAL: Include directories for proper header resolution
+# Include directories for proper header resolution
 target_include_directories(RadarSim PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/RadarBeam
-    ${CMAKE_CURRENT_SOURCE_DIR}/RadarSceneWidget
-    ${CMAKE_CURRENT_SOURCE_DIR}/ModelManager
-    ${CMAKE_CURRENT_SOURCE_DIR}/WireframeTarget
-    ${CMAKE_CURRENT_SOURCE_DIR}/RCSCompute
-    ${CMAKE_CURRENT_SOURCE_DIR}/ReflectionRenderer
-    ${CMAKE_CURRENT_SOURCE_DIR}/Config
-    ${CMAKE_CURRENT_SOURCE_DIR}/PolarPlot
+    ${CMAKE_CURRENT_SOURCE_DIR}/Common
+    ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow
+    ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/RadarPane
+    ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/RadarPane/Sphere
+    ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/RadarPane/Cones
+    ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/RadarPane/HeatMap
+    ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/RadarPane/SlicingPlane
+    ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/RCSPane/PolarPlot
+    ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/RCSPane/Compute
+    ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/RCSPane/Sampling
+    ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/PopOutPane
+    ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/Camera
+    ${CMAKE_CURRENT_SOURCE_DIR}/UI/ConfigurationWindow
+    ${CMAKE_CURRENT_SOURCE_DIR}/UI/ControlsWindow
+    ${CMAKE_CURRENT_SOURCE_DIR}/Beam
+    ${CMAKE_CURRENT_SOURCE_DIR}/Target
+    ${CMAKE_CURRENT_SOURCE_DIR}/Target/Shapes
+    ${CMAKE_CURRENT_SOURCE_DIR}/Target/Model
 )
 
 # Link Qt libraries

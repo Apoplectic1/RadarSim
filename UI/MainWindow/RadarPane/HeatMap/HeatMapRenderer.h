@@ -11,8 +11,8 @@
 #include <memory>
 #include <string_view>
 
-#include "RCSCompute/RCSTypes.h"
-#include "RCSCompute/RCSSampler.h"  // For CutType enum
+#include "RCSTypes.h"
+#include "RCSSampler.h"  // For CutType enum
 
 class HeatMapRenderer : public QObject, protected QOpenGLFunctions_4_5_Core {
     Q_OBJECT

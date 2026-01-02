@@ -11,7 +11,7 @@
 #include <memory>
 #include <string_view>
 
-#include "RCSCompute/RCSTypes.h"
+#include "RCSTypes.h"
 
 // Aggregated reflection lobe for visualization
 struct ReflectionLobe {

@@ -1,6 +1,6 @@
 // RadarGLWidget.cpp
-#include "RadarSceneWidget/RadarGLWidget.h"
-#include "RadarSceneWidget/FBORenderer.h"
+#include "RadarGLWidget.h"
+#include "FBORenderer.h"
 #include "GLUtils.h"
 #include "Constants.h"
 #include <QDebug>

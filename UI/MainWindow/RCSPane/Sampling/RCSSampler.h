@@ -4,7 +4,7 @@
 #pragma once
 
 #include "RCSTypes.h"
-#include "../PolarPlot/PolarRCSPlot.h"  // For RCSDataPoint
+#include "PolarRCSPlot.h"  // For RCSDataPoint
 #include <vector>
 
 // Cut type for RCS slicing plane

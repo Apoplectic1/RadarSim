@@ -9,8 +9,8 @@
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
-#include "RadarBeam/BeamController.h"
-#include "WireframeTarget/WireframeShapes.h"
+#include "BeamController.h"
+#include "WireframeShapes.h"
 
 class ConfigurationWindow : public QWidget {
     Q_OBJECT

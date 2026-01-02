@@ -7,11 +7,11 @@
 #include "SphereRenderer.h"
 #include "BeamController.h"
 #include "CameraController.h"
-#include "ModelManager/ModelManager.h"
+#include "ModelManager.h"
 #include "WireframeTargetController.h"
 #include "RadarGLWidget.h"
-#include "PolarPlot/PolarRCSPlot.h"
-#include "RCSCompute/RCSSampler.h"  // For CutType enum
+#include "PolarRCSPlot.h"
+#include "RCSSampler.h"  // For CutType enum
 
 class RadarSceneWidget : public QWidget {
     Q_OBJECT

@@ -4,7 +4,7 @@
 #include "ControlsWindow.h"
 #include "AppSettings.h"
 #include "PolarRCSPlot.h"
-#include "RCSCompute/RCSSampler.h"  // For CutType enum
+#include "RCSSampler.h"  // For CutType enum
 #include "Constants.h"
 
 #include <cmath>

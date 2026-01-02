@@ -1,7 +1,7 @@
 // ---- PolarPlot/PolarRCSPlot.cpp ----
 
 #include "PolarRCSPlot.h"
-#include "../Constants.h"
+#include "Constants.h"
 #include <QPainter>
 #include <QFont>
 #include <cmath>

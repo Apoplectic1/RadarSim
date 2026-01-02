@@ -10,18 +10,18 @@
 #include <QElapsedTimer>
 #include <memory>
 
-#include "RadarSceneWidget/SphereRenderer.h"
-#include "RadarBeam/BeamController.h"
-#include "RadarSceneWidget/CameraController.h"
-#include "ModelManager/ModelManager.h"
+#include "SphereRenderer.h"
+#include "BeamController.h"
+#include "CameraController.h"
+#include "ModelManager.h"
 #include "WireframeTargetController.h"
-#include "RCSCompute/RCSCompute.h"
-#include "RCSCompute/RCSSampler.h"
-#include "RCSCompute/AzimuthCutSampler.h"
-#include "RCSCompute/ElevationCutSampler.h"
-#include "RCSCompute/SlicingPlaneRenderer.h"
-#include "ReflectionRenderer/ReflectionRenderer.h"
-#include "ReflectionRenderer/HeatMapRenderer.h"
+#include "RCSCompute.h"
+#include "RCSSampler.h"
+#include "AzimuthCutSampler.h"
+#include "ElevationCutSampler.h"
+#include "SlicingPlaneRenderer.h"
+#include "ReflectionRenderer.h"
+#include "HeatMapRenderer.h"
 
 class FBORenderer;
 

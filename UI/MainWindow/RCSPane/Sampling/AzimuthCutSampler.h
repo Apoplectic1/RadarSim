@@ -4,7 +4,7 @@
 #pragma once
 
 #include "RCSSampler.h"
-#include "../Constants.h"
+#include "Constants.h"
 #include <vector>
 
 class AzimuthCutSampler : public RCSSampler {
