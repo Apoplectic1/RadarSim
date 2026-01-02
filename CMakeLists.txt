@@ -147,6 +147,8 @@ set(PROJECT_SOURCES
     PopOutWindow.h
     ConfigurationWindow.cpp
     ConfigurationWindow.h
+    ControlsWindow.cpp
+    ControlsWindow.h
 )
 
 # Debug: Print source files

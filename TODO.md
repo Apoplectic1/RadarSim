@@ -1,9 +1,14 @@
 # RadarSim TODO List
 
-**Last Updated:** December 2024
+**Last Updated:** January 2025
 
 ## Recently Completed
 
+- [x] **Controls Panel Floating Window** - Extracted Controls panel to separate floating window
+  - New `ControlsWindow` class following `ConfigurationWindow` pattern
+  - Auto-positioned to LEFT of main window on startup
+  - Main window shrunk to 640px minimum width (was 900px)
+  - Reopenable via View > Controls Window menu item
 - [x] **RCS Polar Plot Angular Convention Legend** - Added axis reference below subtitle
   - Shows "0°=+X  90°=+Y  180°=-X  270°=-Y  (CCW)" in compact format
   - Helps interpret reflection direction angles on polar plot
@@ -125,7 +130,7 @@ No critical issues at present. GPU ray-traced shadows replaced the problematic s
 ## UI Improvements
 
 - [x] Tightened vertical spacing in control group boxes
-- [x] Main window minimum size adjusted (1024x900)
+- [x] Main window minimum size adjusted (640x750 after Controls panel extraction)
 - [ ] Target color picker
 - [ ] Beam color/opacity controls in UI (currently only via code)
 - [ ] RCS results panel with numerical readouts

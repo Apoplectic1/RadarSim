@@ -1,6 +1,7 @@
 // ---- RadarSim.cpp ----
 
 #include "RadarSim.h"
+#include "ControlsWindow.h"
 #include "AppSettings.h"
 #include "PolarRCSPlot.h"
 #include "RCSCompute/RCSSampler.h"  // For CutType enum
@@ -85,7 +86,8 @@ RadarSim::RadarSim(QWidget* parent)
         QTimer::singleShot(100, this, &RadarSim::applySettingsToScene);
     }
 
-    // Show configuration window at startup
+    // Show floating windows at startup
+    controlsWindow_->show();
     configWindow_->show();
 }
 
@@ -98,8 +100,8 @@ void RadarSim::setupUI() {
     // Set the main window title
     setWindowTitle("Radar Simulation System");
 
-    // Set minimum window size (reduced since we removed the Configuration tab)
-    setMinimumSize(900, 750);
+    // Set minimum window size (controls panel now in floating window)
+    setMinimumSize(640, 750);
 
     // Allow nested dock widgets
     setDockNestingEnabled(true);
@@ -113,7 +115,7 @@ void RadarSim::setupUI() {
 
 void RadarSim::setupLayout() {
     setupSceneDocks();
-    setupControlsPanel();
+    setupControlsWindow();
 }
 
 void RadarSim::setupSceneDocks() {
@@ -154,31 +156,29 @@ void RadarSim::setupSceneDocks() {
 }
 
 void RadarSim::setupControlsPanel() {
-    // Create a fixed controls panel (not a dock widget) on the right side
-    controlsPanel_ = new QWidget(this);
-    controlsPanel_->setFixedWidth(260);
+    // Create controls panel widget (will be parented to ControlsWindow)
+    controlsPanel_ = new QWidget();
 
     QVBoxLayout* controlsLayout = new QVBoxLayout(controlsPanel_);
     controlsLayout->setContentsMargins(4, 4, 4, 4);
     controlsLayout->setSpacing(8);
 
-    // Add a title label
-    QLabel* titleLabel = new QLabel("Controls", controlsPanel_);
-    titleLabel->setStyleSheet("font-weight: bold; font-size: 12pt; padding: 4px;");
-    controlsLayout->addWidget(titleLabel);
-
-    // Setup control groups
+    // Setup control groups (title is handled by window title bar)
     setupRadarControls(controlsPanel_, controlsLayout);
     setupTargetControls(controlsPanel_, controlsLayout);
     setupRCSPlaneControls(controlsPanel_, controlsLayout);
     controlsLayout->addStretch();
+}
 
-    // Add the controls panel to the right side using a dock widget with no features
-    QDockWidget* controlsDock = new QDockWidget("Controls", this);
-    controlsDock->setFeatures(QDockWidget::NoDockWidgetFeatures);  // Cannot be moved, floated, or closed
-    controlsDock->setTitleBarWidget(new QWidget());  // Hide title bar
-    controlsDock->setWidget(controlsPanel_);
-    addDockWidget(Qt::RightDockWidgetArea, controlsDock);
+void RadarSim::setupControlsWindow() {
+    // First create the controls panel widget
+    setupControlsPanel();
+
+    // Create the floating window
+    controlsWindow_ = new ControlsWindow(this);
+
+    // Transfer the controls panel to the window
+    controlsWindow_->setContent(controlsPanel_);
 }
 
 void RadarSim::setupMenuBar() {
@@ -188,9 +188,14 @@ void RadarSim::setupMenuBar() {
     // View menu
     viewMenu_ = menuBar->addMenu("&View");
 
+    // Controls window action
+    showControlsWindowAction_ = new QAction("C&ontrols Window", this);
+    showControlsWindowAction_->setStatusTip("Show the controls window");
+    connect(showControlsWindowAction_, &QAction::triggered, this, &RadarSim::onShowControlsWindow);
+    viewMenu_->addAction(showControlsWindowAction_);
+
     // Configuration window action
     showConfigWindowAction_ = new QAction("&Configuration Window", this);
-    showConfigWindowAction_->setShortcut(QKeySequence("Ctrl+,"));
     showConfigWindowAction_->setStatusTip("Show the configuration window");
     connect(showConfigWindowAction_, &QAction::triggered, this, &RadarSim::onShowConfigurationWindow);
     viewMenu_->addAction(showConfigWindowAction_);
@@ -872,6 +877,14 @@ void RadarSim::onShowConfigurationWindow() {
     }
 }
 
+void RadarSim::onShowControlsWindow() {
+    if (controlsWindow_) {
+        controlsWindow_->show();
+        controlsWindow_->raise();
+        controlsWindow_->activateWindow();
+    }
+}
+
 void RadarSim::onAxesVisibilityChanged(bool visible) {
     radarSceneView_->setAxesVisible(visible);
 }
@@ -1081,7 +1094,8 @@ void RadarSim::closeEvent(QCloseEvent* event) {
 void RadarSim::showEvent(QShowEvent* event) {
     QMainWindow::showEvent(event);
 
-    // Position config window now that main window geometry is valid
+    // Position floating windows now that main window geometry is valid
+    positionControlsWindow();
     positionConfigWindow();
 
     // Force polar plot to resize after window is fully visible
@@ -1094,6 +1108,20 @@ void RadarSim::showEvent(QShowEvent* event) {
             polarRCSPlot_->resize(size);
         }
     });
+}
+
+void RadarSim::positionControlsWindow() {
+    if (!controlsWindow_) return;
+
+    // Position to the LEFT of the main window with 10px gap
+    int newX = x() - controlsWindow_->width() - 10;
+
+    // Ensure window doesn't go off-screen to the left
+    if (newX < 0) {
+        newX = 0;
+    }
+
+    controlsWindow_->move(newX, y());
 }
 
 void RadarSim::positionConfigWindow() {

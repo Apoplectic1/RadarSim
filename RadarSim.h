@@ -12,6 +12,7 @@
 #include "AppSettings.h"
 #include "PopOutWindow.h"
 #include "ConfigurationWindow.h"
+#include "ControlsWindow.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class RadarSim; }
@@ -82,6 +83,7 @@ private slots:
 
     // Configuration window slots
     void onShowConfigurationWindow();
+    void onShowControlsWindow();
     void onAxesVisibilityChanged(bool visible);
     void onSphereVisibilityChanged(bool visible);
     void onGridVisibilityChanged(bool visible);
@@ -102,6 +104,8 @@ protected:
 private:
     void setupUI();
     void positionConfigWindow();
+    void positionControlsWindow();
+    void setupControlsWindow();
     void setupLayout();
     void setupMenuBar();
     void setupConfigurationWindow();
@@ -172,9 +176,11 @@ private:
     // Menu bar
     QMenu* viewMenu_ = nullptr;
     QAction* showConfigWindowAction_ = nullptr;
+    QAction* showControlsWindowAction_ = nullptr;
 
-    // Configuration window (floating)
+    // Floating windows
     ConfigurationWindow* configWindow_ = nullptr;
+    ControlsWindow* controlsWindow_ = nullptr;
 
     // Pop-out windows
     PopOutWindow* scenePopOut_ = nullptr;

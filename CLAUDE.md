@@ -28,8 +28,9 @@ cmake --build out/build/release
 ```
 RadarSim/
 ├── main.cpp                    # Entry point, OpenGL context setup
-├── RadarSim.h/.cpp             # Main window with menu bar and fixed controls panel
+├── RadarSim.h/.cpp             # Main window with menu bar, manages floating windows
 ├── ConfigurationWindow.h/.cpp  # Floating configuration window (display/beam/target options)
+├── ControlsWindow.h/.cpp       # Floating controls window (radar/target/RCS plane parameters)
 ├── PopOutWindow.h/.cpp         # Pop-out window container for detached views
 ├── Constants.h                 # Compile-time constants (see Constants section below)
 ├── GLUtils.h                   # OpenGL error checking utilities
@@ -408,8 +409,9 @@ Without this connection, timer-based animations will appear stuttery because `up
 |------|-------|
 | Add new beam type | `RadarBeam/RadarBeam.h` (enum), new class inheriting `RadarBeam`, override `getVisualExtentMultiplier()` if beam has side lobes |
 | Add new solid target | `WireframeTarget/WireframeShapes.h` (enum), new class inheriting `WireframeTarget` |
-| Modify UI controls | `RadarSim.cpp` (setup methods, slot methods), `ConfigurationWindow.cpp` |
+| Modify UI controls | `RadarSim.cpp` (setup methods, slot methods), `ControlsWindow.cpp`, `ConfigurationWindow.cpp` |
 | Configuration options | `ConfigurationWindow.cpp`, `RadarSim.cpp` (connect signals) |
+| Floating windows | `ControlsWindow.cpp`, `ConfigurationWindow.cpp`, `RadarSim.cpp` (positioning, show/hide) |
 | Change rendering | `RadarGLWidget.cpp` (`paintGL()`), component `render()` methods |
 | Adjust camera | `CameraController.cpp` |
 | Sphere geometry | `SphereRenderer.cpp` |
@@ -802,13 +804,56 @@ Default values are defined in `Constants.h` under `RS::Constants::Defaults` name
 - Target Position: (0, 0, 0), Rotation: (0, 0, 0), Scale: 20
 - RCS Plane Offset: 0°, Thickness: 10° (index 32)
 
-## Configuration Window
+## Floating Windows
 
-The application uses a floating Configuration window (opened at startup, reopenable via View menu) for all display and visualization options. The main window has a fixed Controls panel on the right side for radar/target/RCS plane parameters.
+The application uses two floating windows positioned on either side of the main window:
+- **Controls Window** (LEFT): Radar, target, and RCS plane parameter controls
+- **Configuration Window** (RIGHT): Display options, beam settings, visualization toggles
+
+Both windows are shown at startup and can be reopened via View menu if closed.
+
+**Startup Layout:**
+```
+[Controls Window]  [Main Window (3D Scene + Polar Plot)]  [Configuration Window]
+      LEFT                      CENTER                          RIGHT
+```
+
+### Controls Window (ControlsWindow)
+
+Contains all parameter sliders and spinboxes for radar/target/RCS control.
 
 **Window Layout:**
 ```
-Configuration Window (floating)
+Controls Window (floating, LEFT of main)
+├── Radar Controls (GroupBox)
+│   ├── Sphere Radius: [Slider] [SpinBox]
+│   ├── Radar Azimuth (θ): [Slider] [SpinBox]
+│   └── Radar Elevation (φ): [Slider] [SpinBox]
+├── Target Controls (GroupBox)
+│   ├── Position X/Y/Z: [Slider] [SpinBox] each
+│   ├── Pitch/Yaw/Roll: [Slider] [SpinBox] each
+│   └── Scale: [Slider] [SpinBox]
+└── 2D RCS Plane (GroupBox)
+    ├── Cut Type: [Combo: Azimuth/Elevation]
+    ├── Plane Offset: [Slider] [SpinBox]
+    ├── Slice Thickness: [Slider] [SpinBox]
+    └── ☑ Show Plane Fill
+```
+
+**Implementation:**
+- `ControlsWindow` is a `QWidget` with `Qt::Window` flag (fixed width 270px)
+- Controls panel widget created by `RadarSim::setupControlsPanel()` and transferred to window
+- Positioned to LEFT of main window in `RadarSim::positionControlsWindow()`
+- All sliders support double-click to reset to default (via `RadarSim::eventFilter()`)
+- Menu bar: View > Controls Window reopens if closed
+
+### Configuration Window (ConfigurationWindow)
+
+Contains display toggles, beam type selection, and visualization options.
+
+**Window Layout:**
+```
+Configuration Window (floating, RIGHT of main)
 ├── Configuration Profiles (GroupBox)
 │   ├── Profile: [Combo]
 │   └── [Save] [Save As...] [Delete] [Reset to Defaults]
@@ -830,17 +875,19 @@ Configuration Window (floating)
 ```
 
 **Implementation:**
-- `ConfigurationWindow` is a `QWidget` with `Qt::Window` flag for floating behavior
+- `ConfigurationWindow` is a `QWidget` with `Qt::Window` flag
 - Signals emitted for each setting change, connected to `RadarSim` slots
 - `syncStateFromScene()` method syncs checkboxes with current scene state
+- Positioned to RIGHT of main window in `RadarSim::positionConfigWindow()`
 - Menu bar: View > Configuration Window reopens if closed
 
-**Files:**
+**Floating Window Files:**
 | File | Purpose |
 |------|---------|
-| `ConfigurationWindow.h/.cpp` | Floating window UI and signals |
-| `RadarSim.cpp` | Signal connections, slot implementations |
-| `RadarSim.h` | `configWindow_` member, slot declarations |
+| `ControlsWindow.h/.cpp` | Controls window container (fixed width, hide-on-close) |
+| `ConfigurationWindow.h/.cpp` | Configuration window UI and signals |
+| `RadarSim.cpp` | Window creation, positioning, signal connections |
+| `RadarSim.h` | `controlsWindow_`, `configWindow_` members |
 
 ## Coordinate System
 
