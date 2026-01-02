@@ -520,6 +520,156 @@ emit viewChanged();         // Triggers paintGL()
 
 When idle (no interaction, no inertia), the scene doesn't render - no wasted GPU cycles.
 
+## Threading & Compute Architecture
+
+### Current Threading Model
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                      MAIN THREAD                                │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐ │
+│  │   Qt UI     │  │   OpenGL    │  │     GPU Compute         │ │
+│  │  (widgets)  │  │  Rendering  │  │   (dispatch + wait)     │ │
+│  └─────────────┘  └─────────────┘  └─────────────────────────┘ │
+└────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌────────────────────────────────────────────────────────────────┐
+│                         GPU                                     │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐  │
+│  │ Ray Gen      │→ │ BVH Traverse │→ │ Shadow Map Gen       │  │
+│  │ Compute      │  │ Compute      │  │ Compute              │  │
+│  └──────────────┘  └──────────────┘  └──────────────────────┘  │
+└────────────────────────────────────────────────────────────────┘
+```
+
+**Current Constraints:**
+- All work happens on main thread (Qt requirement for UI and GL context)
+- GPU compute dispatched synchronously - CPU blocks waiting for results
+- No background threads for CPU-intensive work
+
+### GPU Compute Pipeline (RCSCompute)
+
+**Three-stage compute shader pipeline:**
+
+| Stage | Shader | Input | Output | Workgroup |
+|-------|--------|-------|--------|-----------|
+| 1. Ray Generation | `dispatchRayGeneration()` | Radar position, beam params | Ray buffer (SSBO 0) | 64 threads |
+| 2. BVH Traversal | `dispatchTracing()` | Rays, BVH, triangles | Hit results (SSBO 3) | 64 threads |
+| 3. Shadow Map | `dispatchShadowMapGeneration()` | Hit results | Shadow texture (Image 0) | 64 threads |
+
+**Synchronization between stages:**
+```cpp
+glDispatchCompute(numGroups, 1, 1);
+glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);  // Wait for SSBO writes
+```
+
+### CPU ↔ GPU Data Flow
+
+**Upload (CPU → GPU):**
+| Data | Size | Frequency | Method |
+|------|------|-----------|--------|
+| BVH nodes | Variable | On geometry change | `glBufferData()` |
+| Triangles | Variable | On geometry change | `glBufferData()` |
+| Uniforms | ~100 bytes | Every frame | `setUniformValue()` |
+
+**Readback (GPU → CPU):**
+| Data | Size | Frequency | Method | Blocking? |
+|------|------|-----------|--------|-----------|
+| Hit counter | 4 bytes | Every frame | `glMapBufferRange()` | **YES** |
+| Hit results | 640 KB | When viz enabled | `glMapBufferRange()` | **YES** |
+| Shadow map | 40 KB | Never | Stays on GPU | No |
+
+### Current Bottlenecks
+
+1. **Atomic Counter Readback** - 4-byte read causes full GPU stall every frame
+2. **Hit Buffer Readback** - 640 KB synchronous transfer when visualization enabled
+3. **BVH Construction** - CPU-side, blocks main thread on geometry change
+
+### Future Optimization Patterns
+
+**1. Async Counter Query (avoid stall for hit count):**
+```cpp
+// Instead of blocking glMapBufferRange:
+glGetQueryObjectui64v(queryId, GL_QUERY_RESULT_NO_WAIT, &hitCount);
+```
+
+**2. Double-Buffered Results (pipeline GPU/CPU work):**
+```cpp
+// Frame N: Read buffer A (from frame N-1), Write buffer B
+// Frame N+1: Read buffer B, Write buffer A
+int readBuffer = frameCount % 2;
+int writeBuffer = (frameCount + 1) % 2;
+```
+
+**3. Persistent Mapped Buffers (zero-copy readback):**
+```cpp
+glBufferStorage(GL_SHADER_STORAGE_BUFFER, size, nullptr,
+    GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+void* mapped = glMapBufferRange(..., GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+// Read directly from mapped pointer after fence sync
+```
+
+**4. Fence Sync (deferred readback):**
+```cpp
+GLsync fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+// ... continue CPU work ...
+GLenum result = glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, timeout);
+if (result == GL_ALREADY_SIGNALED || result == GL_CONDITION_SATISFIED) {
+    // Safe to read results
+}
+```
+
+**5. Background Thread for BVH (CPU threading):**
+```cpp
+class BVHWorker : public QObject {
+    Q_OBJECT
+public slots:
+    void buildBVH(const std::vector<float>& vertices, const QMatrix4x4& transform) {
+        BVHBuilder builder;
+        builder.build(vertices, transform);
+        emit bvhReady(builder.getNodes(), builder.getTriangles());
+    }
+signals:
+    void bvhReady(std::vector<BVHNode> nodes, std::vector<Triangle> tris);
+};
+
+// In main thread:
+QThread* bvhThread = new QThread();
+BVHWorker* worker = new BVHWorker();
+worker->moveToThread(bvhThread);
+connect(this, &RCSCompute::buildRequested, worker, &BVHWorker::buildBVH);
+connect(worker, &BVHWorker::bvhReady, this, &RCSCompute::onBVHReady);
+```
+
+### Guidelines for Adding Heavy Computation
+
+**DO:**
+- Keep OpenGL calls on main thread (Qt requirement)
+- Use `glMemoryBarrier()` between dependent compute dispatches
+- Use lazy evaluation (`dirty_` flags) to avoid unnecessary work
+- Keep GPU-only data resident (like shadow map)
+- Consider double-buffering for results needed every frame
+
+**DON'T:**
+- Call `glMapBufferRange()` with `GL_MAP_READ_BIT` in hot path (causes stall)
+- Build BVH on main thread for large geometry (blocks UI)
+- Read back data that can stay on GPU
+- Dispatch compute without memory barriers between dependent stages
+
+**Thread Safety:**
+- `QOpenGLContext` must be used from thread that created it
+- Use `QOffscreenSurface` + `makeCurrent()` for background GL threads
+- Prefer signal/slot for cross-thread communication (Qt handles queuing)
+
+### Compute Architecture Files
+
+| File | Responsibility |
+|------|----------------|
+| `RCSCompute.cpp` | GPU compute dispatch, buffer management |
+| `BVHBuilder.cpp` | CPU-side BVH construction (candidate for threading) |
+| `RadarGLWidget.cpp` | Orchestrates compute + render in `paintGL()` |
+
 ## Rendering Pipeline
 
 ```
