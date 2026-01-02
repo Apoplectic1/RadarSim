@@ -97,10 +97,10 @@ set(UI_POPOUTPANE_SOURCES
     UI/MainWindow/PopOutPane/TextureBlitWidget.h
 )
 
-# UI/MainWindow/Camera sources
+# UI/MainWindow/RadarPane/Camera sources
 set(UI_CAMERA_SOURCES
-    UI/MainWindow/Camera/CameraController.cpp
-    UI/MainWindow/Camera/CameraController.h
+    UI/MainWindow/RadarPane/Camera/CameraController.cpp
+    UI/MainWindow/RadarPane/Camera/CameraController.h
 )
 
 # UI/ConfigurationWindow sources (includes config data)
@@ -200,7 +200,7 @@ target_include_directories(RadarSim PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/RCSPane/Compute
     ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/RCSPane/Sampling
     ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/PopOutPane
-    ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/Camera
+    ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/RadarPane/Camera
     ${CMAKE_CURRENT_SOURCE_DIR}/UI/ConfigurationWindow
     ${CMAKE_CURRENT_SOURCE_DIR}/UI/ControlsWindow
     ${CMAKE_CURRENT_SOURCE_DIR}/Beam

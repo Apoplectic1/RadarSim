@@ -1088,6 +1088,11 @@ void RadarSim::onProfilesChanged() {
 void RadarSim::closeEvent(QCloseEvent* event) {
     readSettingsFromScene();
     appSettings_->saveLastSession();
+
+    // Close floating windows before main window
+    if (controlsWindow_) controlsWindow_->close();
+    if (configWindow_) configWindow_->close();
+
     event->accept();
 }
 
