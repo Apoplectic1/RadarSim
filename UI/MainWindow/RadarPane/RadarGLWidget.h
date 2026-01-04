@@ -23,6 +23,7 @@
 #include "SlicingPlaneRenderer.h"
 #include "ReflectionRenderer.h"
 #include "HeatMapRenderer.h"
+#include "DebugRayRenderer.h"
 
 class FBORenderer;
 
@@ -68,6 +69,13 @@ public:
     float getRCSSliceThickness() const;
     void setRCSPlaneShowFill(bool show);
     bool isRCSPlaneShowFill() const;
+
+    // Debug ray visualization
+    void setDebugRayEnabled(bool enabled);
+    bool isDebugRayEnabled() const { return debugRayEnabled_; }
+    void setRayCount(int count);
+    int getRayCount() const { return rayCount_; }
+    DebugRayRenderer* getDebugRayRenderer() const { return debugRayRenderer_.get(); }
 
     // FBO rendering support (for pop-out windows)
     void setRenderToFBO(bool enable);
@@ -128,6 +136,11 @@ private:
 
     // Heat map visualization
     std::unique_ptr<HeatMapRenderer> heatMapRenderer_;
+
+    // Debug ray visualization
+    std::unique_ptr<DebugRayRenderer> debugRayRenderer_;
+    bool debugRayEnabled_ = false;
+    int rayCount_ = 10000;
 
     // FBO rendering for pop-out windows
     std::unique_ptr<FBORenderer> fboRenderer_;

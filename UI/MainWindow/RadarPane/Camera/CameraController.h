@@ -6,8 +6,6 @@
 #include <QVector3D>
 #include <QMouseEvent>
 #include <QWheelEvent>
-#include <QTimer>
-#include <QElapsedTimer>
 
 class CameraController : public QObject {
     Q_OBJECT
@@ -23,10 +21,6 @@ public:
     // Camera control
     void resetView();
     void pan(const QPoint& delta);
-
-    // Inertia control
-    void setInertiaEnabled(bool enabled);
-    bool isInertiaEnabled() const { return inertiaEnabled_; }
 
     // Camera state getters
     float getDistance() const { return distance_; }
@@ -49,10 +43,6 @@ public:
 
 signals:
     void viewChanged();
-    void inertiaEnabledChanged(bool enabled);
-
-private slots:
-    void onInertiaTimerTimeout();
 
 private:
     // Spherical orbit camera parameters
@@ -72,16 +62,6 @@ private:
     bool isPanning_ = false;
     QPoint panStartPos_;
 
-    // Inertia for spherical coordinates
-    QTimer* inertiaTimer_ = nullptr;
-    QElapsedTimer frameTimer_;
-    float azimuthVelocity_ = 0.0f;
-    float elevationVelocity_ = 0.0f;
-    float velocityDecay_ = 0.95f;
-    bool inertiaEnabled_ = false;
-
     // Helper methods
-    void startInertia(float azimuthVel, float elevationVel);
-    void stopInertia();
     void updateViewMatrix();
 };

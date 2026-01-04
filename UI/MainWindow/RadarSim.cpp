@@ -233,8 +233,6 @@ void RadarSim::connectSignals() {
             this, &RadarSim::onSphereVisibilityChanged);
     connect(configWindow_, &ConfigurationWindow::gridVisibilityChanged,
             this, &RadarSim::onGridVisibilityChanged);
-    connect(configWindow_, &ConfigurationWindow::inertiaChanged,
-            this, &RadarSim::onInertiaChanged);
     connect(configWindow_, &ConfigurationWindow::reflectionLobesChanged,
             this, &RadarSim::onReflectionLobesChanged);
     connect(configWindow_, &ConfigurationWindow::heatMapChanged,
@@ -253,6 +251,12 @@ void RadarSim::connectSignals() {
             this, &RadarSim::onTargetVisibilityChanged);
     connect(configWindow_, &ConfigurationWindow::targetTypeChanged,
             this, &RadarSim::onTargetTypeChanged);
+
+    // Debug ray signals
+    connect(configWindow_, &ConfigurationWindow::debugRayToggled,
+            this, &RadarSim::onDebugRayToggled);
+    connect(configWindow_, &ConfigurationWindow::rayCountChanged,
+            this, &RadarSim::onRayCountChanged);
 }
 
 // Radar control slots (from RadarControlsWidget)
@@ -315,10 +319,6 @@ void RadarSim::onGridVisibilityChanged(bool visible) {
     radarSceneView_->setGridLinesVisible(visible);
 }
 
-void RadarSim::onInertiaChanged(bool enabled) {
-    radarSceneView_->setInertiaEnabled(enabled);
-}
-
 void RadarSim::onReflectionLobesChanged(bool visible) {
     if (auto* glWidget = radarSceneView_->getGLWidget()) {
         glWidget->setReflectionLobesVisible(visible);
@@ -361,6 +361,16 @@ void RadarSim::onTargetTypeChanged(WireframeType type) {
         target->setTargetType(type);
         radarSceneView_->updateScene();
     }
+}
+
+void RadarSim::onDebugRayToggled(bool enabled) {
+    radarSceneView_->setDebugRayEnabled(enabled);
+    radarSceneView_->updateScene();
+}
+
+void RadarSim::onRayCountChanged(int count) {
+    radarSceneView_->setRayCount(count);
+    radarSceneView_->updateScene();
 }
 
 // RCS plane control slot implementations (from RCSPlaneControlsWidget)
@@ -578,7 +588,6 @@ void RadarSim::syncConfigWindowState() {
     bool axesVisible = radarSceneView_->areAxesVisible();
     bool sphereVisible = radarSceneView_->isSphereVisible();
     bool gridVisible = radarSceneView_->areGridLinesVisible();
-    bool inertiaEnabled = radarSceneView_->isInertiaEnabled();
 
     // Get beam state
     bool beamVisible = true;
@@ -600,14 +609,19 @@ void RadarSim::syncConfigWindowState() {
     // Get visualization state
     bool reflectionLobesVisible = false;
     bool heatMapVisible = false;
+    bool debugRayEnabled = false;
+    int rayCount = 10000;
     if (auto* glWidget = radarSceneView_->getGLWidget()) {
         reflectionLobesVisible = glWidget->areReflectionLobesVisible();
         heatMapVisible = glWidget->isHeatMapVisible();
+        debugRayEnabled = glWidget->isDebugRayEnabled();
+        rayCount = glWidget->getRayCount();
     }
 
     // Sync to config window
     configWindow_->syncStateFromScene(axesVisible, sphereVisible, gridVisible,
-                                       inertiaEnabled, reflectionLobesVisible, heatMapVisible,
+                                       reflectionLobesVisible, heatMapVisible,
+                                       debugRayEnabled, rayCount,
                                        beamVisible, shadowVisible, beamType,
                                        targetVisible, targetType);
 }
@@ -628,7 +642,6 @@ void RadarSim::readSettingsFromScene() {
         appSettings_->camera.azimuth = camera->getAzimuth();
         appSettings_->camera.elevation = camera->getElevation();
         appSettings_->camera.focusPoint = camera->getFocusPoint();
-        appSettings_->camera.inertiaEnabled = camera->isInertiaEnabled();
     }
 
     // Read target settings from widget
@@ -679,7 +692,6 @@ void RadarSim::applySettingsToScene() {
         camera->setAzimuth(appSettings_->camera.azimuth);
         camera->setElevation(appSettings_->camera.elevation);
         camera->setFocusPoint(appSettings_->camera.focusPoint);
-        camera->setInertiaEnabled(appSettings_->camera.inertiaEnabled);
     }
 
     // Apply target settings to widget and scene

@@ -146,13 +146,6 @@ void RadarSceneWidget::setGridLinesVisible(bool visible) {
     emit visibilityOptionChanged("gridLines", visible);
 }
 
-void RadarSceneWidget::setInertiaEnabled(bool enabled) {
-    if (cameraController_) {
-        cameraController_->setInertiaEnabled(enabled);
-    }
-    emit visibilityOptionChanged("inertia", enabled);
-}
-
 bool RadarSceneWidget::isSphereVisible() const {
     return sphereRenderer_ ? sphereRenderer_->isSphereVisible() : false;
 }
@@ -163,10 +156,6 @@ bool RadarSceneWidget::areAxesVisible() const {
 
 bool RadarSceneWidget::areGridLinesVisible() const {
     return sphereRenderer_ ? sphereRenderer_->areGridLinesVisible() : false;
-}
-
-bool RadarSceneWidget::isInertiaEnabled() const {
-    return cameraController_ ? cameraController_->isInertiaEnabled() : false;
 }
 
 void RadarSceneWidget::setShowShadow(bool show) {
@@ -218,4 +207,25 @@ void RadarSceneWidget::setRCSPlaneShowFill(bool show) {
 
 bool RadarSceneWidget::isRCSPlaneShowFill() const {
     return radarGLWidget_ ? radarGLWidget_->isRCSPlaneShowFill() : true;
+}
+
+// Debug ray visualization forwarding methods
+void RadarSceneWidget::setDebugRayEnabled(bool enabled) {
+    if (radarGLWidget_) {
+        radarGLWidget_->setDebugRayEnabled(enabled);
+    }
+}
+
+bool RadarSceneWidget::isDebugRayEnabled() const {
+    return radarGLWidget_ ? radarGLWidget_->isDebugRayEnabled() : false;
+}
+
+void RadarSceneWidget::setRayCount(int count) {
+    if (radarGLWidget_) {
+        radarGLWidget_->setRayCount(count);
+    }
+}
+
+int RadarSceneWidget::getRayCount() const {
+    return radarGLWidget_ ? radarGLWidget_->getRayCount() : 10000;
 }

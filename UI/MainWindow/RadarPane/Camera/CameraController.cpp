@@ -10,34 +10,19 @@ CameraController::CameraController(QObject* parent)
     distance_(Defaults::kCameraDistance),
     azimuth_(Defaults::kCameraAzimuth),
     elevation_(Defaults::kCameraElevation),
-    focusPoint_(0.0f, 0.0f, 0.0f),
-    inertiaTimer_(new QTimer(this)),
-    inertiaEnabled_(false)
+    focusPoint_(0.0f, 0.0f, 0.0f)
 {
     // Initialize view matrix
     updateViewMatrix();
-
-    // Connect inertia timer
-    connect(inertiaTimer_, &QTimer::timeout, this, &CameraController::onInertiaTimerTimeout);
-
-    // Start frame timer
-    frameTimer_.start();
 }
 
-CameraController::~CameraController() {
-    if (inertiaTimer_ && inertiaTimer_->isActive()) {
-        inertiaTimer_->stop();
-    }
-}
+CameraController::~CameraController() = default;
 
 QMatrix4x4 CameraController::getViewMatrix() const {
     return viewMatrix_;
 }
 
 void CameraController::resetView() {
-    // Stop inertia
-    stopInertia();
-
     // Reset orbit camera to default position
     distance_ = Defaults::kCameraDistance;
     azimuth_ = Defaults::kCameraAzimuth;
@@ -71,19 +56,6 @@ void CameraController::pan(const QPoint& delta) {
     emit viewChanged();
 }
 
-void CameraController::setInertiaEnabled(bool enabled) {
-    if (inertiaEnabled_ != enabled) {
-        inertiaEnabled_ = enabled;
-
-        // If disabling, stop any ongoing inertia
-        if (!enabled) {
-            stopInertia();
-        }
-
-        emit inertiaEnabledChanged(enabled);
-    }
-}
-
 void CameraController::setDistance(float d) {
     distance_ = qBound(kCameraMinDistance, d, kCameraMaxDistance);
     updateViewMatrix();
@@ -111,14 +83,8 @@ void CameraController::setFocusPoint(const QVector3D& fp) {
 void CameraController::mousePressEvent(QMouseEvent* event) {
     if (event->button() == Qt::LeftButton) {
         // Left button for scene rotation (orbit camera)
-        // Stop any ongoing inertia
-        stopInertia();
-
         isDragging_ = true;
         lastMousePos_ = event->pos();
-
-        // Reset frame timer for velocity calculation
-        frameTimer_.restart();
     }
     else if (event->button() == Qt::MiddleButton) {
         // Middle button for panning (drag scene left/right/up/down)
@@ -132,13 +98,6 @@ void CameraController::mousePressEvent(QMouseEvent* event) {
 
 void CameraController::mouseMoveEvent(QMouseEvent* event) {
     if (isDragging_) {
-        // Calculate elapsed time for velocity calculation
-        float dt = frameTimer_.elapsed() / 1000.0f; // Convert to seconds
-        frameTimer_.restart();
-
-        // Avoid division by zero
-        if (dt < 0.001f) dt = 0.016f; // Default to ~60 FPS
-
         // Calculate mouse movement delta
         QPoint delta = event->pos() - lastMousePos_;
 
@@ -157,10 +116,6 @@ void CameraController::mouseMoveEvent(QMouseEvent* event) {
 
         // Clamp elevation to avoid gimbal lock at poles (~85 degrees)
         elevation_ = qBound(-kCameraMaxElevation, elevation_, kCameraMaxElevation);
-
-        // Store velocities for inertia calculation
-        azimuthVelocity_ = dAzimuth / dt * kCameraInertiaScaleFactor;
-        elevationVelocity_ = dElevation / dt * kCameraInertiaScaleFactor;
 
         // Store current mouse position for next frame
         lastMousePos_ = event->pos();
@@ -184,16 +139,7 @@ void CameraController::mouseMoveEvent(QMouseEvent* event) {
 
 void CameraController::mouseReleaseEvent(QMouseEvent* event) {
     if (event->button() == Qt::LeftButton) {
-        if (isDragging_) {
-            isDragging_ = false;
-
-            // Only start inertia if it's enabled and velocity is significant
-            float totalVelocity = std::sqrt(azimuthVelocity_ * azimuthVelocity_ +
-                                             elevationVelocity_ * elevationVelocity_);
-            if (inertiaEnabled_ && totalVelocity > kCameraVelocityThreshold) {
-                startInertia(azimuthVelocity_, elevationVelocity_);
-            }
-        }
+        isDragging_ = false;
     }
     else if (event->button() == Qt::MiddleButton) {
         isPanning_ = false;
@@ -218,49 +164,6 @@ void CameraController::mouseDoubleClickEvent(QMouseEvent* event) {
     if (event->button() == Qt::LeftButton) {
         resetView();
     }
-}
-
-void CameraController::onInertiaTimerTimeout() {
-    // Check if velocities are still significant
-    float totalVelocity = std::sqrt(azimuthVelocity_ * azimuthVelocity_ +
-                                     elevationVelocity_ * elevationVelocity_);
-    if (totalVelocity > 0.0001f) {
-        // Apply orbit velocity
-        azimuth_ += azimuthVelocity_;
-        elevation_ += elevationVelocity_;
-
-        // Clamp elevation to avoid gimbal lock
-        elevation_ = qBound(-kCameraMaxElevation, elevation_, kCameraMaxElevation);
-
-        // Decay the velocities
-        azimuthVelocity_ *= velocityDecay_;
-        elevationVelocity_ *= velocityDecay_;
-
-        // Update view matrix
-        updateViewMatrix();
-
-        emit viewChanged();
-    }
-    else {
-        // Stop the timer when velocity is negligible
-        stopInertia();
-    }
-}
-
-void CameraController::startInertia(float azimuthVel, float elevationVel) {
-    azimuthVelocity_ = azimuthVel;
-    elevationVelocity_ = elevationVel;
-
-    // Start timer if not already running
-    if (!inertiaTimer_->isActive()) {
-        inertiaTimer_->start(kCameraInertiaTimerMs);
-    }
-}
-
-void CameraController::stopInertia() {
-    inertiaTimer_->stop();
-    azimuthVelocity_ = 0.0f;
-    elevationVelocity_ = 0.0f;
 }
 
 void CameraController::updateViewMatrix() {

@@ -11,13 +11,11 @@ struct CameraConfig {
     float azimuth = 0.0f;
     float elevation = 0.4f;
     QVector3D focusPoint{0.0f, 0.0f, 0.0f};
-    bool inertiaEnabled = false;
 
     void loadFromJson(const QJsonObject& obj) {
         distance = static_cast<float>(obj.value("distance").toDouble(distance));
         azimuth = static_cast<float>(obj.value("azimuth").toDouble(azimuth));
         elevation = static_cast<float>(obj.value("elevation").toDouble(elevation));
-        inertiaEnabled = obj.value("inertiaEnabled").toBool(inertiaEnabled);
 
         if (obj.contains("focusPoint")) {
             QJsonArray arr = obj.value("focusPoint").toArray();
@@ -36,7 +34,6 @@ struct CameraConfig {
         obj["distance"] = static_cast<double>(distance);
         obj["azimuth"] = static_cast<double>(azimuth);
         obj["elevation"] = static_cast<double>(elevation);
-        obj["inertiaEnabled"] = inertiaEnabled;
         obj["focusPoint"] = QJsonArray{
             static_cast<double>(focusPoint.x()),
             static_cast<double>(focusPoint.y()),

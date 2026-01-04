@@ -74,7 +74,6 @@ private slots:
     void onAxesVisibilityChanged(bool visible);
     void onSphereVisibilityChanged(bool visible);
     void onGridVisibilityChanged(bool visible);
-    void onInertiaChanged(bool enabled);
     void onReflectionLobesChanged(bool visible);
     void onHeatMapChanged(bool visible);
     void onBeamVisibilityChanged(bool visible);
@@ -82,6 +81,8 @@ private slots:
     void onBeamTypeChanged(BeamType type);
     void onTargetVisibilityChanged(bool visible);
     void onTargetTypeChanged(WireframeType type);
+    void onDebugRayToggled(bool enabled);
+    void onRayCountChanged(int count);
 
 protected:
     void closeEvent(QCloseEvent* event) override;

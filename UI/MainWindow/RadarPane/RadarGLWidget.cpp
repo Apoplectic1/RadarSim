@@ -41,6 +41,7 @@ RadarGLWidget::~RadarGLWidget() {
 	rcsCompute_.reset();
 	reflectionRenderer_.reset();
 	heatMapRenderer_.reset();
+	debugRayRenderer_.reset();
 	slicingPlaneRenderer_.reset();
 	fboRenderer_.reset();
 
@@ -79,6 +80,11 @@ void RadarGLWidget::cleanupGL() {
 	// Clean up heat map renderer
 	if (heatMapRenderer_) {
 		heatMapRenderer_->cleanup();
+	}
+
+	// Clean up debug ray renderer
+	if (debugRayRenderer_) {
+		debugRayRenderer_->cleanup();
 	}
 
 	// Clean up slicing plane renderer
@@ -211,6 +217,13 @@ void RadarGLWidget::initializeGL() {
 			heatMapRenderer_.reset();
 		} else {
 			heatMapRenderer_->setSphereRadius(radius_);
+		}
+
+		// Initialize debug ray renderer
+		debugRayRenderer_ = std::make_unique<DebugRayRenderer>(this);
+		if (!debugRayRenderer_->initialize()) {
+			qWarning() << "DebugRayRenderer initialization failed";
+			debugRayRenderer_.reset();
 		}
 
 		// Initialize RCS samplers for polar plot
@@ -366,6 +379,8 @@ void RadarGLWidget::paintGL() {
 				// Set beam width for ray generation to cover full visual extent (4× for SincBeam side lobes)
 				float visualExtent = beamController_ ? beamController_->getVisualExtentDegrees() : 15.0f;
 				rcsCompute_->setBeamWidth(visualExtent);
+				// Set user-configurable ray count
+				rcsCompute_->setNumRays(rayCount_);
 				rcsCompute_->compute();
 
 				// Read hit results for visualization
@@ -423,6 +438,23 @@ void RadarGLWidget::paintGL() {
 		if (reflectionRenderer_ && reflectionRenderer_->isVisible()) {
 			reflectionRenderer_->render(projectionMatrix, viewMatrix, modelMatrix);
 		}
+
+		// Render debug ray visualization (additive, on top of everything)
+		if (debugRayEnabled_ && debugRayRenderer_ && rcsCompute_ && wireframeController_) {
+			// Get target center position for debug ray aiming
+			QVector3D targetCenter = wireframeController_->getPosition();
+
+			// Trace single debug ray from radar toward target center
+			RCS::HitResult debugHit = rcsCompute_->traceDebugRay(targetCenter);
+
+			// Update debug ray renderer with hit result
+			QVector3D radarPos = sphericalToCartesian(radius_, theta_, phi_);
+			debugRayRenderer_->setRayData(radarPos, debugHit, radius_ * 3.0f);
+			debugRayRenderer_->setVisible(true);
+			debugRayRenderer_->render(projectionMatrix, viewMatrix);
+		} else if (debugRayRenderer_) {
+			debugRayRenderer_->setVisible(false);
+		}
 	}
 	catch (const std::exception& e) {
 		qCritical() << "Exception in RadarGLWidget::paintGL:" << e.what();
@@ -472,6 +504,30 @@ void RadarGLWidget::paintGL() {
 		painter.setPen(Qt::blue);
 		painter.drawText(QPointF(zScreen.x() + textOffset, zScreen.y()), "Z");
 
+		painter.end();
+	}
+
+	// Render debug ray hit data overlay text
+	if (debugRayEnabled_ && debugRayRenderer_ && debugRayRenderer_->hasHit()) {
+		// Project hit point to screen coordinates
+		QPointF hitScreen = projectToScreen(debugRayRenderer_->getHitPoint(),
+		                                     projectionMatrix, viewMatrix, modelMatrix);
+
+		QPainter painter(this);
+		painter.setPen(Qt::yellow);
+		QFont font = painter.font();
+		font.setPointSize(10);
+		font.setBold(true);
+		painter.setFont(font);
+
+		// Format: "d=45.2  θr=23.5°"
+		QString info = QString("d=%1  %2%3")
+			.arg(debugRayRenderer_->getHitDistance(), 0, 'f', 1)
+			.arg(QChar(0x03B8))  // Greek theta (θ)
+			.arg(QString("r=%1%2").arg(debugRayRenderer_->getReflectionAngle(), 0, 'f', 1).arg(QChar(0x00B0)));  // Degree symbol
+
+		// Offset text slightly from hit point
+		painter.drawText(hitScreen + QPointF(10, -10), info);
 		painter.end();
 	}
 }
@@ -725,4 +781,23 @@ void RadarGLWidget::setRCSPlaneShowFill(bool show) {
 
 bool RadarGLWidget::isRCSPlaneShowFill() const {
 	return slicingPlaneRenderer_ ? slicingPlaneRenderer_->isShowFill() : true;
+}
+
+void RadarGLWidget::setDebugRayEnabled(bool enabled) {
+	if (debugRayEnabled_ != enabled) {
+		debugRayEnabled_ = enabled;
+		if (debugRayRenderer_) {
+			debugRayRenderer_->setVisible(enabled);
+		}
+		update();
+	}
+}
+
+void RadarGLWidget::setRayCount(int count) {
+	// Clamp to valid range
+	count = qBound(100, count, 10000);
+	if (rayCount_ != count) {
+		rayCount_ = count;
+		update();
+	}
 }

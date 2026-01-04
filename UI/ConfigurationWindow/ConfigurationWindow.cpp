@@ -85,15 +85,10 @@ QGroupBox* ConfigurationWindow::createDisplayGroup()
     showGridCheckBox_->setChecked(true);
     layout->addWidget(showGridCheckBox_);
 
-    enableInertiaCheckBox_ = new QCheckBox("Enable Inertia", group);
-    enableInertiaCheckBox_->setChecked(false);
-    layout->addWidget(enableInertiaCheckBox_);
-
     // Connect signals
     connect(showAxesCheckBox_, &QCheckBox::toggled, this, &ConfigurationWindow::axesVisibilityChanged);
     connect(showSphereCheckBox_, &QCheckBox::toggled, this, &ConfigurationWindow::sphereVisibilityChanged);
     connect(showGridCheckBox_, &QCheckBox::toggled, this, &ConfigurationWindow::gridVisibilityChanged);
-    connect(enableInertiaCheckBox_, &QCheckBox::toggled, this, &ConfigurationWindow::inertiaChanged);
 
     return group;
 }
@@ -149,9 +144,34 @@ QGroupBox* ConfigurationWindow::createVisualizationGroup()
     showHeatMapCheckBox_->setChecked(false);
     layout->addWidget(showHeatMapCheckBox_);
 
+    debugRayCheckBox_ = new QCheckBox("Debug Ray", group);
+    debugRayCheckBox_->setChecked(false);
+    debugRayCheckBox_->setToolTip("Show single debug ray with reflection visualization");
+    layout->addWidget(debugRayCheckBox_);
+
+    // Ray count slider (always available, controls normal RCS compute density)
+    QHBoxLayout* rayCountLayout = new QHBoxLayout();
+    rayCountLayout->addWidget(new QLabel("Ray Count:", group));
+    rayCountSlider_ = new QSlider(Qt::Horizontal, group);
+    rayCountSlider_->setRange(100, 10000);
+    rayCountSlider_->setValue(10000);
+    rayCountSlider_->setSingleStep(100);
+    rayCountSlider_->setPageStep(1000);
+    rayCountSlider_->setToolTip("Number of rays for RCS computation (100-10000)");
+    rayCountLabel_ = new QLabel("10000", group);
+    rayCountLabel_->setMinimumWidth(40);
+    rayCountLayout->addWidget(rayCountSlider_);
+    rayCountLayout->addWidget(rayCountLabel_);
+    layout->addLayout(rayCountLayout);
+
     // Connect signals
     connect(showReflectionLobesCheckBox_, &QCheckBox::toggled, this, &ConfigurationWindow::reflectionLobesChanged);
     connect(showHeatMapCheckBox_, &QCheckBox::toggled, this, &ConfigurationWindow::heatMapChanged);
+    connect(debugRayCheckBox_, &QCheckBox::toggled, this, &ConfigurationWindow::debugRayToggled);
+    connect(rayCountSlider_, &QSlider::valueChanged, this, [this](int value) {
+        rayCountLabel_->setText(QString::number(value));
+        emit rayCountChanged(value);
+    });
 
     return group;
 }
@@ -209,7 +229,8 @@ int ConfigurationWindow::currentProfileIndex() const
 }
 
 void ConfigurationWindow::syncStateFromScene(bool axesVisible, bool sphereVisible, bool gridVisible,
-                                              bool inertiaEnabled, bool reflectionLobesVisible, bool heatMapVisible,
+                                              bool reflectionLobesVisible, bool heatMapVisible,
+                                              bool debugRayEnabled, int rayCount,
                                               bool beamVisible, bool shadowVisible, BeamType beamType,
                                               bool targetVisible, WireframeType targetType)
 {
@@ -217,9 +238,10 @@ void ConfigurationWindow::syncStateFromScene(bool axesVisible, bool sphereVisibl
     showAxesCheckBox_->blockSignals(true);
     showSphereCheckBox_->blockSignals(true);
     showGridCheckBox_->blockSignals(true);
-    enableInertiaCheckBox_->blockSignals(true);
     showReflectionLobesCheckBox_->blockSignals(true);
     showHeatMapCheckBox_->blockSignals(true);
+    debugRayCheckBox_->blockSignals(true);
+    rayCountSlider_->blockSignals(true);
     showBeamCheckBox_->blockSignals(true);
     showShadowCheckBox_->blockSignals(true);
     beamTypeComboBox_->blockSignals(true);
@@ -230,9 +252,11 @@ void ConfigurationWindow::syncStateFromScene(bool axesVisible, bool sphereVisibl
     showAxesCheckBox_->setChecked(axesVisible);
     showSphereCheckBox_->setChecked(sphereVisible);
     showGridCheckBox_->setChecked(gridVisible);
-    enableInertiaCheckBox_->setChecked(inertiaEnabled);
     showReflectionLobesCheckBox_->setChecked(reflectionLobesVisible);
     showHeatMapCheckBox_->setChecked(heatMapVisible);
+    debugRayCheckBox_->setChecked(debugRayEnabled);
+    rayCountSlider_->setValue(rayCount);
+    rayCountLabel_->setText(QString::number(rayCount));
     showBeamCheckBox_->setChecked(beamVisible);
     showShadowCheckBox_->setChecked(shadowVisible);
     showTargetCheckBox_->setChecked(targetVisible);
@@ -248,9 +272,10 @@ void ConfigurationWindow::syncStateFromScene(bool axesVisible, bool sphereVisibl
     showAxesCheckBox_->blockSignals(false);
     showSphereCheckBox_->blockSignals(false);
     showGridCheckBox_->blockSignals(false);
-    enableInertiaCheckBox_->blockSignals(false);
     showReflectionLobesCheckBox_->blockSignals(false);
     showHeatMapCheckBox_->blockSignals(false);
+    debugRayCheckBox_->blockSignals(false);
+    rayCountSlider_->blockSignals(false);
     showBeamCheckBox_->blockSignals(false);
     showShadowCheckBox_->blockSignals(false);
     beamTypeComboBox_->blockSignals(false);

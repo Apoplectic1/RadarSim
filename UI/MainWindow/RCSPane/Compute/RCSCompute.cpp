@@ -701,4 +701,175 @@ float RCSCompute::getOcclusionRatio() const {
     return static_cast<float>(hitCount_) / static_cast<float>(numRays_);
 }
 
+// CPU-side ray-AABB intersection test
+static bool rayAABBIntersect(const QVector3D& origin, const QVector3D& invDir,
+                              const QVector3D& boundsMin, const QVector3D& boundsMax,
+                              float tmin, float tmax) {
+    float tx1 = (boundsMin.x() - origin.x()) * invDir.x();
+    float tx2 = (boundsMax.x() - origin.x()) * invDir.x();
+    float txMin = std::min(tx1, tx2);
+    float txMax = std::max(tx1, tx2);
+
+    float ty1 = (boundsMin.y() - origin.y()) * invDir.y();
+    float ty2 = (boundsMax.y() - origin.y()) * invDir.y();
+    float tyMin = std::min(ty1, ty2);
+    float tyMax = std::max(ty1, ty2);
+
+    float tz1 = (boundsMin.z() - origin.z()) * invDir.z();
+    float tz2 = (boundsMax.z() - origin.z()) * invDir.z();
+    float tzMin = std::min(tz1, tz2);
+    float tzMax = std::max(tz1, tz2);
+
+    float tNear = std::max(std::max(txMin, tyMin), tzMin);
+    float tFar = std::min(std::min(txMax, tyMax), tzMax);
+
+    return tNear <= tFar && tFar >= tmin && tNear <= tmax;
+}
+
+// CPU-side Möller–Trumbore ray-triangle intersection
+static bool rayTriangleIntersect(const QVector3D& origin, const QVector3D& dir,
+                                  const QVector3D& v0, const QVector3D& v1, const QVector3D& v2,
+                                  float& t, float& u, float& v) {
+    const float EPSILON = 1e-6f;
+    QVector3D edge1 = v1 - v0;
+    QVector3D edge2 = v2 - v0;
+    QVector3D h = QVector3D::crossProduct(dir, edge2);
+    float a = QVector3D::dotProduct(edge1, h);
+
+    if (std::abs(a) < EPSILON) return false;  // Ray parallel to triangle
+
+    float f = 1.0f / a;
+    QVector3D s = origin - v0;
+    u = f * QVector3D::dotProduct(s, h);
+    if (u < 0.0f || u > 1.0f) return false;
+
+    QVector3D q = QVector3D::crossProduct(s, edge1);
+    v = f * QVector3D::dotProduct(dir, q);
+    if (v < 0.0f || u + v > 1.0f) return false;
+
+    t = f * QVector3D::dotProduct(edge2, q);
+    return t > EPSILON;
+}
+
+HitResult RCSCompute::traceDebugRay(const QVector3D& targetCenter) {
+    HitResult result;
+    result.hitPoint = QVector4D(0, 0, 0, -1.0f);  // w = -1 means miss
+    result.normal = QVector4D(0, 0, 0, 0);
+    result.reflection = QVector4D(0, 0, 0, 0);
+    result.triangleId = 0;
+    result.rayId = 0;
+    result.targetId = 0;
+    result.rcsContribution = 0.0f;
+
+    const auto& nodes = bvhBuilder_.getNodes();
+    const auto& triangles = bvhBuilder_.getTriangles();
+
+    if (nodes.empty() || triangles.empty()) {
+        return result;  // No geometry to trace
+    }
+
+    // Create ray from radar position toward target center
+    QVector3D rayOrigin = radarPosition_;
+    QVector3D rayDir = (targetCenter - radarPosition_).normalized();
+    float maxDist = sphereRadius_ * kMaxRayDistanceMultiplier;
+
+    // Compute inverse direction for AABB tests
+    QVector3D invDir(
+        std::abs(rayDir.x()) > 1e-6f ? 1.0f / rayDir.x() : 1e30f,
+        std::abs(rayDir.y()) > 1e-6f ? 1.0f / rayDir.y() : 1e30f,
+        std::abs(rayDir.z()) > 1e-6f ? 1.0f / rayDir.z() : 1e30f
+    );
+
+    // BVH traversal stack
+    int stack[64];
+    int stackPtr = 0;
+    stack[stackPtr++] = 0;  // Start with root node
+
+    float closestT = maxDist;
+    int hitTriIdx = -1;
+    float hitU = 0, hitV = 0;
+
+    while (stackPtr > 0) {
+        int nodeIdx = stack[--stackPtr];
+        const BVHNode& node = nodes[nodeIdx];
+
+        // Extract bounds
+        QVector3D boundsMin(node.boundsMin.x(), node.boundsMin.y(), node.boundsMin.z());
+        QVector3D boundsMax(node.boundsMax.x(), node.boundsMax.y(), node.boundsMax.z());
+
+        // Test ray-AABB intersection
+        if (!rayAABBIntersect(rayOrigin, invDir, boundsMin, boundsMax, 0.001f, closestT)) {
+            continue;
+        }
+
+        int leftChild = static_cast<int>(node.boundsMin.w());
+        int rightOrCount = static_cast<int>(node.boundsMax.w());
+
+        if (leftChild < 0) {
+            // Leaf node: leftChild encodes (-firstTriIdx - 1), rightOrCount is triCount
+            int firstTri = -leftChild - 1;
+            int triCount = rightOrCount;
+
+            for (int i = 0; i < triCount; i++) {
+                int triIdx = firstTri + i;
+                const Triangle& tri = triangles[triIdx];
+
+                QVector3D v0(tri.v0.x(), tri.v0.y(), tri.v0.z());
+                QVector3D v1(tri.v1.x(), tri.v1.y(), tri.v1.z());
+                QVector3D v2(tri.v2.x(), tri.v2.y(), tri.v2.z());
+
+                float t, u, v;
+                if (rayTriangleIntersect(rayOrigin, rayDir, v0, v1, v2, t, u, v)) {
+                    if (t < closestT && t > 0.001f) {
+                        closestT = t;
+                        hitTriIdx = triIdx;
+                        hitU = u;
+                        hitV = v;
+                    }
+                }
+            }
+        } else {
+            // Internal node: push children
+            stack[stackPtr++] = rightOrCount;  // Right child
+            stack[stackPtr++] = leftChild;     // Left child (processed first)
+        }
+    }
+
+    // If we hit something, compute hit point, normal, and reflection
+    if (hitTriIdx >= 0) {
+        const Triangle& tri = triangles[hitTriIdx];
+        QVector3D v0(tri.v0.x(), tri.v0.y(), tri.v0.z());
+        QVector3D v1(tri.v1.x(), tri.v1.y(), tri.v1.z());
+        QVector3D v2(tri.v2.x(), tri.v2.y(), tri.v2.z());
+
+        // Hit point
+        QVector3D hitPos = rayOrigin + rayDir * closestT;
+
+        // Compute face normal
+        QVector3D edge1 = v1 - v0;
+        QVector3D edge2 = v2 - v0;
+        QVector3D normal = QVector3D::crossProduct(edge1, edge2).normalized();
+
+        // Ensure normal faces toward ray origin
+        if (QVector3D::dotProduct(normal, rayDir) > 0) {
+            normal = -normal;
+        }
+
+        // Reflection direction: R = I - 2(N·I)N
+        float NdotI = QVector3D::dotProduct(normal, rayDir);
+        QVector3D reflection = rayDir - 2.0f * NdotI * normal;
+
+        // Fill result
+        result.hitPoint = QVector4D(hitPos.x(), hitPos.y(), hitPos.z(), closestT);
+        result.normal = QVector4D(normal.x(), normal.y(), normal.z(), 0);
+        result.reflection = QVector4D(reflection.x(), reflection.y(), reflection.z(), 1.0f);
+        result.triangleId = static_cast<uint32_t>(hitTriIdx);
+        result.rayId = 0;
+        result.targetId = 0;
+        result.rcsContribution = 1.0f;
+    }
+
+    return result;
+}
+
 } // namespace RCS

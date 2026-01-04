@@ -40,6 +40,9 @@ public:
     // Ray tracing
     void compute();
 
+    // Debug ray - traces single ray toward target center (CPU-side)
+    HitResult traceDebugRay(const QVector3D& targetCenter);
+
     // Results
     int getHitCount() const { return hitCount_; }
     float getOcclusionRatio() const;

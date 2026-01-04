@@ -9,6 +9,7 @@
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QSlider>
 #include "BeamController.h"
 #include "WireframeShapes.h"
 
@@ -26,7 +27,8 @@ public:
 
     // State synchronization - call after scene is initialized
     void syncStateFromScene(bool axesVisible, bool sphereVisible, bool gridVisible,
-                           bool inertiaEnabled, bool reflectionLobesVisible, bool heatMapVisible,
+                           bool reflectionLobesVisible, bool heatMapVisible,
+                           bool debugRayEnabled, int rayCount,
                            bool beamVisible, bool shadowVisible, BeamType beamType,
                            bool targetVisible, WireframeType targetType);
 
@@ -42,7 +44,6 @@ signals:
     void axesVisibilityChanged(bool visible);
     void sphereVisibilityChanged(bool visible);
     void gridVisibilityChanged(bool visible);
-    void inertiaChanged(bool enabled);
     void reflectionLobesChanged(bool visible);
     void heatMapChanged(bool visible);
 
@@ -54,6 +55,10 @@ signals:
     // Target signals
     void targetVisibilityChanged(bool visible);
     void targetTypeChanged(WireframeType type);
+
+    // Debug ray signals
+    void debugRayToggled(bool enabled);
+    void rayCountChanged(int count);
 
 private:
     void setupUI();
@@ -74,7 +79,6 @@ private:
     QCheckBox* showAxesCheckBox_ = nullptr;
     QCheckBox* showSphereCheckBox_ = nullptr;
     QCheckBox* showGridCheckBox_ = nullptr;
-    QCheckBox* enableInertiaCheckBox_ = nullptr;
 
     // Beam controls
     QCheckBox* showBeamCheckBox_ = nullptr;
@@ -84,6 +88,9 @@ private:
     // Visualization controls
     QCheckBox* showReflectionLobesCheckBox_ = nullptr;
     QCheckBox* showHeatMapCheckBox_ = nullptr;
+    QCheckBox* debugRayCheckBox_ = nullptr;
+    QSlider* rayCountSlider_ = nullptr;
+    QLabel* rayCountLabel_ = nullptr;
 
     // Target controls
     QCheckBox* showTargetCheckBox_ = nullptr;

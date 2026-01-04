@@ -71,6 +71,8 @@ set(UI_RADARPANE_SOURCES
     UI/MainWindow/RadarPane/HeatMap/HeatMapRenderer.h
     UI/MainWindow/RadarPane/SlicingPlane/SlicingPlaneRenderer.cpp
     UI/MainWindow/RadarPane/SlicingPlane/SlicingPlaneRenderer.h
+    UI/MainWindow/RadarPane/Debug/DebugRayRenderer.cpp
+    UI/MainWindow/RadarPane/Debug/DebugRayRenderer.h
 )
 
 # UI/MainWindow/RCSPane sources (2D polar plot and RCS computation)
@@ -211,6 +213,7 @@ target_include_directories(RadarSim PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/RadarPane/Cones
     ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/RadarPane/HeatMap
     ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/RadarPane/SlicingPlane
+    ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/RadarPane/Debug
     ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/RCSPane/PolarPlot
     ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/RCSPane/Compute
     ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow/RCSPane/Sampling

@@ -38,13 +38,11 @@ public:
     void setSphereVisible(bool visible);
     void setAxesVisible(bool visible);
     void setGridLinesVisible(bool visible);
-    void setInertiaEnabled(bool enabled);
 
     // Visibility query methods
     bool isSphereVisible() const;
     bool areAxesVisible() const;
     bool areGridLinesVisible() const;
-    bool isInertiaEnabled() const;
 
     // Shadow visibility (beam projection on sphere)
     void setShowShadow(bool show);
@@ -59,6 +57,12 @@ public:
     float getRCSSliceThickness() const;
     void setRCSPlaneShowFill(bool show);
     bool isRCSPlaneShowFill() const;
+
+    // Debug ray visualization
+    void setDebugRayEnabled(bool enabled);
+    bool isDebugRayEnabled() const;
+    void setRayCount(int count);
+    int getRayCount() const;
 
     // Component access
     SphereRenderer* getSphereRenderer() const { return sphereRenderer_; }
