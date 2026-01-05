@@ -76,7 +76,7 @@ RadarGLWidget::paintGL()
   ├── SphereRenderer::render(projection, view, model)
   ├── RadarSiteRenderer::render(projection, view, model, radius)  # Radar position dot
   ├── ModelManager::render(projection, view, model)
-  ├── WireframeTargetController::render(projection, view, model)  # Solid target
+  ├── WireframeTargetController::render(projection, view, model)  # Solid target + edge shading
   ├── RCSCompute::compute()                                       # GPU ray tracing + shadow map
   │   ├── Generates shadow map texture from ray hit distances
   │   └── Calculates reflection directions and BRDF intensities
@@ -85,6 +85,7 @@ RadarGLWidget::paintGL()
   ├── HeatMapRenderer::updateFromHits() + render()                # Heat map on sphere (if enabled)
   ├── BeamController::render(projection, view, model)             # Semi-transparent, GPU shadow
   │   └── Fragment shader samples shadow map, discards behind hits
+  ├── BounceRenderer::render(projection, view, model)             # Multi-bounce ray paths (if enabled)
   ├── ReflectionRenderer::render(projection, view, model)         # Transparent lobe cones (if enabled)
   ├── Sample RCS data → emit polarPlotDataReady signal            # For 2D polar plot
   └── (implicit buffer swap)
@@ -98,8 +99,10 @@ PolarRCSPlot (separate widget, below 3D scene)
 
 **Render Order Notes:**
 - Solid targets render before beam so they are visible through semi-transparent beam
+- Target rendering uses radar angle-based edge shading (perpendicular faces darker)
 - Target rendering explicitly sets depth test, disables blending, and enables face culling
 - RCSCompute generates both RCS data and shadow map texture which BeamController uses
+- BounceRenderer shows multi-bounce ray paths when SingleRay beam type is selected
 - ReflectionRenderer renders last with alpha blending for proper transparency
 
 ## Component Pattern
@@ -108,11 +111,12 @@ The project uses a component-based architecture where `RadarGLWidget` owns and c
 
 - **SphereRenderer**: Renders the sphere, grid lines, and axes
 - **RadarSiteRenderer**: Renders the radar site position dot on the sphere
-- **BeamController**: Manages radar beam creation and rendering (Conical, Sinc, Phased)
+- **BeamController**: Manages radar beam creation and rendering (Conical, Sinc, Phased, SingleRay)
 - **CameraController**: Handles view transformations, mouse interaction, inertia
 - **ModelManager**: Loads and renders 3D models
-- **WireframeTargetController**: Manages solid target shapes with transforms (for RCS)
+- **WireframeTargetController**: Manages solid target shapes with transforms (for RCS). Includes radar angle-based edge shading.
 - **RCSCompute**: GPU ray tracing for radar cross-section calculations
+- **BounceRenderer**: Visualizes multi-bounce ray paths (Path mode for geometry, Physics mode for reflections)
 - **ReflectionRenderer**: Visualizes RCS as colored cone lobes from hit points
 - **HeatMapRenderer**: Visualizes RCS as smooth gradient heat map on radar sphere
 

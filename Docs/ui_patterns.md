@@ -124,7 +124,9 @@ Configuration Window (floating, RIGHT of main)
 ├── Beam Settings (GroupBox)
 │   ├── ☑ Show Beam
 │   ├── ☑ Show Shadow
-│   └── Type: [Combo: Conical/Sinc/Phased Array]
+│   ├── ☐ Show Bounces
+│   ├── Type: [Combo: Conical/Sinc/Phased Array/SingleRay]
+│   └── Ray Trace Mode: [Radio: Path | Physics]
 ├── Visualization (GroupBox)
 │   ├── ☐ Show Reflection Lobes
 │   └── ☐ Show RCS Heat Map

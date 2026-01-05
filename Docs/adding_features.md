@@ -90,10 +90,17 @@ protected:
 RadarBeam (base)
 ├── ConicalBeam      # Uniform intensity cone
 ├── PhasedArrayBeam  # Main lobe + side lobes (phased array pattern)
-└── SincBeam         # Sinc² intensity pattern with natural side lobes
+├── SincBeam         # Sinc² intensity pattern with natural side lobes
+└── SingleRayBeam    # Diagnostic single ray for bounce visualization
 ```
 
-**BeamType enum:** `Conical`, `Shaped`, `Phased`, `Sinc`
+**BeamType enum:** `Conical`, `Shaped`, `Phased`, `Sinc`, `SingleRay`
+
+**SingleRayBeam Details:**
+- Traces a single ray from radar toward target center
+- Used with BounceRenderer to visualize multi-bounce ray paths
+- Supports Path mode (geometric bounces) and Physics mode (reflections)
+- Enable "Show Bounces" in Configuration window to see ray path
 
 **SincBeam Details:**
 - Intensity follows sinc²(πθ/θmax) pattern (realistic electromagnetic field)
@@ -128,3 +135,7 @@ std::unique_ptr<WireframeTarget> WireframeTarget::createTarget(WireframeType typ
 ```
 
 WireframeTarget uses solid surface rendering (GL_TRIANGLES) with indexed drawing (EBO). Vertex format is `[x, y, z, nx, ny, nz]` where the normal vector supports diffuse + ambient lighting. Face culling (`GL_CULL_FACE`) ensures only outside surfaces are drawn.
+
+**Target Rendering Features:**
+- **Radar angle-based edge shading**: Faces perpendicular to radar direction appear darker, enhancing silhouette visibility. Uses `smoothstep(0.0, 0.4, radarDot)` in fragment shader.
+- **Crease edge detection**: Only structural edges rendered (where adjacent face normals differ >10°), eliminating internal tessellation lines.

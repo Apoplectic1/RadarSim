@@ -4,6 +4,27 @@
 
 ## Recently Completed
 
+- [x] **SingleRay Beam Type** - Diagnostic single-ray tracing for bounce visualization
+  - Traces single ray from radar toward target center
+  - Used with BounceRenderer to visualize multi-bounce paths
+  - Selectable from beam type dropdown in Configuration window
+- [x] **Multi-Bounce Visualization** - Ray path rendering with BounceRenderer
+  - Path mode: Shows geometric bounce locations connected by lines
+  - Physics mode: Applies physical ray tracing with reflection
+  - Toggle via "Show Bounces" checkbox in Configuration window
+  - BounceEffectPipeline for chaining multiple bounce effects
+- [x] **Radar Angle-Based Edge Shading** - Targets show silhouette emphasis
+  - Faces perpendicular to radar direction appear darker
+  - Fragment shader uses `smoothstep(0.0, 0.4, radarDot)` for smooth falloff
+- [x] **Crease Edge Detection** - Only structural edges rendered, not internal triangulation
+  - Detects edges where adjacent face normals differ by >10°
+  - Cleaner wireframe appearance without tessellation artifacts
+- [x] **MSAA Anti-Aliasing** - 4x multisampling for smoother edges
+  - Enabled in QSurfaceFormat setup
+- [x] **Pop-Out Windows** - 3D scene and polar plot can be detached
+  - Shift+Double-Click pops out to resizable window
+  - Uses FBO texture sharing (avoids NVIDIA driver crashes)
+  - Shift+Double-Click in pop-out returns to docked view
 - [x] **Controls Panel Floating Window** - Extracted Controls panel to separate floating window
   - New `ControlsWindow` class following `ConfigurationWindow` pattern
   - Auto-positioned to LEFT of main window on startup
@@ -77,7 +98,6 @@ No critical issues at present. GPU ray-traced shadows replaced the problematic s
 
 - [ ] Diffraction effects for realistic radar simulation (significant RCS impact for certain geometries)
 - [ ] Material properties for targets (reflectivity, absorption)
-- [ ] Pop-out windows for 3D scene and polar plot (resizable analysis windows)
 - [ ] Multi-target support with inter-target reflections
 
 ### Low Priority / Technical Debt
@@ -143,7 +163,7 @@ No critical issues at present. GPU ray-traced shadows replaced the problematic s
 ```
 RadarGLWidget
 ├── SphereRenderer           - Sphere, grid, axes, radar dot
-├── BeamController           - Conical/Sinc/Phased beam rendering
+├── BeamController           - Conical/Sinc/Phased/SingleRay beam rendering
 ├── CameraController         - Mouse interaction, view transforms, inertia
 ├── ModelManager             - 3D model loading (placeholder)
 ├── WireframeTargetController- Solid target shapes (Cube/Cylinder/Aircraft/Sphere)
@@ -151,6 +171,7 @@ RadarGLWidget
 │   ├── AzimuthCutSampler    - Sample RCS data for horizontal plane cuts
 │   ├── ElevationCutSampler  - Sample RCS data for vertical plane cuts
 │   └── SlicingPlaneRenderer - Visualize sampling plane in 3D
+├── BounceRenderer           - Multi-bounce ray path visualization
 ├── ReflectionRenderer       - Colored cone lobes (RCS visualization)
 ├── HeatMapRenderer          - Sphere heat map (RCS visualization)
 └── PolarRCSPlot             - 2D polar plot widget (separate from GL scene)

@@ -42,11 +42,12 @@ RadarSim/
 │   ├── CameraConfig.h          # Camera state (distance, angles, focus)
 │   ├── TargetConfig.h          # Target parameters (position, rotation, scale)
 │   └── SceneConfig.h           # Scene options (radius, radar position, visibility)
-├── RadarBeam/                  # Beam visualization module
+├── Beam/                       # Beam visualization module
 │   ├── RadarBeam.h/.cpp        # Base beam class (VAO/VBO/shaders)
 │   ├── ConicalBeam.h/.cpp      # Simple cone geometry (uniform intensity)
 │   ├── PhasedArrayBeam.h/.cpp  # Array beam with side lobes
 │   ├── SincBeam.h/.cpp         # Sinc² pattern with intensity falloff
+│   ├── SingleRayBeam.h/.cpp    # Diagnostic single-ray for bounce visualization
 │   └── BeamController.h/.cpp   # Component wrapper for beams
 ├── RadarSceneWidget/           # OpenGL scene management
 │   ├── RadarGLWidget.h/.cpp    # Modern QOpenGLWidget with component architecture
@@ -58,17 +59,21 @@ RadarSim/
 │   └── TextureBlitWidget.h/.cpp # Displays FBO texture in pop-out window
 ├── ModelManager/               # 3D model handling
 │   └── ModelManager.h/.cpp     # Model loading component
-├── WireframeTarget/            # Solid target visualization (for RCS calculations)
+├── Target/                     # Solid target visualization (for RCS calculations)
 │   ├── WireframeShapes.h       # WireframeType enum
-│   ├── WireframeTarget.h/.cpp  # Base target class (GL_TRIANGLES solid rendering)
+│   ├── WireframeTarget.h/.cpp  # Base target class (GL_TRIANGLES, edge detection)
 │   ├── WireframeTargetController.h/.cpp  # Component wrapper
-│   ├── CubeWireframe.h/.cpp    # Solid cube (6 faces, 12 triangles)
-│   ├── CylinderWireframe.h/.cpp# Solid cylinder (caps + sides)
-│   ├── AircraftWireframe.h/.cpp# Solid fighter jet model
-│   └── SphereWireframe.h/.cpp  # Geodesic sphere (icosahedron subdivision)
-├── ReflectionRenderer/         # RCS reflection visualization
-│   ├── ReflectionRenderer.h/.cpp  # Colored cone visualization of reflected energy
-│   └── HeatMapRenderer.h/.cpp     # Smooth gradient heat map on radar sphere
+│   └── Shapes/                 # Target shape implementations
+│       ├── CubeWireframe.h/.cpp    # Solid cube (6 faces, 12 triangles)
+│       ├── CylinderWireframe.h/.cpp# Solid cylinder (caps + sides)
+│       ├── AircraftWireframe.h/.cpp# Solid fighter jet model
+│       └── SphereWireframe.h/.cpp  # Geodesic sphere (icosahedron subdivision)
+├── RCS/                        # Ray tracing types and bounce effects
+│   ├── RayTraceTypes.h         # RayTraceMode enum, BounceState struct
+│   ├── BounceEffect.h          # Abstract bounce effect interface
+│   └── BounceEffectPipeline.h/.cpp # Pipeline for chaining bounce effects
+├── Rendering/                  # Visualization renderers
+│   └── BounceRenderer.h/.cpp   # Multi-bounce ray path visualization
 ├── RCSCompute/                 # GPU ray tracing for RCS calculations
 │   ├── RCSTypes.h              # GPU-aligned structs (Ray, BVHNode, Triangle, HitResult)
 │   ├── BVHBuilder.h/.cpp       # SAH-based Bounding Volume Hierarchy construction
@@ -94,10 +99,11 @@ The project uses a component-based architecture. See `Docs/architecture.md` for 
 **Components** (owned by `RadarGLWidget`):
 - **SphereRenderer**: Sphere, grid lines, and axes
 - **RadarSiteRenderer**: Radar site position dot
-- **BeamController**: Radar beam rendering (Conical, Sinc, Phased)
+- **BeamController**: Radar beam rendering (Conical, Sinc, Phased, SingleRay)
 - **CameraController**: View transformations, mouse interaction, inertia
-- **WireframeTargetController**: Solid target shapes for RCS
-- **RCSCompute**: GPU ray tracing for radar cross-section3
+- **WireframeTargetController**: Solid target shapes for RCS (with radar angle-based edge shading)
+- **RCSCompute**: GPU ray tracing for radar cross-section
+- **BounceRenderer**: Multi-bounce ray path visualization
 
 **Event-Driven Rendering**: No continuous render loop. Updates triggered by mouse/slider events. RCS computation runs synchronously in `paintGL()`.
 
@@ -148,6 +154,7 @@ connect(cameraController_, &CameraController::viewChanged,
 | RCS sampling/polar plot | `AzimuthCutSampler.cpp`, `ElevationCutSampler.cpp`, `PolarRCSPlot.cpp` |
 | Reflection lobes | `ReflectionRenderer/ReflectionRenderer.cpp` |
 | RCS heat map | `ReflectionRenderer/HeatMapRenderer.cpp` |
+| Bounce visualization | `Rendering/BounceRenderer.cpp`, `RCS/BounceEffectPipeline.cpp` |
 | Pop-out windows | `PopOutWindow.cpp`, `FBORenderer.cpp`, `TextureBlitWidget.cpp` |
 | Add compile-time constant | `Constants.h` |
 | Add saved setting | `Config/*Config.h`, `AppSettings.cpp`, `RadarSim.cpp` |
@@ -182,6 +189,24 @@ See `Docs/architecture.md` for threading model and GPU pipeline details.
 GPU ray-traced shadows from RCSCompute. Shadow map texture (64x157) stores hit distances. Beam fragment shader samples and discards fragments behind hit points.
 
 See `Docs/shadow_system.md` for implementation details and GLSL code.
+
+## Bounce Visualization
+
+**SingleRay Beam Type**: Diagnostic mode that traces a single ray from radar toward target, useful for understanding multi-bounce behavior.
+
+**BounceRenderer**: Visualizes ray paths including reflections. Supports two modes:
+- **Path Mode**: Shows geometric ray paths (bounce locations connected by lines)
+- **Physics Mode**: Applies physical ray tracing with reflection/refraction
+
+**Configuration**: Enable "Show Bounces" in Configuration window. Select Path/Physics mode via radio buttons.
+
+**Files**: `Beam/SingleRayBeam.h/.cpp`, `Rendering/BounceRenderer.h/.cpp`, `RCS/BounceEffectPipeline.h/.cpp`
+
+## Target Edge Shading
+
+Targets use radar angle-based edge shading: faces perpendicular to the radar direction appear darker, enhancing silhouette visibility. Combined with crease edge detection that only renders structural edges (where adjacent face normals differ >10°).
+
+**Implementation**: Fragment shader calculates `dot(normal, toRadar)` and applies `smoothstep(0.0, 0.4, radarDot)` darkening factor.
 
 ## UI Layout
 
@@ -241,6 +266,5 @@ No external libraries beyond Qt - all math via `QMatrix4x4`, `QVector3D`, `QQuat
 2. No unit test coverage
 3. RCS ray tracing only outputs to debug console (no UI display)
 4. RCS contribution calculation not yet implemented
-5. Ray visualization for debugging not implemented
-6. OpenGL 4.3 required - no fallback for older hardware
-7. Some shader-embedded constants cannot use C++ constexpr
+5. OpenGL 4.3 required - no fallback for older hardware
+6. Some shader-embedded constants cannot use C++ constexpr
