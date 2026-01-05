@@ -12,6 +12,7 @@
 #include "RadarGLWidget.h"
 #include "PolarRCSPlot.h"
 #include "RCSSampler.h"  // For CutType enum
+#include "../../../RCS/RayTraceTypes.h"  // For RayTraceMode
 
 class RadarSceneWidget : public QWidget {
     Q_OBJECT
@@ -63,6 +64,10 @@ public:
     bool isDebugRayEnabled() const;
     void setRayCount(int count);
     int getRayCount() const;
+
+    // Ray trace mode control
+    void setRayTraceMode(RCS::RayTraceMode mode);
+    RCS::RayTraceMode getRayTraceMode() const;
 
     // Component access
     SphereRenderer* getSphereRenderer() const { return sphereRenderer_; }

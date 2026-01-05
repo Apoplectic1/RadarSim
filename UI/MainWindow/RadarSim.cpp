@@ -252,9 +252,11 @@ void RadarSim::connectSignals() {
     connect(configWindow_, &ConfigurationWindow::targetTypeChanged,
             this, &RadarSim::onTargetTypeChanged);
 
-    // Debug ray signals
-    connect(configWindow_, &ConfigurationWindow::debugRayToggled,
-            this, &RadarSim::onDebugRayToggled);
+    // Bounce visualization signals
+    connect(configWindow_, &ConfigurationWindow::showBouncesToggled,
+            this, &RadarSim::onShowBouncesToggled);
+    connect(configWindow_, &ConfigurationWindow::rayTraceModeChanged,
+            this, &RadarSim::onRayTraceModeChanged);
     connect(configWindow_, &ConfigurationWindow::rayCountChanged,
             this, &RadarSim::onRayCountChanged);
 }
@@ -363,8 +365,17 @@ void RadarSim::onTargetTypeChanged(WireframeType type) {
     }
 }
 
-void RadarSim::onDebugRayToggled(bool enabled) {
-    radarSceneView_->setDebugRayEnabled(enabled);
+void RadarSim::onShowBouncesToggled(bool enabled) {
+    // Enable bounce visualization on the current beam
+    if (auto* beam = radarSceneView_->getBeamController()) {
+        beam->setShowBounceVisualization(enabled);
+    }
+    radarSceneView_->updateScene();
+}
+
+void RadarSim::onRayTraceModeChanged(RCS::RayTraceMode mode) {
+    // Set ray trace mode on the BounceRenderer (will be implemented in RadarGLWidget)
+    radarSceneView_->setRayTraceMode(mode);
     radarSceneView_->updateScene();
 }
 

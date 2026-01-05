@@ -11,6 +11,7 @@ int main(int argc, char** argv) {
     QSurfaceFormat format;
     format.setDepthBufferSize(24);
     format.setStencilBufferSize(8);
+    format.setSamples(4);  // Enable 4x MSAA for anti-aliased edges
     format.setVersion(4, 6);  // OpenGL 4.6 - latest version, full feature set
     format.setProfile(QSurfaceFormat::CoreProfile);
     format.setOption(QSurfaceFormat::DebugContext);

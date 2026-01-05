@@ -24,6 +24,8 @@
 #include "ReflectionRenderer.h"
 #include "HeatMapRenderer.h"
 #include "DebugRayRenderer.h"
+#include "BounceRenderer.h"
+#include "../../../RCS/RayTraceTypes.h"
 
 class FBORenderer;
 
@@ -76,6 +78,11 @@ public:
     void setRayCount(int count);
     int getRayCount() const { return rayCount_; }
     DebugRayRenderer* getDebugRayRenderer() const { return debugRayRenderer_.get(); }
+
+    // Ray trace mode control
+    void setRayTraceMode(RCS::RayTraceMode mode);
+    RCS::RayTraceMode getRayTraceMode() const { return rayTraceMode_; }
+    BounceRenderer* getBounceRenderer() const { return bounceRenderer_.get(); }
 
     // FBO rendering support (for pop-out windows)
     void setRenderToFBO(bool enable);
@@ -141,6 +148,10 @@ private:
     std::unique_ptr<DebugRayRenderer> debugRayRenderer_;
     bool debugRayEnabled_ = false;
     int rayCount_ = 10000;
+
+    // Bounce visualization
+    std::unique_ptr<BounceRenderer> bounceRenderer_;
+    RCS::RayTraceMode rayTraceMode_ = RCS::RayTraceMode::PhysicsAccurate;
 
     // FBO rendering for pop-out windows
     std::unique_ptr<FBORenderer> fboRenderer_;

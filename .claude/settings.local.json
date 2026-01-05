@@ -5,7 +5,9 @@
       "Bash(timeout:*)",
       "Bash(dir:*)",
       "Bash(findstr:*)",
-      "Bash(cmake:*)"
+      "Bash(cmake:*)",
+      "mcp__gemini__ask_gemini",
+      "Bash(cd:*)"
     ]
   }
 }

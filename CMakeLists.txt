@@ -147,6 +147,22 @@ set(BEAM_SOURCES
     Beam/PhasedArrayBeam.h
     Beam/SincBeam.cpp
     Beam/SincBeam.h
+    Beam/SingleRayBeam.cpp
+    Beam/SingleRayBeam.h
+)
+
+# RCS ray tracing types and effects
+set(RCS_SOURCES
+    RCS/RayTraceTypes.h
+    RCS/BounceEffect.h
+    RCS/BounceEffectPipeline.cpp
+    RCS/BounceEffectPipeline.h
+)
+
+# Rendering utilities
+set(RENDERING_SOURCES
+    Rendering/BounceRenderer.cpp
+    Rendering/BounceRenderer.h
 )
 
 # Target sources
@@ -183,6 +199,8 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         ${UI_CONFIGWINDOW_SOURCES}
         ${UI_CONTROLSWINDOW_SOURCES}
         ${BEAM_SOURCES}
+        ${RCS_SOURCES}
+        ${RENDERING_SOURCES}
         ${TARGET_SOURCES}
     )
 else()
@@ -198,6 +216,8 @@ else()
         ${UI_CONFIGWINDOW_SOURCES}
         ${UI_CONTROLSWINDOW_SOURCES}
         ${BEAM_SOURCES}
+        ${RCS_SOURCES}
+        ${RENDERING_SOURCES}
         ${TARGET_SOURCES}
     )
 endif()
@@ -223,6 +243,8 @@ target_include_directories(RadarSim PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/UI/ConfigurationWindow
     ${CMAKE_CURRENT_SOURCE_DIR}/UI/ControlsWindow
     ${CMAKE_CURRENT_SOURCE_DIR}/Beam
+    ${CMAKE_CURRENT_SOURCE_DIR}/RCS
+    ${CMAKE_CURRENT_SOURCE_DIR}/Rendering
     ${CMAKE_CURRENT_SOURCE_DIR}/Target
     ${CMAKE_CURRENT_SOURCE_DIR}/Target/Shapes
     ${CMAKE_CURRENT_SOURCE_DIR}/Target/Model

@@ -229,3 +229,13 @@ void RadarSceneWidget::setRayCount(int count) {
 int RadarSceneWidget::getRayCount() const {
     return radarGLWidget_ ? radarGLWidget_->getRayCount() : 10000;
 }
+
+void RadarSceneWidget::setRayTraceMode(RCS::RayTraceMode mode) {
+    if (radarGLWidget_) {
+        radarGLWidget_->setRayTraceMode(mode);
+    }
+}
+
+RCS::RayTraceMode RadarSceneWidget::getRayTraceMode() const {
+    return radarGLWidget_ ? radarGLWidget_->getRayTraceMode() : RCS::RayTraceMode::PhysicsAccurate;
+}

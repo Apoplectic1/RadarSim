@@ -191,4 +191,8 @@ void AircraftWireframe::generateGeometry() {
     addVertex(hStabTipRight + QVector3D(0, 0, -wingThickness/2), wingBottomNormal);
     addVertex(hStabBack + QVector3D(0, 0, -wingThickness/2), wingBottomNormal);
     addTriangle(baseIdx, baseIdx+1, baseIdx+2);
+
+    // Detect crease edges for rendering (structural edges, not internal triangulation)
+    detectEdges();
+    generateEdgeGeometry();
 }

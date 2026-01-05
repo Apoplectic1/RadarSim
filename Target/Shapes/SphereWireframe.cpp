@@ -23,6 +23,11 @@ void SphereWireframe::generateGeometry() {
     clearGeometry();
     createIcosahedron();
     subdivide(subdivisions_);
+
+    // Detect crease edges - for spheres, all faces are ~coplanar at high subdivision
+    // so no edges should be detected (smooth surface)
+    detectEdges();
+    generateEdgeGeometry();
 }
 
 void SphereWireframe::createIcosahedron() {

@@ -27,6 +27,7 @@ public:
     float getAzimuth() const { return azimuth_; }
     float getElevation() const { return elevation_; }
     QVector3D getFocusPoint() const { return focusPoint_; }
+    QVector3D getCameraPosition() const { return cameraPosition_; }
 
     // Camera state setters
     void setDistance(float d);

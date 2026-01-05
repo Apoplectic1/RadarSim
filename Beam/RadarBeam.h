@@ -17,7 +17,8 @@ enum class BeamType {
     Conical,       // Standard conical beam (uniform intensity)
     Shaped,        // Custom shaped beam using a pattern function
     Phased,        // Full phased array beam with multiple lobes
-    Sinc           // Sinc² pattern with intensity falloff and side lobes
+    Sinc,          // Sinc² pattern with intensity falloff and side lobes
+    SingleRay      // Single diagnostic ray (for bounce visualization)
 };
 
 // Enum for beam direction reference
@@ -81,6 +82,15 @@ public:
     float getBeamLength() const { return beamLengthFactor_; }
     const std::vector<float>& getVertices() const { return vertices_; }
 
+    // Bounce visualization control
+    void setShowBounceVisualization(bool show) { showBounceVisualization_ = show; }
+    bool showBounceVisualization() const { return showBounceVisualization_; }
+
+    // Returns ray directions for diagnostic bounce tracing
+    // Default: returns center ray direction (for cone beams)
+    // SingleRay: returns single ray direction
+    virtual std::vector<QVector3D> getDiagnosticRayDirections() const;
+
     // Factory method to create different beam types
     static RadarBeam* createBeam(BeamType type, float sphereRadius, float beamWidthDegrees = 15.0f);
 
@@ -99,6 +109,7 @@ protected:
     bool visible_;
     bool footprintOnly_ = false;  // Show only sphere surface intersection
     bool showShadow_ = true;      // Show beam projection (cap) on sphere surface
+    bool showBounceVisualization_ = false;  // Show bounce paths for diagnostic rays
     float beamLengthFactor_; // How far the beam extends (1.0 = to opposite side)
     BeamDirection beamDirection_;
     QVector3D customDirection_;

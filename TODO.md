@@ -113,7 +113,7 @@ No critical issues at present. GPU ray-traced shadows replaced the problematic s
 - [ ] Save/load radar configuration profiles
 - [ ] Display radar parameters in UI
 
-### Documentation
+### Docs
 
 - [ ] Expand architecture documentation
 - [ ] Document RCS calculation methods and algorithms

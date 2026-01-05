@@ -5,6 +5,7 @@
 #include "ConicalBeam.h"
 #include "PhasedArrayBeam.h"
 #include "SincBeam.h"
+#include "SingleRayBeam.h"
 #include "Constants.h"
 #include <cmath>
 
@@ -760,6 +761,18 @@ void RadarBeam::calculateBeamVertices(const QVector3D& apex, const QVector3D& di
 	}
 }
 
+std::vector<QVector3D> RadarBeam::getDiagnosticRayDirections() const {
+	std::vector<QVector3D> directions;
+
+	// Default: return center ray direction (toward origin from radar position)
+	if (!currentRadarPosition_.isNull()) {
+		QVector3D centerDir = -currentRadarPosition_.normalized();
+		directions.push_back(centerDir);
+	}
+
+	return directions;
+}
+
 RadarBeam* RadarBeam::createBeam(BeamType type, float sphereRadius, float beamWidthDegrees) {
 	switch (type) {
 	case BeamType::Conical:
@@ -768,6 +781,8 @@ RadarBeam* RadarBeam::createBeam(BeamType type, float sphereRadius, float beamWi
 		return new PhasedArrayBeam(sphereRadius, beamWidthDegrees);
 	case BeamType::Sinc:
 		return new SincBeam(sphereRadius, beamWidthDegrees);
+	case BeamType::SingleRay:
+		return new SingleRayBeam(sphereRadius, beamWidthDegrees);
 	case BeamType::Shaped:
 		// For now, return conical but could implement shaped beam later
 		return new ConicalBeam(sphereRadius, beamWidthDegrees);

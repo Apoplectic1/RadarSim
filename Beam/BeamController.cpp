@@ -157,6 +157,23 @@ bool BeamController::isShowShadow() const {
     return radarBeam_ ? radarBeam_->isShowShadow() : true;
 }
 
+void BeamController::setShowBounceVisualization(bool show) {
+    if (radarBeam_) {
+        radarBeam_->setShowBounceVisualization(show);
+    }
+}
+
+bool BeamController::showBounceVisualization() const {
+    return radarBeam_ ? radarBeam_->showBounceVisualization() : false;
+}
+
+std::vector<QVector3D> BeamController::getDiagnosticRayDirections() const {
+    if (radarBeam_) {
+        return radarBeam_->getDiagnosticRayDirections();
+    }
+    return {};
+}
+
 void BeamController::updateBeamPosition(const QVector3D& position) {
     currentPosition_ = position;  // Store position for beam recreation
     if (radarBeam_) {

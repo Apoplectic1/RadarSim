@@ -1,31 +1,35 @@
 from mcp.server.fastmcp import FastMCP
-from google import genai
+import google.generativeai as genai
 import os
 
+# Initialize the MCP server
 mcp = FastMCP("gemini")
 
-# UPDATED LINE: Using "gemini-1.5-pro-002" which is the specific stable 002 release
 @mcp.tool()
-def ask_gemini(prompt: str, model: str = "gemini-1.5-pro-002") -> str:
+def ask_gemini(prompt: str) -> str:
     """
-    Ask Gemini to analyze code.
+    Ask Gemini to analyze code or answer questions. 
+    Uses the Gemini 1.5 Pro model (Stable).
+    
     Args:
-        prompt: The text to analyze.
-        model: Defaults to "gemini-1.5-pro-002" (Stable Sept 2024 release).
+        prompt: The text or code to analyze.
     """
-    api_key = os.environ.get("GEMINI_API_KEY")1
+    # Check for API Key
+    api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
-        return "Error: GEMINI_API_KEY not found."
+        return "Error: GEMINI_API_KEY environment variable not found."
 
     try:
-        # The new Google Gen AI SDK (v1.0+) uses this client structure
-        client = genai.Client(api_key=api_key)
+        # Configure the standard library
+        genai.configure(api_key=api_key)
         
-        response = client.models.generate_content(
-            model=model,
-            contents=prompt
-        )
+        # Initialize the model
+        # Note: We use the explicit latest stable version to avoid 404s
+        model = genai.GenerativeModel("gemini-2.0-flash")
+        
+        response = model.generate_content(prompt)
         return response.text
+
     except Exception as e:
         return f"Gemini API Error: {str(e)}"
 

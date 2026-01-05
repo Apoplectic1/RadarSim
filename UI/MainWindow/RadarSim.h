@@ -16,6 +16,7 @@
 #include "RadarControlsWidget.h"
 #include "TargetControlsWidget.h"
 #include "RCSPlaneControlsWidget.h"
+#include "../RCS/RayTraceTypes.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class RadarSim; }
@@ -81,7 +82,8 @@ private slots:
     void onBeamTypeChanged(BeamType type);
     void onTargetVisibilityChanged(bool visible);
     void onTargetTypeChanged(WireframeType type);
-    void onDebugRayToggled(bool enabled);
+    void onShowBouncesToggled(bool enabled);
+    void onRayTraceModeChanged(RCS::RayTraceMode mode);
     void onRayCountChanged(int count);
 
 protected:

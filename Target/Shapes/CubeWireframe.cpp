@@ -71,4 +71,8 @@ void CubeWireframe::generateGeometry() {
     addVertex(QVector3D( h, -h, -h), normalBottom); // 2 (swapped y,z)
     addVertex(QVector3D(-h, -h, -h), normalBottom); // 3 (swapped y,z)
     addQuad(baseIdx, baseIdx+1, baseIdx+2, baseIdx+3);
+
+    // Detect crease edges for rendering (skips internal quad diagonals)
+    detectEdges();
+    generateEdgeGeometry();
 }

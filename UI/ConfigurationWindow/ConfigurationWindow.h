@@ -10,8 +10,10 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QSlider>
+#include <QRadioButton>
 #include "BeamController.h"
 #include "WireframeShapes.h"
+#include "../RCS/RayTraceTypes.h"
 
 class ConfigurationWindow : public QWidget {
     Q_OBJECT
@@ -28,9 +30,10 @@ public:
     // State synchronization - call after scene is initialized
     void syncStateFromScene(bool axesVisible, bool sphereVisible, bool gridVisible,
                            bool reflectionLobesVisible, bool heatMapVisible,
-                           bool debugRayEnabled, int rayCount,
+                           bool showBounces, int rayCount,
                            bool beamVisible, bool shadowVisible, BeamType beamType,
-                           bool targetVisible, WireframeType targetType);
+                           bool targetVisible, WireframeType targetType,
+                           RCS::RayTraceMode rayTraceMode = RCS::RayTraceMode::PhysicsAccurate);
 
 signals:
     // Profile signals
@@ -56,8 +59,9 @@ signals:
     void targetVisibilityChanged(bool visible);
     void targetTypeChanged(WireframeType type);
 
-    // Debug ray signals
-    void debugRayToggled(bool enabled);
+    // Bounce visualization signals
+    void showBouncesToggled(bool enabled);
+    void rayTraceModeChanged(RCS::RayTraceMode mode);
     void rayCountChanged(int count);
 
 private:
@@ -88,7 +92,10 @@ private:
     // Visualization controls
     QCheckBox* showReflectionLobesCheckBox_ = nullptr;
     QCheckBox* showHeatMapCheckBox_ = nullptr;
-    QCheckBox* debugRayCheckBox_ = nullptr;
+    QCheckBox* showBouncesCheckBox_ = nullptr;
+    QRadioButton* pathModeRadio_ = nullptr;
+    QRadioButton* physicsModeRadio_ = nullptr;
+    QWidget* rayCountWidget_ = nullptr;  // Container for ray count (to hide for SingleRay)
     QSlider* rayCountSlider_ = nullptr;
     QLabel* rayCountLabel_ = nullptr;
 

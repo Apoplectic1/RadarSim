@@ -86,4 +86,8 @@ void CylinderWireframe::generateGeometry() {
         addQuad(sideTopStart + i, sideBottomStart + i,
                 sideBottomStart + i + 1, sideTopStart + i + 1);
     }
+
+    // Detect crease edges for rendering (cap rims, not internal triangulation)
+    detectEdges();
+    generateEdgeGeometry();
 }

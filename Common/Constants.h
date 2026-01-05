@@ -161,6 +161,15 @@ constexpr int kHeatMapLatSegments = 64;         // Sphere mesh latitude segments
 constexpr int kHeatMapLonSegments = 64;         // Sphere mesh longitude segments
 
 // =============================================================================
+// Bounce Visualization
+// =============================================================================
+constexpr int kMaxBounces = 50;                   // Safety limit for ray bounces
+constexpr float kBounceIntensityDecay = 0.15f;    // Per-bounce intensity reduction
+constexpr float kBounceMinIntensity = 0.2f;       // Floor intensity (never dimmer than this)
+constexpr float kBounceLineWidth = 3.0f;          // Line width for bounce rays
+constexpr float kBounceHitMarkerSize = 2.0f;      // Size of hit point markers
+
+// =============================================================================
 // Polar RCS Plot Configuration
 // =============================================================================
 constexpr float kDefaultSliceThickness = 10.0f; // 10 degrees default slab thickness
@@ -254,6 +263,12 @@ namespace Colors {
     constexpr float kLobeHighIntensity[3] = {1.0f, 0.0f, 0.0f};   // Red (high energy)
     constexpr float kLobeMidIntensity[3] = {1.0f, 1.0f, 0.0f};    // Yellow (medium)
     constexpr float kLobeLowIntensity[3] = {0.0f, 0.0f, 1.0f};    // Blue (low energy)
+
+    // Bounce visualization colors
+    constexpr float kBounceBaseColor[3] = {0.0f, 1.0f, 0.0f};     // Green base for bounces
+    constexpr float kBounceMissColor[3] = {1.0f, 0.0f, 0.0f};     // Red for miss rays
+    constexpr float kBounceHitMarkerColor[3] = {1.0f, 1.0f, 0.0f}; // Yellow for hit markers
+    constexpr float kBounceFinalRayColor[3] = {1.0f, 0.5f, 0.0f}; // Orange for final ray to sphere
 }
 
 // =============================================================================

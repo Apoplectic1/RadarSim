@@ -1,39 +1,19 @@
-// DebugRayRenderer.cpp - Implementation of debug ray visualization
-#include "DebugRayRenderer.h"
-#include "GLUtils.h"
-#include "Constants.h"
+// BounceRenderer.cpp - Implementation of bounce path visualization
+#include "BounceRenderer.h"
+#include "../Common/GLUtils.h"
+#include "../Common/Constants.h"
+#include "../UI/MainWindow/RCSPane/Compute/RCSTypes.h"
 #include <QOpenGLContext>
 #include <QDebug>
 #include <cmath>
 
 using namespace RS::Constants;
 
-// Colors for debug visualization
-namespace {
-    const QVector3D kIncidentRayColor(0.0f, 1.0f, 0.0f);      // Green (legacy single-bounce)
-    const QVector3D kReflectionRayColor(1.0f, 0.0f, 1.0f);    // Magenta (legacy single-bounce)
-    const QVector3D kMissRayColor(1.0f, 0.0f, 0.0f);          // Red
-    const QVector3D kHitMarkerColor(1.0f, 1.0f, 0.0f);        // Yellow
-    const QVector3D kFinalRayColor(1.0f, 0.5f, 0.0f);         // Orange for final ray to sphere
-    const float kHitMarkerSize = 2.0f;
-    const float kReflectionRayLength = 50.0f;
-
-    // Color palette for multi-bounce segments (distinct, bright colors)
-    const QVector3D kBounceColors[] = {
-        QVector3D(0.0f, 1.0f, 0.0f),      // Bounce 0: Bright green (incident)
-        QVector3D(0.0f, 1.0f, 1.0f),      // Bounce 1: Cyan
-        QVector3D(1.0f, 0.0f, 1.0f),      // Bounce 2: Magenta
-        QVector3D(1.0f, 1.0f, 0.0f),      // Bounce 3: Yellow
-        QVector3D(0.5f, 0.5f, 1.0f),      // Bounce 4: Light blue
-        QVector3D(1.0f, 0.5f, 0.5f),      // Bounce 5: Light red/pink
-        QVector3D(0.5f, 1.0f, 0.5f),      // Bounce 6: Light green
-        QVector3D(1.0f, 0.75f, 0.0f),     // Bounce 7: Orange
-    };
-    const int kNumBounceColors = sizeof(kBounceColors) / sizeof(kBounceColors[0]);
-}
-
-DebugRayRenderer::DebugRayRenderer(QObject* parent)
+BounceRenderer::BounceRenderer(QObject* parent)
     : QObject(parent)
+    , baseColor_(Colors::kBounceBaseColor[0],
+                 Colors::kBounceBaseColor[1],
+                 Colors::kBounceBaseColor[2])
 {
     // Simple vertex shader for colored lines
     vertexShaderSource_ = R"(
@@ -64,22 +44,22 @@ DebugRayRenderer::DebugRayRenderer(QObject* parent)
     )";
 }
 
-DebugRayRenderer::~DebugRayRenderer() {
+BounceRenderer::~BounceRenderer() {
     // OpenGL cleanup should be done via cleanup() before context destruction
 }
 
-bool DebugRayRenderer::initialize() {
+bool BounceRenderer::initialize() {
     if (initialized_) {
         return true;
     }
 
     if (!QOpenGLContext::currentContext()) {
-        qWarning() << "DebugRayRenderer::initialize - No OpenGL context available";
+        qWarning() << "BounceRenderer::initialize - No OpenGL context available";
         return false;
     }
 
     if (!initializeOpenGLFunctions()) {
-        qCritical() << "DebugRayRenderer: Failed to initialize OpenGL functions!";
+        qCritical() << "BounceRenderer: Failed to initialize OpenGL functions!";
         return false;
     }
 
@@ -91,13 +71,13 @@ bool DebugRayRenderer::initialize() {
     vao_.bind();
     vao_.release();
 
-    GLUtils::checkGLError("DebugRayRenderer::initialize");
+    GLUtils::checkGLError("BounceRenderer::initialize");
 
     initialized_ = true;
     return true;
 }
 
-void DebugRayRenderer::cleanup() {
+void BounceRenderer::cleanup() {
     QOpenGLContext* ctx = QOpenGLContext::currentContext();
     if (!ctx) {
         shaderProgram_.reset();
@@ -115,88 +95,52 @@ void DebugRayRenderer::cleanup() {
     initialized_ = false;
 }
 
-void DebugRayRenderer::setupShaders() {
+void BounceRenderer::setupShaders() {
     if (vertexShaderSource_.empty() || fragmentShaderSource_.empty()) {
-        qCritical() << "DebugRayRenderer: Shader sources not initialized!";
+        qCritical() << "BounceRenderer: Shader sources not initialized!";
         return;
     }
 
     shaderProgram_ = std::make_unique<QOpenGLShaderProgram>();
 
     if (!shaderProgram_->addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShaderSource_.data())) {
-        qCritical() << "DebugRayRenderer: Failed to compile vertex shader:" << shaderProgram_->log();
+        qCritical() << "BounceRenderer: Failed to compile vertex shader:" << shaderProgram_->log();
         return;
     }
 
     if (!shaderProgram_->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource_.data())) {
-        qCritical() << "DebugRayRenderer: Failed to compile fragment shader:" << shaderProgram_->log();
+        qCritical() << "BounceRenderer: Failed to compile fragment shader:" << shaderProgram_->log();
         return;
     }
 
     if (!shaderProgram_->link()) {
-        qCritical() << "DebugRayRenderer: Failed to link shader program:" << shaderProgram_->log();
+        qCritical() << "BounceRenderer: Failed to link shader program:" << shaderProgram_->log();
         return;
     }
 }
 
-void DebugRayRenderer::setRayData(const QVector3D& radarPos, const RCS::HitResult& hit,
-                                   float maxDistance) {
-    radarPos_ = radarPos;
-    maxDistance_ = maxDistance;
-
-    // Check if we have a valid hit (hitPoint.w >= 0 means hit)
-    hasHit_ = (hit.hitPoint.w() >= 0.0f);
-
-    if (hasHit_) {
-        hitPoint_ = hit.hitPoint.toVector3D();
-        hitDistance_ = hit.hitPoint.w();
-        reflectionDir_ = hit.reflection.toVector3D().normalized();
-
-        // Calculate ray direction from radar to hit
-        rayDirection_ = (hitPoint_ - radarPos_).normalized();
-
-        // Calculate reflection angle from surface normal
-        QVector3D normal = hit.normal.toVector3D().normalized();
-        float dotProduct = QVector3D::dotProduct(rayDirection_, normal);
-        reflectionAngle_ = std::acos(std::abs(dotProduct)) * kRadToDegF;
-    } else {
-        // No hit - ray goes to max distance
-        // Use beam direction (assume it was set to target center direction)
-        rayDirection_ = QVector3D(0, 0, -1);  // Default, will be overridden
-        hitDistance_ = maxDistance_;
-        reflectionAngle_ = 0.0f;
-    }
-
-    generateGeometry();
-    geometryDirty_ = true;
-}
-
-void DebugRayRenderer::clearRayData() {
-    hasHit_ = false;
-    vertices_.clear();
-    lineSegments_.clear();
-    vertexCount_ = 0;
-    bounceHitPoints_.clear();
-    totalPathLength_ = 0.0f;
-    geometryDirty_ = true;
-}
-
-QVector3D DebugRayRenderer::getBounceHitPoint(int index) const {
+QVector3D BounceRenderer::getBounceHitPoint(int index) const {
     if (index >= 0 && index < static_cast<int>(bounceHitPoints_.size())) {
         return bounceHitPoints_[index];
     }
     return QVector3D();
 }
 
-QVector3D DebugRayRenderer::getBounceColor(int bounceIndex) {
-    return kBounceColors[bounceIndex % kNumBounceColors];
+QVector3D BounceRenderer::getBounceColor(int bounceIndex, float intensity) const {
+    // In Path mode, use uniform brightness (full intensity)
+    float effectiveIntensity = (rayTraceMode_ == RCS::RayTraceMode::Path) ? 1.0f : intensity;
+
+    // Clamp intensity to minimum
+    effectiveIntensity = std::max(effectiveIntensity, kBounceMinIntensity);
+
+    // Return base color scaled by intensity
+    return baseColor_ * effectiveIntensity;
 }
 
-bool DebugRayRenderer::raySphereIntersect(const QVector3D& origin, const QVector3D& dir,
-                                           float radius, float& t) const {
+bool BounceRenderer::raySphereIntersect(const QVector3D& origin, const QVector3D& dir,
+                                         float radius, float& t) const {
     // Sphere centered at origin
     // Solve: |origin + t*dir|^2 = radius^2
-    // a*t^2 + b*t + c = 0
     float a = QVector3D::dotProduct(dir, dir);
     float b = 2.0f * QVector3D::dotProduct(origin, dir);
     float c = QVector3D::dotProduct(origin, origin) - radius * radius;
@@ -222,108 +166,131 @@ bool DebugRayRenderer::raySphereIntersect(const QVector3D& origin, const QVector
     return false;
 }
 
-void DebugRayRenderer::setMultiBounceData(const QVector3D& radarPos,
-                                           const std::vector<RCS::HitResult>& bounces,
-                                           float sphereRadius) {
+void BounceRenderer::setBounceData(const QVector3D& radarPos,
+                                    const std::vector<RCS::HitResult>& bounces,
+                                    const std::vector<RCS::BounceState>& states,
+                                    float sphereRadius) {
     radarPos_ = radarPos;
     sphereRadius_ = sphereRadius;
     bounceHitPoints_.clear();
+    bounceIntensities_.clear();
     totalPathLength_ = 0.0f;
     vertices_.clear();
     lineSegments_.clear();
 
     if (bounces.empty()) {
         // No hits - draw miss ray toward center
-        hasHit_ = false;
+        QVector3D missColor(Colors::kBounceMissColor[0],
+                           Colors::kBounceMissColor[1],
+                           Colors::kBounceMissColor[2]);
         QVector3D missDir = -radarPos.normalized();  // Toward origin
         QVector3D missEnd = radarPos + missDir * sphereRadius * 2.0f;
-        addLineSegment(radarPos, missEnd, kMissRayColor);
+        addLineSegment(radarPos, missEnd, missColor);
         vertexCount_ = static_cast<int>(vertices_.size() / 6);
         geometryDirty_ = true;
         return;
     }
 
-    hasHit_ = true;
-
-    // Draw each bounce segment with a different color
+    // Draw each bounce segment with intensity-based coloring
     QVector3D segmentStart = radarPos;
 
     for (size_t i = 0; i < bounces.size(); ++i) {
         const RCS::HitResult& hit = bounces[i];
         QVector3D hitPos = hit.hitPoint.toVector3D();
-        QVector3D color = getBounceColor(static_cast<int>(i));
+
+        // Get intensity from state (default to 1.0 if states don't match)
+        float intensity = 1.0f;
+        if (i < states.size()) {
+            intensity = states[i].intensity;
+        } else if (!states.empty()) {
+            // Apply decay manually if states not provided
+            intensity = 1.0f - (kBounceIntensityDecay * static_cast<float>(i));
+            intensity = std::max(intensity, kBounceMinIntensity);
+        }
+
+        QVector3D color = getBounceColor(static_cast<int>(i), intensity);
 
         // Draw segment from previous point to this hit
         addLineSegment(segmentStart, hitPos, color);
 
         // Add hit marker
-        addHitMarker(hitPos, kHitMarkerSize, kHitMarkerColor);
+        QVector3D markerColor(Colors::kBounceHitMarkerColor[0],
+                             Colors::kBounceHitMarkerColor[1],
+                             Colors::kBounceHitMarkerColor[2]);
+        addHitMarker(hitPos, kBounceHitMarkerSize, markerColor);
 
         // Track path length
         totalPathLength_ += (hitPos - segmentStart).length();
 
-        // Store hit point for overlay text
+        // Store hit point and intensity for accessors
         bounceHitPoints_.push_back(hitPos);
+        bounceIntensities_.push_back(intensity);
 
         // Prepare for next segment
         segmentStart = hitPos;
     }
 
-    // Store first hit info for backward compatibility
-    hitPoint_ = bounces[0].hitPoint.toVector3D();
-    hitDistance_ = bounces[0].hitPoint.w();
-    reflectionDir_ = bounces.back().reflection.toVector3D().normalized();
-
-    // Calculate reflection angle from first hit
-    QVector3D incidentDir = (hitPoint_ - radarPos_).normalized();
-    QVector3D normal = bounces[0].normal.toVector3D().normalized();
-    float dotProduct = QVector3D::dotProduct(incidentDir, normal);
-    reflectionAngle_ = std::acos(std::abs(dotProduct)) * kRadToDegF;
-
     // Extend final ray to sphere surface
     QVector3D lastHitPos = bounces.back().hitPoint.toVector3D();
     QVector3D lastReflection = bounces.back().reflection.toVector3D().normalized();
 
+    QVector3D finalColor(Colors::kBounceFinalRayColor[0],
+                        Colors::kBounceFinalRayColor[1],
+                        Colors::kBounceFinalRayColor[2]);
+
     float tSphere;
     if (raySphereIntersect(lastHitPos, lastReflection, sphereRadius, tSphere)) {
         QVector3D sphereHit = lastHitPos + lastReflection * tSphere;
-        addLineSegment(lastHitPos, sphereHit, kFinalRayColor);
+        addLineSegment(lastHitPos, sphereHit, finalColor);
         totalPathLength_ += tSphere;
     } else {
-        // If no sphere intersection, just extend a fixed length
-        QVector3D extendedEnd = lastHitPos + lastReflection * kReflectionRayLength;
-        addLineSegment(lastHitPos, extendedEnd, kFinalRayColor);
+        // If no sphere intersection, extend a fixed length
+        QVector3D extendedEnd = lastHitPos + lastReflection * 50.0f;
+        addLineSegment(lastHitPos, extendedEnd, finalColor);
     }
 
     vertexCount_ = static_cast<int>(vertices_.size() / 6);
     geometryDirty_ = true;
 }
 
-void DebugRayRenderer::generateGeometry() {
-    vertices_.clear();
+void BounceRenderer::setBounceData(const QVector3D& radarPos,
+                                    const std::vector<RCS::HitResult>& bounces,
+                                    float sphereRadius) {
+    // Create default states with decay
+    std::vector<RCS::BounceState> states;
+    states.reserve(bounces.size());
 
-    if (hasHit_) {
-        // Incident ray: radar -> hit point (green)
-        addLineSegment(radarPos_, hitPoint_, kIncidentRayColor);
+    for (size_t i = 0; i < bounces.size(); ++i) {
+        RCS::BounceState state;
+        state.bounceCount = static_cast<int>(i);
 
-        // Hit marker (yellow cross)
-        addHitMarker(hitPoint_, kHitMarkerSize, kHitMarkerColor);
+        if (rayTraceMode_ == RCS::RayTraceMode::Path) {
+            state.intensity = 1.0f;  // Uniform brightness in Path mode
+        } else {
+            // Apply decay per bounce in Physics mode
+            state.intensity = 1.0f - (kBounceIntensityDecay * static_cast<float>(i));
+            state.intensity = std::max(state.intensity, kBounceMinIntensity);
+        }
 
-        // Reflection ray: hit point -> extended reflection direction (magenta)
-        QVector3D reflectionEnd = hitPoint_ + reflectionDir_ * kReflectionRayLength;
-        addLineSegment(hitPoint_, reflectionEnd, kReflectionRayColor);
-    } else {
-        // Miss: draw ray to max distance (red)
-        QVector3D missEnd = radarPos_ + rayDirection_ * maxDistance_;
-        addLineSegment(radarPos_, missEnd, kMissRayColor);
+        states.push_back(state);
     }
 
-    vertexCount_ = static_cast<int>(vertices_.size() / 6);  // 6 floats per vertex (pos + color)
+    setBounceData(radarPos, bounces, states, sphereRadius);
 }
 
-void DebugRayRenderer::addLineSegment(const QVector3D& start, const QVector3D& end,
-                                       const QVector3D& color) {
-    // Start vertex
+void BounceRenderer::clearBounceData() {
+    vertices_.clear();
+    lineSegments_.clear();
+    vertexCount_ = 0;
+    bounceHitPoints_.clear();
+    bounceIntensities_.clear();
+    totalPathLength_ = 0.0f;
+    geometryDirty_ = true;
+}
+
+void BounceRenderer::addLineSegment(const QVector3D& start, const QVector3D& end,
+                                     const QVector3D& color) {
+    // Add line vertices directly (position + color)
     vertices_.push_back(start.x());
     vertices_.push_back(start.y());
     vertices_.push_back(start.z());
@@ -331,7 +298,6 @@ void DebugRayRenderer::addLineSegment(const QVector3D& start, const QVector3D& e
     vertices_.push_back(color.y());
     vertices_.push_back(color.z());
 
-    // End vertex
     vertices_.push_back(end.x());
     vertices_.push_back(end.y());
     vertices_.push_back(end.z());
@@ -340,8 +306,8 @@ void DebugRayRenderer::addLineSegment(const QVector3D& start, const QVector3D& e
     vertices_.push_back(color.z());
 }
 
-void DebugRayRenderer::addHitMarker(const QVector3D& position, float size,
-                                     const QVector3D& color) {
+void BounceRenderer::addHitMarker(const QVector3D& position, float size,
+                                   const QVector3D& color) {
     // Draw a 3D cross at the hit point
     float halfSize = size * 0.5f;
 
@@ -358,7 +324,12 @@ void DebugRayRenderer::addHitMarker(const QVector3D& position, float size,
                    position + QVector3D(0, 0, halfSize), color);
 }
 
-void DebugRayRenderer::uploadGeometry() {
+void BounceRenderer::generateGeometry() {
+    // Geometry is generated in setBounceData
+    // This method is kept for consistency with the interface
+}
+
+void BounceRenderer::uploadGeometry() {
     if (!QOpenGLContext::currentContext() || !vao_.isCreated()) {
         geometryDirty_ = true;
         return;
@@ -393,8 +364,8 @@ void DebugRayRenderer::uploadGeometry() {
     geometryDirty_ = false;
 }
 
-void DebugRayRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view,
-                               const QVector3D& cameraPos) {
+void BounceRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& view,
+                            const QVector3D& cameraPos) {
     (void)cameraPos;  // Not used in GL_LINES mode
 
     if (!visible_ || vertices_.empty() || !shaderProgram_) {
@@ -417,8 +388,8 @@ void DebugRayRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& vi
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
 
-    // Set thick line width for visibility
-    glLineWidth(3.0f);
+    // Set line width for visibility
+    glLineWidth(kBounceLineWidth);
 
     shaderProgram_->bind();
     shaderProgram_->setUniformValue("projection", projection);
@@ -427,7 +398,7 @@ void DebugRayRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& vi
     vao_.bind();
     glBindBuffer(GL_ARRAY_BUFFER, vboId_);
 
-    // Draw all lines
+    // Draw lines
     glDrawArrays(GL_LINES, 0, vertexCount_);
 
     vao_.release();
@@ -435,5 +406,4 @@ void DebugRayRenderer::render(const QMatrix4x4& projection, const QMatrix4x4& vi
 
     // Restore state
     glLineWidth(1.0f);
-    glEnable(GL_DEPTH_TEST);
 }

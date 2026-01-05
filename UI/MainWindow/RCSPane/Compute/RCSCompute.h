@@ -43,6 +43,10 @@ public:
     // Debug ray - traces single ray toward target center (CPU-side)
     HitResult traceDebugRay(const QVector3D& targetCenter);
 
+    // Multi-bounce debug ray - traces ray with multiple reflections
+    // Returns vector of hit results for each bounce (empty if no hits)
+    std::vector<HitResult> traceDebugRayMultiBounce(const QVector3D& targetCenter, int maxBounces = 5);
+
     // Results
     int getHitCount() const { return hitCount_; }
     float getOcclusionRatio() const;

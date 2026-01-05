@@ -97,8 +97,7 @@ The project uses a component-based architecture. See `Docs/architecture.md` for 
 - **BeamController**: Radar beam rendering (Conical, Sinc, Phased)
 - **CameraController**: View transformations, mouse interaction, inertia
 - **WireframeTargetController**: Solid target shapes for RCS
-- **RCSCompute**: GPU ray tracing for radar cross-section
-- **ReflectionRenderer/HeatMapRenderer**: RCS visualization
+- **RCSCompute**: GPU ray tracing for radar cross-section3
 
 **Event-Driven Rendering**: No continuous render loop. Updates triggered by mouse/slider events. RCS computation runs synchronously in `paintGL()`.
 

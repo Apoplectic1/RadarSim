@@ -5,6 +5,7 @@
 #include <QVector3D>
 #include <QOpenGLFunctions>
 #include <memory>
+#include <vector>
 #include "RadarBeam.h"
 
 class BeamController : public QObject {
@@ -47,6 +48,11 @@ public:
 
     void setShowShadow(bool show);
     bool isShowShadow() const;
+
+    // Bounce visualization (delegates to current beam)
+    void setShowBounceVisualization(bool show);
+    bool showBounceVisualization() const;
+    std::vector<QVector3D> getDiagnosticRayDirections() const;
 
     // Beam position
     void updateBeamPosition(const QVector3D& position);

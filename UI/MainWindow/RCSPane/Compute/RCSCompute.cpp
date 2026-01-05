@@ -872,4 +872,128 @@ HitResult RCSCompute::traceDebugRay(const QVector3D& targetCenter) {
     return result;
 }
 
+std::vector<HitResult> RCSCompute::traceDebugRayMultiBounce(const QVector3D& targetCenter, int maxBounces) {
+    std::vector<HitResult> bounces;
+
+    const auto& nodes = bvhBuilder_.getNodes();
+    const auto& triangles = bvhBuilder_.getTriangles();
+
+    if (nodes.empty() || triangles.empty()) {
+        return bounces;  // No geometry to trace
+    }
+
+    // Initial ray from radar toward target center
+    QVector3D rayOrigin = radarPosition_;
+    QVector3D rayDir = (targetCenter - radarPosition_).normalized();
+    float maxDist = sphereRadius_ * kMaxRayDistanceMultiplier;
+
+    for (int bounce = 0; bounce < maxBounces; ++bounce) {
+        // Compute inverse direction for AABB tests
+        QVector3D invDir(
+            std::abs(rayDir.x()) > 1e-6f ? 1.0f / rayDir.x() : 1e30f,
+            std::abs(rayDir.y()) > 1e-6f ? 1.0f / rayDir.y() : 1e30f,
+            std::abs(rayDir.z()) > 1e-6f ? 1.0f / rayDir.z() : 1e30f
+        );
+
+        // BVH traversal stack
+        int stack[64];
+        int stackPtr = 0;
+        stack[stackPtr++] = 0;  // Start with root node
+
+        float closestT = maxDist;
+        int hitTriIdx = -1;
+
+        while (stackPtr > 0) {
+            int nodeIdx = stack[--stackPtr];
+            const BVHNode& node = nodes[nodeIdx];
+
+            // Extract bounds
+            QVector3D boundsMin(node.boundsMin.x(), node.boundsMin.y(), node.boundsMin.z());
+            QVector3D boundsMax(node.boundsMax.x(), node.boundsMax.y(), node.boundsMax.z());
+
+            // Test ray-AABB intersection
+            if (!rayAABBIntersect(rayOrigin, invDir, boundsMin, boundsMax, 0.001f, closestT)) {
+                continue;
+            }
+
+            int leftChild = static_cast<int>(node.boundsMin.w());
+            int rightOrCount = static_cast<int>(node.boundsMax.w());
+
+            if (leftChild < 0) {
+                // Leaf node
+                int firstTri = -leftChild - 1;
+                int triCount = rightOrCount;
+
+                for (int i = 0; i < triCount; i++) {
+                    int triIdx = firstTri + i;
+                    const Triangle& tri = triangles[triIdx];
+
+                    QVector3D v0(tri.v0.x(), tri.v0.y(), tri.v0.z());
+                    QVector3D v1(tri.v1.x(), tri.v1.y(), tri.v1.z());
+                    QVector3D v2(tri.v2.x(), tri.v2.y(), tri.v2.z());
+
+                    float t, u, v;
+                    if (rayTriangleIntersect(rayOrigin, rayDir, v0, v1, v2, t, u, v)) {
+                        if (t < closestT && t > 0.01f) {  // Slightly larger epsilon for bounces
+                            closestT = t;
+                            hitTriIdx = triIdx;
+                        }
+                    }
+                }
+            } else {
+                // Internal node: push children
+                stack[stackPtr++] = rightOrCount;
+                stack[stackPtr++] = leftChild;
+            }
+        }
+
+        // No hit - stop bouncing
+        if (hitTriIdx < 0) {
+            break;
+        }
+
+        // Compute hit data
+        const Triangle& tri = triangles[hitTriIdx];
+        QVector3D v0(tri.v0.x(), tri.v0.y(), tri.v0.z());
+        QVector3D v1(tri.v1.x(), tri.v1.y(), tri.v1.z());
+        QVector3D v2(tri.v2.x(), tri.v2.y(), tri.v2.z());
+
+        QVector3D hitPos = rayOrigin + rayDir * closestT;
+
+        // Compute face normal
+        QVector3D edge1 = v1 - v0;
+        QVector3D edge2 = v2 - v0;
+        QVector3D normal = QVector3D::crossProduct(edge1, edge2).normalized();
+
+        // Ensure normal faces toward ray origin
+        if (QVector3D::dotProduct(normal, rayDir) > 0) {
+            normal = -normal;
+        }
+
+        // Reflection direction: R = I - 2(N·I)N
+        float NdotI = QVector3D::dotProduct(normal, rayDir);
+        QVector3D reflection = rayDir - 2.0f * NdotI * normal;
+        reflection.normalize();
+
+        // Create hit result
+        // Store ray origin in normal.w as a flag (we encode bounceIndex)
+        HitResult result;
+        result.hitPoint = QVector4D(hitPos.x(), hitPos.y(), hitPos.z(), closestT);
+        result.normal = QVector4D(normal.x(), normal.y(), normal.z(), static_cast<float>(bounce));
+        result.reflection = QVector4D(reflection.x(), reflection.y(), reflection.z(), 1.0f);
+        result.triangleId = static_cast<uint32_t>(hitTriIdx);
+        result.rayId = static_cast<uint32_t>(bounce);  // Use rayId to store bounce index
+        result.targetId = 0;
+        result.rcsContribution = 1.0f;
+
+        bounces.push_back(result);
+
+        // Set up next bounce
+        rayOrigin = hitPos;
+        rayDir = reflection;
+    }
+
+    return bounces;
+}
+
 } // namespace RCS
