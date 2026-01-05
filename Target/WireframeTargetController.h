@@ -48,6 +48,9 @@ public:
     void setVisible(bool visible);
     bool isVisible() const;
 
+    // Radar position for angle-based edge shading
+    void setRadarPosition(const QVector3D& pos);
+
     // Access to underlying target
     WireframeTarget* getTarget() const { return target_.get(); }
 

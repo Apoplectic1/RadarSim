@@ -148,6 +148,12 @@ bool WireframeTargetController::isVisible() const {
     return showTarget_;
 }
 
+void WireframeTargetController::setRadarPosition(const QVector3D& pos) {
+    if (target_) {
+        target_->setRadarPosition(pos);
+    }
+}
+
 void WireframeTargetController::createTarget() {
     // Create new target using factory (unique_ptr automatically deletes old target)
     target_ = WireframeTarget::createTarget(currentType_);

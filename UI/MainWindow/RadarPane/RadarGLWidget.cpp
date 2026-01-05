@@ -87,6 +87,11 @@ void RadarGLWidget::cleanupGL() {
 		debugRayRenderer_->cleanup();
 	}
 
+	// Clean up bounce renderer
+	if (bounceRenderer_) {
+		bounceRenderer_->cleanup();
+	}
+
 	// Clean up slicing plane renderer
 	if (slicingPlaneRenderer_) {
 		slicingPlaneRenderer_->cleanup();
@@ -226,6 +231,13 @@ void RadarGLWidget::initializeGL() {
 			debugRayRenderer_.reset();
 		}
 
+		// Initialize bounce renderer (for beam bounce visualization)
+		bounceRenderer_ = std::make_unique<BounceRenderer>(this);
+		if (!bounceRenderer_->initialize()) {
+			qWarning() << "BounceRenderer initialization failed";
+			bounceRenderer_.reset();
+		}
+
 		// Initialize RCS samplers for polar plot
 		azimuthSampler_ = std::make_unique<AzimuthCutSampler>();
 		elevationSampler_ = std::make_unique<ElevationCutSampler>();
@@ -360,10 +372,13 @@ void RadarGLWidget::paintGL() {
 		}
 
 		if (wireframeController_) {
-			wireframeController_->render(projectionMatrix, viewMatrix, modelMatrix);
-
-			// Get radar position for RCS ray tracing
+			// Get radar position for angle-based shading and RCS ray tracing
 			QVector3D radarPos = sphericalToCartesian(radius_, theta_, phi_);
+
+			// Pass radar position for angle-based edge shading
+			wireframeController_->setRadarPosition(radarPos);
+
+			wireframeController_->render(projectionMatrix, viewMatrix, modelMatrix);
 
 			// Run RCS ray tracing if available
 			if (rcsCompute_ && wireframeController_->getTarget()) {
@@ -379,8 +394,14 @@ void RadarGLWidget::paintGL() {
 				// Set beam width for ray generation to cover full visual extent (4× for SincBeam side lobes)
 				float visualExtent = beamController_ ? beamController_->getVisualExtentDegrees() : 15.0f;
 				rcsCompute_->setBeamWidth(visualExtent);
-				// Set user-configurable ray count
-				rcsCompute_->setNumRays(rayCount_);
+				// SingleRay mode uses exactly 1 ray for diagnostic tracing
+				bool isSingleRay = beamController_ &&
+				                   beamController_->getBeamType() == BeamType::SingleRay;
+				if (isSingleRay) {
+					rcsCompute_->setNumRays(1);
+				} else {
+					rcsCompute_->setNumRays(rayCount_);
+				}
 				rcsCompute_->compute();
 
 				// Read hit results for visualization
@@ -389,8 +410,8 @@ void RadarGLWidget::paintGL() {
 				if (needHitResults) {
 					rcsCompute_->readHitBuffer();
 
-					// Update reflection lobes
-					if (reflectionRenderer_ && reflectionRenderer_->isVisible()) {
+					// Update reflection lobes (skip for SingleRay - use bounce viz instead)
+					if (reflectionRenderer_ && reflectionRenderer_->isVisible() && !isSingleRay) {
 						reflectionRenderer_->updateLobes(rcsCompute_->getHitResults());
 					}
 
@@ -435,7 +456,10 @@ void RadarGLWidget::paintGL() {
 		}
 
 		// Render reflection lobes (transparent, so render last)
-		if (reflectionRenderer_ && reflectionRenderer_->isVisible()) {
+		// Skip for SingleRay - use bounce visualization instead
+		bool skipReflectionLobes = beamController_ &&
+		                           beamController_->getBeamType() == BeamType::SingleRay;
+		if (reflectionRenderer_ && reflectionRenderer_->isVisible() && !skipReflectionLobes) {
 			reflectionRenderer_->render(projectionMatrix, viewMatrix, modelMatrix);
 		}
 
@@ -443,17 +467,34 @@ void RadarGLWidget::paintGL() {
 		if (debugRayEnabled_ && debugRayRenderer_ && rcsCompute_ && wireframeController_) {
 			// Get target center position for debug ray aiming
 			QVector3D targetCenter = wireframeController_->getPosition();
-
-			// Trace single debug ray from radar toward target center
-			RCS::HitResult debugHit = rcsCompute_->traceDebugRay(targetCenter);
-
-			// Update debug ray renderer with hit result
 			QVector3D radarPos = sphericalToCartesian(radius_, theta_, phi_);
-			debugRayRenderer_->setRayData(radarPos, debugHit, radius_ * 3.0f);
+
+			// Trace multi-bounce debug ray from radar toward target center
+			std::vector<RCS::HitResult> bounces = rcsCompute_->traceDebugRayMultiBounce(targetCenter, 5);
+
+			// Update debug ray renderer with multi-bounce data
+			debugRayRenderer_->setMultiBounceData(radarPos, bounces, radius_);
 			debugRayRenderer_->setVisible(true);
-			debugRayRenderer_->render(projectionMatrix, viewMatrix);
+			QVector3D cameraPos = cameraController_->getCameraPosition();
+			debugRayRenderer_->render(projectionMatrix, viewMatrix, cameraPos);
 		} else if (debugRayRenderer_) {
 			debugRayRenderer_->setVisible(false);
+		}
+
+		// Render bounce visualization if enabled on current beam
+		if (bounceRenderer_ && beamController_ && beamController_->showBounceVisualization() && rcsCompute_ && wireframeController_) {
+			QVector3D radarPos = sphericalToCartesian(radius_, theta_, phi_);
+			QVector3D targetCenter = wireframeController_->getPosition();
+
+			// Trace bounces using the diagnostic ray
+			std::vector<RCS::HitResult> bounces = rcsCompute_->traceDebugRayMultiBounce(targetCenter, kMaxBounces);
+
+			bounceRenderer_->setBounceData(radarPos, bounces, radius_);
+			bounceRenderer_->setVisible(true);
+			QVector3D cameraPos = cameraController_->getCameraPosition();
+			bounceRenderer_->render(projectionMatrix, viewMatrix, cameraPos);
+		} else if (bounceRenderer_) {
+			bounceRenderer_->setVisible(false);
 		}
 	}
 	catch (const std::exception& e) {
@@ -509,10 +550,6 @@ void RadarGLWidget::paintGL() {
 
 	// Render debug ray hit data overlay text
 	if (debugRayEnabled_ && debugRayRenderer_ && debugRayRenderer_->hasHit()) {
-		// Project hit point to screen coordinates
-		QPointF hitScreen = projectToScreen(debugRayRenderer_->getHitPoint(),
-		                                     projectionMatrix, viewMatrix, modelMatrix);
-
 		QPainter painter(this);
 		painter.setPen(Qt::yellow);
 		QFont font = painter.font();
@@ -520,14 +557,30 @@ void RadarGLWidget::paintGL() {
 		font.setBold(true);
 		painter.setFont(font);
 
-		// Format: "d=45.2  θr=23.5°"
-		QString info = QString("d=%1  %2%3")
-			.arg(debugRayRenderer_->getHitDistance(), 0, 'f', 1)
-			.arg(QChar(0x03B8))  // Greek theta (θ)
-			.arg(QString("r=%1%2").arg(debugRayRenderer_->getReflectionAngle(), 0, 'f', 1).arg(QChar(0x00B0)));  // Degree symbol
+		int bounceCount = debugRayRenderer_->getBounceCount();
 
-		// Offset text slightly from hit point
+		// Draw info at first hit point
+		QPointF hitScreen = projectToScreen(debugRayRenderer_->getHitPoint(),
+		                                     projectionMatrix, viewMatrix, modelMatrix);
+
+		// Format: "Bounces: N  Path: XXX.X"
+		QString info = QString("Bounces: %1  Path: %2")
+			.arg(bounceCount)
+			.arg(debugRayRenderer_->getTotalPathLength(), 0, 'f', 1);
+
 		painter.drawText(hitScreen + QPointF(10, -10), info);
+
+		// Draw bounce number at each hit point
+		for (int i = 0; i < bounceCount; ++i) {
+			QVector3D bouncePos = debugRayRenderer_->getBounceHitPoint(i);
+			QPointF bounceScreen = projectToScreen(bouncePos, projectionMatrix, viewMatrix, modelMatrix);
+
+			// Use the same color as the ray segment
+			QVector3D color = DebugRayRenderer::getBounceColor(i);
+			painter.setPen(QColor::fromRgbF(color.x(), color.y(), color.z()));
+			painter.drawText(bounceScreen + QPointF(5, 15), QString::number(i + 1));
+		}
+
 		painter.end();
 	}
 }
@@ -798,6 +851,16 @@ void RadarGLWidget::setRayCount(int count) {
 	count = qBound(100, count, 10000);
 	if (rayCount_ != count) {
 		rayCount_ = count;
+		update();
+	}
+}
+
+void RadarGLWidget::setRayTraceMode(RCS::RayTraceMode mode) {
+	if (rayTraceMode_ != mode) {
+		rayTraceMode_ = mode;
+		if (bounceRenderer_) {
+			bounceRenderer_->setRayTraceMode(mode);
+		}
 		update();
 	}
 }
